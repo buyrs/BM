@@ -15,6 +15,9 @@ class CreateAgentsTable extends Migration
             $table->string('phone_number')->nullable();
             $table->string('address')->nullable();
             $table->enum('status', ['active', 'inactive'])->default('active');
+            $table->integer('refusals_count')->default(0);
+            $table->date('refusals_month')->nullable();
+            $table->boolean('is_downgraded')->default(false);
             $table->timestamps();
         });
     }

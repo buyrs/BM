@@ -15,6 +15,9 @@ class Agent extends Model
         'phone_number',
         'address',
         'status',
+        'refusals_count',
+        'refusals_month',
+        'is_downgraded',
     ];
 
     public function user()

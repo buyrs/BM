@@ -5,9 +5,12 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 
 class Checklist extends Model
 {
+    use HasFactory;
+
     protected $fillable = [
         'mission_id',
         'general_info',

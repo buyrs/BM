@@ -56,4 +56,4 @@ class Mission extends Model
     {
         return $query->where('status', 'cancelled');
     }
-}
+}      

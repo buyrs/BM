@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Auth\LoginRequest;
+use App\Providers\RouteServiceProvider;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -25,10 +26,20 @@ class AuthenticatedSessionController extends Controller
     public function store(LoginRequest $request): RedirectResponse
     {
         $request->authenticate();
-
         $request->session()->regenerate();
 
-        return redirect()->intended(route('dashboard', absolute: false));
+        $user = Auth::user();
+        if ($user->hasRole('super-admin')) {
+            return redirect()->route('super-admin.dashboard');
+        }
+        if ($user->hasRole('admin')) {
+            return redirect()->route('admin.dashboard');
+        }
+        if ($user->hasRole('checker')) {
+            return redirect()->route('checker.dashboard');
+        }
+
+        return redirect()->intended(RouteServiceProvider::HOME);
     }
 
     /**

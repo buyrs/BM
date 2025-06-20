@@ -4,7 +4,6 @@ namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
 use App\Models\User;
-use Exception;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Laravel\Socialite\Facades\Socialite;
@@ -24,24 +23,21 @@ class GoogleController extends Controller
 
             if ($finduser) {
                 Auth::login($finduser);
-                return redirect('/dashboard');
+                return redirect()->intended('dashboard');
             } else {
                 $newUser = User::create([
                     'name' => $user->name,
                     'email' => $user->email,
                     'google_id' => $user->id,
-                    'avatar' => $user->avatar,
-                    'password' => encrypt('my-google')
+                    'password' => bcrypt(uniqid()),
+                    'role' => 'checker', // Default role
                 ]);
 
-                // By default, assign the checker role
-                $newUser->assignRole('checker');
-
                 Auth::login($newUser);
-                return redirect('/dashboard');
+                return redirect()->intended('dashboard');
             }
-        } catch (Exception $e) {
-            return redirect('/login')->with('error', 'Google authentication failed');
+        } catch (\Exception $e) {
+            return redirect('auth/google');
         }
     }
 }

@@ -19,7 +19,7 @@ export default defineConfig({
         }),
         VitePWA({
             registerType: 'autoUpdate',
-            includeAssets: ['favicon.ico', 'robots.txt', 'icons/*.png'],
+            includeAssets: ['favicon.ico', 'robots.txt', 'icons/*.png', 'assets/*.css', 'assets/*.js'],
             manifest: {
                 name: 'BM App',
                 short_name: 'BM',
@@ -27,12 +27,12 @@ export default defineConfig({
                 theme_color: '#4f46e5',
                 icons: [
                     {
-                        src: '/icons/icon-192x192.png',
+                        src: '/images/icons/icon-192x192.png',
                         sizes: '192x192',
                         type: 'image/png',
                     },
                     {
-                        src: '/icons/icon-512x512.png',
+                        src: '/images/icons/icon-512x512.png',
                         sizes: '512x512',
                         type: 'image/png',
                     },
@@ -40,7 +40,31 @@ export default defineConfig({
             },
             workbox: {
                 navigateFallback: '/',
-                globPatterns: ['**/*.{js,css,html,ico,png,svg}'],
+                globPatterns: ['**/*.{js,css,html,ico,png,svg,webmanifest}'],
+                runtimeCaching: [
+                    {
+                        urlPattern: ({ url }) => url.origin === self.location.origin && url.pathname.startsWith('/assets/'),
+                        handler: 'StaleWhileRevalidate',
+                        options: {
+                            cacheName: 'assets-cache',
+                            expiration: {
+                                maxEntries: 50,
+                                maxAgeSeconds: 60 * 60 * 24 * 7,
+                            },
+                        },
+                    },
+                    {
+                        urlPattern: ({ url }) => url.origin === self.location.origin && url.pathname.startsWith('/images/icons/'),
+                        handler: 'StaleWhileRevalidate',
+                        options: {
+                            cacheName: 'icons-cache',
+                            expiration: {
+                                maxEntries: 20,
+                                maxAgeSeconds: 60 * 60 * 24 * 30,
+                            },
+                        },
+                    },
+                ],
             },
         }),
     ],

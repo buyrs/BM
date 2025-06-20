@@ -6,6 +6,8 @@ use App\Models\Mission;
 use App\Notifications\MissionReminder;
 use Illuminate\Console\Command;
 use Carbon\Carbon;
+use App\Models\User;
+use App\Notifications\CheckoutReminder;
 
 class SendMissionReminders extends Command
 {
@@ -16,12 +18,20 @@ class SendMissionReminders extends Command
     {
         $this->info('Sending mission reminders...');
 
-        // Get missions scheduled for the next 24 hours that haven't been completed
+        // 24-hour reminders
         $missions = Mission::where('status', '!=', 'completed')
             ->where('status', '!=', 'cancelled')
             ->where('scheduled_at', '>=', Carbon::now())
             ->where('scheduled_at', '<=', Carbon::now()->addDay())
             ->whereHas('agent')
+            ->get();
+
+        // 10-day checkout alerts
+        $checkoutMissions = Mission::where('type', 'checkout')
+            ->where('status', '!=', 'completed')
+            ->where('status', '!=', 'cancelled')
+            ->where('scheduled_at', '>=', Carbon::now()->addDays(10))
+            ->where('scheduled_at', '<=', Carbon::now()->addDays(11))
             ->get();
 
         $count = 0;
@@ -32,6 +42,15 @@ class SendMissionReminders extends Command
             }
         }
 
-        $this->info("Sent {$count} mission reminders.");
+        foreach ($checkoutMissions as $mission) {
+            // Notify super admin
+            $superAdmin = User::role('super-admin')->first();
+            if ($superAdmin) {
+                $superAdmin->notify(new CheckoutReminder($mission));
+                $count++;
+            }
+        }
+
+        $this->info("Sent {$count} reminders.");
     }
 } 

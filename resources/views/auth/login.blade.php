@@ -2,7 +2,10 @@
     <!-- Session Status -->
     <x-auth-session-status class="mb-4" :status="session('status')" />
 
-    <form method="POST" action="{{ route('login') }}">
+    @php
+        $prefix = request()->is('admin/*') ? 'admin' : (request()->is('checker/*') ? 'checker' : null);
+    @endphp
+    <form method="POST" action="{{ $prefix ? route($prefix.'.login') : route('login') }}">
         @csrf
 
         <!-- Email Address -->

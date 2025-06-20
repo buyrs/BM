@@ -23,6 +23,7 @@
         "@inertiajs/vue3": "^2.0.12",
         "@vitejs/plugin-vue": "^5.2.4",
         "vite-plugin-pwa": "^1.0.0",
-        "vue-signature-pad": "^3.0.2"
+        "vue-signature-pad": "^3.0.2",
+        "ziggy-js": "^2.5.3"
     }
 }

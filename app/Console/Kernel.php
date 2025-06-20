@@ -14,6 +14,8 @@ class Kernel extends ConsoleKernel
     {
         // Send mission reminders every hour
         $schedule->command('missions:send-reminders')->hourly();
+        // Reset checker downgrades and refusal counts every 20 days
+        $schedule->command('checkers:reset-downgrades')->cron('0 0 */20 * *');
     }
 
     /**
