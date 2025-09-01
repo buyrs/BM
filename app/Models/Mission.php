@@ -31,7 +31,6 @@ class Mission extends Model
 
     protected $casts = [
         'scheduled_at' => 'datetime',
-        'scheduled_time' => 'datetime:H:i'
     ];
 
     public function agent(): BelongsTo

@@ -80,7 +80,7 @@
 import DashboardAdmin from '@/Layouts/DashboardAdmin.vue';
 import { Head } from '@inertiajs/vue3';
 import { Link } from '@inertiajs/vue3';
-import { PrimaryButton } from '@/Components/PrimaryButton.vue';
+import PrimaryButton from '@/Components/PrimaryButton.vue';
 
 const props = defineProps({
     stats: {

@@ -21,7 +21,6 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use App\Services\NotificationService;
 use App\Services\IncidentDetectionService;
-use Illuminate\Support\Facades\Log;
 
 class MissionController extends Controller
 {

@@ -228,7 +228,7 @@ class CorrectiveAction extends Model
             self::PRIORITY_HIGH => 'orange',
             self::PRIORITY_URGENT => 'red',
             default => 'gray'
-        ];
+        };
     }
 
     /**
@@ -242,7 +242,7 @@ class CorrectiveAction extends Model
             self::STATUS_COMPLETED => 'green',
             self::STATUS_CANCELLED => 'gray',
             default => 'gray'
-        ];
+        };
     }
 
     /**

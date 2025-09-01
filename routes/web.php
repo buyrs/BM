@@ -147,6 +147,17 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('api/incidents/stats', [\App\Http\Controllers\IncidentController::class, 'getStats'])->name('api.incidents.stats');
         Route::get('api/bail-mobilites/{bailMobilite}/incidents', [\App\Http\Controllers\IncidentController::class, 'getIncidentsForBailMobilite'])->name('api.bail-mobilites.incidents');
         Route::post('api/incidents/bulk-update', [\App\Http\Controllers\IncidentController::class, 'bulkUpdate'])->name('api.incidents.bulk-update');
+        
+        // Calendar routes
+        Route::prefix('calendar')->name('calendar.')->group(function () {
+            Route::get('/', [\App\Http\Controllers\CalendarController::class, 'index'])->name('index');
+            Route::get('/missions', [\App\Http\Controllers\CalendarController::class, 'getMissions'])->name('missions');
+            Route::post('/missions', [\App\Http\Controllers\CalendarController::class, 'createMission'])->name('missions.create');
+            Route::patch('/missions/{mission}', [\App\Http\Controllers\CalendarController::class, 'updateMission'])->name('missions.update');
+            Route::get('/missions/{mission}/details', [\App\Http\Controllers\CalendarController::class, 'getMissionDetails'])->name('missions.details');
+            Route::get('/time-slots', [\App\Http\Controllers\CalendarController::class, 'getAvailableTimeSlots'])->name('time-slots');
+            Route::post('/conflicts', [\App\Http\Controllers\CalendarController::class, 'detectConflicts'])->name('conflicts');
+        });
     });
 
     // API routes for contract templates (for Ops users)
@@ -221,5 +232,16 @@ Route::prefix('checker')->name('checker.')->group(function () {
         Route::get('dashboard', [\App\Http\Controllers\DashboardController::class, 'checkerDashboard'])->name('dashboard');
         Route::get('missions', [MissionController::class, 'getAssignedMissions'])->name('missions');
         Route::get('missions/completed', [MissionController::class, 'getCompletedMissions'])->name('missions.completed');
+    });
+});
+
+// Ops authentication and dashboard
+Route::prefix('ops')->name('ops.')->group(function () {
+    Route::get('login', [\App\Http\Controllers\Auth\AuthenticatedSessionController::class, 'create'])->name('login');
+    Route::post('login', [\App\Http\Controllers\Auth\AuthenticatedSessionController::class, 'store']);
+    Route::post('logout', [\App\Http\Controllers\Auth\AuthenticatedSessionController::class, 'destroy'])->name('logout');
+    
+    Route::middleware(['auth', 'role:ops'])->group(function () {
+        Route::get('dashboard', [\App\Http\Controllers\OpsController::class, 'dashboard'])->name('dashboard');
     });
 });

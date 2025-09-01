@@ -348,7 +348,7 @@ class IncidentReport extends Model
             self::STATUS_RESOLVED => 'green',
             self::STATUS_CLOSED => 'gray',
             default => 'gray'
-        ];
+        };
     }
 
     /**
