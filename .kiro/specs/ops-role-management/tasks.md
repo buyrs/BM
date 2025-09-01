@@ -65,8 +65,8 @@
     -   Créer les vues de validation pour les Ops
     -   _Exigences : 3.6, 6.6, 4.1, 7.1_
 
--   [ ] 6. Développement du système de signatures électroniques
--   [ ] 6.1 Créer le service de gestion des signatures
+-   [x] 6. Développement du système de signatures électroniques
+-   [x] 6.1 Créer le service de gestion des signatures
 
     -   Implémenter la logique de signature électronique avec horodatage
     -   Créer la génération de PDF avec intégration des signatures (admin + locataire)
@@ -74,7 +74,7 @@
     -   Implémenter le stockage sécurisé des documents signés
     -   _Exigences : 3.3, 3.4, 6.3, 6.4, 10.1_
 
--   [ ] 6.2 Développer les composants de signature
+-   [x] 6.2 Développer les composants de signature
 
     -   Créer le composant Vue.js de signature électronique pour les locataires
     -   Implémenter l'affichage des contrats à signer

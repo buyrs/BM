@@ -122,6 +122,24 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('/contract-templates/active', [\App\Http\Controllers\ContractTemplateController::class, 'getActiveTemplates'])->name('contract-templates.active');
     });
 
+    // Signature routes
+    Route::prefix('signatures')->name('signatures.')->group(function () {
+        // Checker routes for creating signatures
+        Route::middleware(['role:checker'])->group(function () {
+            Route::post('/bail-mobilites/{bailMobilite}/sign', [\App\Http\Controllers\SignatureController::class, 'createTenantSignature'])->name('create-tenant');
+        });
+        
+        // Ops and Admin routes for viewing signatures
+        Route::middleware(['role:ops|admin'])->group(function () {
+            Route::get('/{signature}', [\App\Http\Controllers\SignatureController::class, 'getSignature'])->name('show');
+            Route::get('/{signature}/download', [\App\Http\Controllers\SignatureController::class, 'downloadContract'])->name('download');
+            Route::get('/{signature}/preview', [\App\Http\Controllers\SignatureController::class, 'previewContract'])->name('preview');
+            Route::get('/{signature}/validate', [\App\Http\Controllers\SignatureController::class, 'validateSignature'])->name('validate');
+            Route::get('/bail-mobilites/{bailMobilite}/signatures', [\App\Http\Controllers\SignatureController::class, 'getBailMobiliteSignatures'])->name('bail-mobilite');
+            Route::post('/bail-mobilites/{bailMobilite}/archive', [\App\Http\Controllers\SignatureController::class, 'archiveSignatures'])->name('archive');
+        });
+    });
+
     // Admin routes
     Route::middleware(['role:admin'])->prefix('admin')->name('admin.')->group(function () {
         Route::get('/dashboard', [DashboardController::class, 'adminDashboard'])->name('dashboard');

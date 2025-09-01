@@ -1,185 +1,151 @@
 <template>
     <div class="space-y-6">
-        <h4 class="text-lg font-semibold">Contract Signature</h4>
-
-        <!-- Contract Template Selection -->
-        <div>
-            <label class="block text-sm font-medium text-gray-700 mb-2">
-                Select Contract Template
-            </label>
-            <select
-                v-model="selectedTemplateId"
-                class="block w-full border-gray-300 rounded-md shadow-sm"
-                required
-            >
-                <option value="">Choose a contract template</option>
-                <option
-                    v-for="template in availableTemplates"
-                    :key="template.id"
-                    :value="template.id"
-                >
-                    {{ template.name }} ({{ template.type }})
-                </option>
-            </select>
-        </div>
-
-        <!-- Contract Preview -->
-        <div v-if="selectedTemplate" class="border rounded-lg p-4 bg-gray-50">
-            <h5 class="font-medium mb-2">Contract Preview</h5>
-            <div class="max-h-64 overflow-y-auto bg-white p-4 rounded border">
-                <div v-html="selectedTemplate.content" class="prose prose-sm"></div>
-            </div>
-            
-            <!-- Admin Signature Info -->
-            <div v-if="selectedTemplate.admin_signature" class="mt-4 p-3 bg-blue-50 rounded">
-                <p class="text-sm text-blue-800">
-                    <strong>Host Signature:</strong> Signed on {{ formatDate(selectedTemplate.admin_signed_at) }}
-                </p>
-            </div>
-        </div>
-
-        <!-- Tenant Information Confirmation -->
-        <div v-if="selectedTemplate" class="space-y-4">
-            <h5 class="font-medium">Tenant Information</h5>
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                    <label class="block text-sm font-medium text-gray-700">Name</label>
-                    <p class="mt-1 p-2 bg-gray-100 rounded">{{ mission.tenant_name }}</p>
-                </div>
-                <div v-if="mission.tenant_email">
-                    <label class="block text-sm font-medium text-gray-700">Email</label>
-                    <p class="mt-1 p-2 bg-gray-100 rounded">{{ mission.tenant_email }}</p>
-                </div>
-                <div v-if="mission.tenant_phone">
-                    <label class="block text-sm font-medium text-gray-700">Phone</label>
-                    <p class="mt-1 p-2 bg-gray-100 rounded">{{ mission.tenant_phone }}</p>
-                </div>
-                <div>
-                    <label class="block text-sm font-medium text-gray-700">Address</label>
-                    <p class="mt-1 p-2 bg-gray-100 rounded">{{ mission.address }}</p>
-                </div>
-            </div>
-        </div>
-
-        <!-- Signature Pad -->
-        <div v-if="selectedTemplate">
-            <SignaturePad
-                v-model="tenantSignature"
-                label="Tenant Signature"
+        <!-- Step 1: Contract Preview -->
+        <div v-if="currentStep === 'preview'">
+            <ContractPreview
+                :bail-mobilite="bailMobilite"
+                :contract-template="contractTemplate"
+                :signature-type="signatureType"
+                @close="$emit('cancelled')"
+                @proceed-to-sign="currentStep = 'signature'"
             />
-            <p class="mt-2 text-sm text-gray-600">
-                The tenant must sign above to confirm agreement to the contract terms.
+        </div>
+
+        <!-- Step 2: Signature -->
+        <div v-else-if="currentStep === 'signature'">
+            <BailMobiliteSignature
+                :bail-mobilite="bailMobilite"
+                :contract-template="contractTemplate"
+                :signature-type="signatureType"
+                :loading="submitting"
+                @sign="handleSignature"
+                @cancel="currentStep = 'preview'"
+            />
+        </div>
+
+        <!-- Step 3: Success -->
+        <div v-else-if="currentStep === 'success'" class="text-center py-8">
+            <div class="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-green-100">
+                <svg class="h-6 w-6 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                </svg>
+            </div>
+            <h3 class="mt-2 text-lg font-medium text-gray-900">Contrat Signé avec Succès</h3>
+            <p class="mt-1 text-sm text-gray-600">
+                Le contrat de bail mobilité a été signé et le PDF a été généré automatiquement.
             </p>
+            <div class="mt-6 flex justify-center space-x-3">
+                <button
+                    v-if="signatureResult"
+                    @click="previewSignedContract"
+                    class="inline-flex items-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                >
+                    <svg class="h-4 w-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                    </svg>
+                    Voir le Contrat Signé
+                </button>
+                <button
+                    @click="$emit('signed', signatureResult)"
+                    class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                >
+                    Continuer
+                </button>
+            </div>
         </div>
 
-        <!-- Terms Confirmation -->
-        <div v-if="selectedTemplate" class="space-y-2">
-            <label class="flex items-start">
-                <input
-                    v-model="termsAccepted"
-                    type="checkbox"
-                    class="mt-1 rounded border-gray-300 text-indigo-600 shadow-sm"
-                />
-                <span class="ml-2 text-sm text-gray-700">
-                    I confirm that the tenant has read and understood all contract terms and conditions.
-                </span>
-            </label>
-            <label class="flex items-start">
-                <input
-                    v-model="identityVerified"
-                    type="checkbox"
-                    class="mt-1 rounded border-gray-300 text-indigo-600 shadow-sm"
-                />
-                <span class="ml-2 text-sm text-gray-700">
-                    I have verified the tenant's identity and contact information.
-                </span>
-            </label>
-        </div>
-
-        <!-- Form Actions -->
-        <div class="flex justify-end space-x-4">
-            <button
-                type="button"
-                @click="$emit('cancelled')"
-                class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50"
-            >
-                Cancel
-            </button>
-            <button
-                type="button"
-                @click="submitSignature"
-                :disabled="!canSubmit || submitting"
-                class="px-4 py-2 text-sm font-medium text-white bg-green-600 border border-transparent rounded-md hover:bg-green-700 disabled:opacity-50"
-            >
-                {{ submitting ? 'Processing...' : 'Submit Signature' }}
-            </button>
+        <!-- Error State -->
+        <div v-else-if="currentStep === 'error'" class="text-center py-8">
+            <div class="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-red-100">
+                <svg class="h-6 w-6 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+            </div>
+            <h3 class="mt-2 text-lg font-medium text-gray-900">Erreur lors de la Signature</h3>
+            <p class="mt-1 text-sm text-gray-600">
+                {{ errorMessage }}
+            </p>
+            <div class="mt-6 flex justify-center space-x-3">
+                <button
+                    @click="currentStep = 'signature'"
+                    class="inline-flex items-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                >
+                    Réessayer
+                </button>
+                <button
+                    @click="$emit('cancelled')"
+                    class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
+                >
+                    Annuler
+                </button>
+            </div>
         </div>
     </div>
 </template>
 
 <script setup>
 import { ref, computed } from 'vue'
-import { router } from '@inertiajs/vue3'
-import SignaturePad from './SignaturePad.vue'
+import axios from 'axios'
+import ContractPreview from './ContractPreview.vue'
+import BailMobiliteSignature from './BailMobiliteSignature.vue'
 
 const props = defineProps({
-    mission: Object,
-    contractTemplates: Array
+    mission: {
+        type: Object,
+        required: true
+    },
+    bailMobilite: {
+        type: Object,
+        required: true
+    },
+    contractTemplate: {
+        type: Object,
+        required: true
+    },
+    signatureType: {
+        type: String,
+        required: true,
+        validator: value => ['entry', 'exit'].includes(value)
+    }
 })
 
 const emit = defineEmits(['signed', 'cancelled'])
 
-const selectedTemplateId = ref('')
-const tenantSignature = ref('')
-const termsAccepted = ref(false)
-const identityVerified = ref(false)
+const currentStep = ref('preview')
 const submitting = ref(false)
+const signatureResult = ref(null)
+const errorMessage = ref('')
 
-const availableTemplates = computed(() => {
-    if (!props.contractTemplates) return []
-    
-    const missionType = props.mission.mission_type
-    return props.contractTemplates.filter(template => 
-        template.type === missionType && 
-        template.is_active && 
-        template.admin_signature
-    )
-})
+const handleSignature = async (signatureData) => {
+    try {
+        submitting.value = true
+        
+        const response = await axios.post(`/signatures/bail-mobilites/${props.bailMobilite.id}/sign`, {
+            signature_type: signatureData.signatureType,
+            signature_data: signatureData.signatureData,
+            mission_id: props.mission.id,
+            device_info: signatureData.metadata
+        })
 
-const selectedTemplate = computed(() => {
-    if (!selectedTemplateId.value) return null
-    return availableTemplates.value.find(t => t.id == selectedTemplateId.value)
-})
-
-const canSubmit = computed(() => {
-    return selectedTemplateId.value && 
-           tenantSignature.value && 
-           termsAccepted.value && 
-           identityVerified.value
-})
-
-const formatDate = (date) => {
-    return new Date(date).toLocaleDateString()
+        if (response.data.success) {
+            signatureResult.value = response.data.signature
+            currentStep.value = 'success'
+        } else {
+            throw new Error(response.data.message || 'Erreur lors de la signature')
+        }
+    } catch (error) {
+        console.error('Signature error:', error)
+        errorMessage.value = error.response?.data?.message || error.message || 'Erreur inconnue lors de la signature'
+        currentStep.value = 'error'
+    } finally {
+        submitting.value = false
+    }
 }
 
-const submitSignature = () => {
-    if (!canSubmit.value) return
-    
-    submitting.value = true
-    
-    router.post(route('missions.sign-bail-mobilite-contract', props.mission.id), {
-        tenant_signature: tenantSignature.value,
-        contract_template_id: selectedTemplateId.value
-    }, {
-        onSuccess: () => {
-            emit('signed')
-        },
-        onError: (errors) => {
-            console.error('Contract signing errors:', errors)
-        },
-        onFinish: () => {
-            submitting.value = false
-        }
-    })
+const previewSignedContract = () => {
+    if (signatureResult.value) {
+        window.open(`/signatures/${signatureResult.value.id}/preview`, '_blank')
+    }
 }
 </script>

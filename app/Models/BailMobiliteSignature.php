@@ -16,11 +16,13 @@ class BailMobiliteSignature extends Model
         'contract_template_id',
         'tenant_signature',
         'tenant_signed_at',
-        'contract_pdf_path'
+        'contract_pdf_path',
+        'signature_metadata'
     ];
 
     protected $casts = [
-        'tenant_signed_at' => 'datetime'
+        'tenant_signed_at' => 'datetime',
+        'signature_metadata' => 'array'
     ];
 
     /**
