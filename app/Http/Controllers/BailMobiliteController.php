@@ -6,6 +6,8 @@ use App\Models\BailMobilite;
 use App\Models\Mission;
 use App\Models\User;
 use App\Models\Notification;
+use App\Models\IncidentReport;
+use App\Services\IncidentDetectionService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -528,5 +530,67 @@ class BailMobiliteController extends Controller
         if ($bailMobilite->status === 'in_progress') {
             $this->scheduleExitReminder($bailMobilite);
         }
+    }
+
+    /**
+     * Run incident detection for a specific bail mobilité.
+     */
+    public function detectIncidents(BailMobilite $bailMobilite, IncidentDetectionService $incidentDetectionService)
+    {
+        $bailMobilite->load([
+            'entryMission.checklist',
+            'exitMission.checklist',
+            'entrySignature',
+            'exitSignature'
+        ]);
+
+        $incidents = $incidentDetectionService->detectIncidents($bailMobilite);
+
+        if (!empty($incidents)) {
+            $incidentDetectionService->processIncidents($bailMobilite, $incidents);
+        }
+
+        return response()->json([
+            'incidents_found' => count($incidents),
+            'incidents' => $incidents,
+            'bail_mobilite_status' => $bailMobilite->fresh()->status
+        ]);
+    }
+
+    /**
+     * Get incident reports for a bail mobilité.
+     */
+    public function getIncidents(BailMobilite $bailMobilite)
+    {
+        $incidents = $bailMobilite->incidentReports()
+            ->with(['mission', 'checklist', 'createdBy', 'resolvedBy', 'correctiveActions'])
+            ->orderBy('detected_at', 'desc')
+            ->get();
+
+        return response()->json($incidents);
+    }
+
+    /**
+     * Get incident statistics for ops dashboard.
+     */
+    public function getIncidentStats(IncidentDetectionService $incidentDetectionService)
+    {
+        $stats = $incidentDetectionService->getIncidentStats();
+        
+        return response()->json($stats);
+    }
+
+    /**
+     * Run incident detection for all active bail mobilités.
+     */
+    public function runIncidentDetection(IncidentDetectionService $incidentDetectionService)
+    {
+        $results = $incidentDetectionService->runIncidentDetection();
+        
+        return response()->json([
+            'success' => true,
+            'message' => "Détection d'incidents terminée",
+            'results' => $results
+        ]);
     }
 }

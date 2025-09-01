@@ -175,4 +175,36 @@ class BailMobilite extends Model
     {
         return $this->status === 'in_progress' && $this->getRemainingDays() <= 10;
     }
+
+    /**
+     * Get all incident reports for this bail mobilité.
+     */
+    public function incidentReports(): HasMany
+    {
+        return $this->hasMany(IncidentReport::class);
+    }
+
+    /**
+     * Get open incident reports for this bail mobilité.
+     */
+    public function openIncidentReports(): HasMany
+    {
+        return $this->hasMany(IncidentReport::class)->where('status', 'open');
+    }
+
+    /**
+     * Check if the bail mobilité has any open incidents.
+     */
+    public function hasOpenIncidents(): bool
+    {
+        return $this->openIncidentReports()->exists();
+    }
+
+    /**
+     * Get the count of open incidents.
+     */
+    public function getOpenIncidentsCount(): int
+    {
+        return $this->openIncidentReports()->count();
+    }
 }

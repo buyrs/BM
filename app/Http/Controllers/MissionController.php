@@ -20,6 +20,7 @@ use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use App\Services\NotificationService;
+use App\Services\IncidentDetectionService;
 use Illuminate\Support\Facades\Log;
 
 class MissionController extends Controller
@@ -475,6 +476,9 @@ class MissionController extends Controller
                     }
                 }
 
+                // Run incident detection after mission completion
+                $this->runIncidentDetectionForBailMobilite($bailMobilite);
+
             } else {
                 // Reject checklist
                 $checklist->update([
@@ -694,6 +698,33 @@ class MissionController extends Controller
             DB::rollBack();
             Log::error('Error validating mission: ' . $e->getMessage());
             return back()->withErrors(['error' => 'Failed to validate mission. Please try again.']);
+        }
+    }
+
+    /**
+     * Run incident detection for a bail mobilité after mission completion.
+     */
+    private function runIncidentDetectionForBailMobilite(BailMobilite $bailMobilite)
+    {
+        try {
+            $incidentDetectionService = app(IncidentDetectionService::class);
+            
+            // Load necessary relationships
+            $bailMobilite->load([
+                'entryMission.checklist',
+                'exitMission.checklist',
+                'entrySignature',
+                'exitSignature'
+            ]);
+
+            $incidents = $incidentDetectionService->detectIncidents($bailMobilite);
+
+            if (!empty($incidents)) {
+                $incidentDetectionService->processIncidents($bailMobilite, $incidents);
+                Log::info("Incident detection completed for BailMobilite {$bailMobilite->id}: " . count($incidents) . " incidents found");
+            }
+        } catch (\Exception $e) {
+            Log::error("Failed to run incident detection for BailMobilite {$bailMobilite->id}: " . $e->getMessage());
         }
     }
 }

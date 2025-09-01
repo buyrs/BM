@@ -6,7 +6,9 @@ use App\Models\BailMobilite;
 use App\Models\Mission;
 use App\Models\Notification;
 use App\Models\User;
+use App\Models\IncidentReport;
 use App\Services\NotificationService;
+use App\Services\IncidentDetectionService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -233,6 +235,16 @@ class OpsController extends Controller
             ->limit(5)
             ->get();
 
+        // Incident statistics
+        $incidentStats = [
+            'total_open' => IncidentReport::open()->count(),
+            'critical_open' => IncidentReport::critical()->open()->count(),
+            'high_open' => IncidentReport::high()->open()->count(),
+            'detected_today' => IncidentReport::detectedToday()->count(),
+            'detected_this_week' => IncidentReport::detectedThisWeek()->count(),
+            'resolved_this_month' => IncidentReport::resolved()->where('resolved_at', '>=', $currentMonth)->count(),
+        ];
+
         return [
             'basic' => $stats,
             'current_month' => $currentMonthStats,
@@ -240,6 +252,7 @@ class OpsController extends Controller
             'average_duration' => round($averageDuration, 1),
             'incident_rate' => round($incidentRate, 2),
             'checker_performance' => $checkerPerformance,
+            'incidents' => $incidentStats,
         ];
     }
 

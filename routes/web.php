@@ -132,6 +132,21 @@ Route::middleware(['auth', 'verified'])->group(function () {
         // Mission validation routes
         Route::get('missions/{mission}/validate', [MissionController::class, 'showValidation'])->name('missions.validate');
         Route::post('missions/{mission}/validate', [MissionController::class, 'validateMission'])->name('missions.validate.submit');
+        
+        // Incident detection and management routes
+        Route::post('bail-mobilites/{bailMobilite}/detect-incidents', [\App\Http\Controllers\BailMobiliteController::class, 'detectIncidents'])->name('bail-mobilites.detect-incidents');
+        Route::get('bail-mobilites/{bailMobilite}/incidents', [\App\Http\Controllers\BailMobiliteController::class, 'getIncidents'])->name('bail-mobilites.incidents');
+        Route::get('api/incident-stats', [\App\Http\Controllers\BailMobiliteController::class, 'getIncidentStats'])->name('api.incident-stats');
+        Route::post('api/run-incident-detection', [\App\Http\Controllers\BailMobiliteController::class, 'runIncidentDetection'])->name('api.run-incident-detection');
+        
+        // Incident management routes
+        Route::resource('incidents', \App\Http\Controllers\IncidentController::class)->only(['index', 'show']);
+        Route::patch('incidents/{incident}/status', [\App\Http\Controllers\IncidentController::class, 'updateStatus'])->name('incidents.update-status');
+        Route::post('incidents/{incident}/corrective-actions', [\App\Http\Controllers\IncidentController::class, 'createCorrectiveAction'])->name('incidents.create-corrective-action');
+        Route::patch('corrective-actions/{correctiveAction}', [\App\Http\Controllers\IncidentController::class, 'updateCorrectiveAction'])->name('corrective-actions.update');
+        Route::get('api/incidents/stats', [\App\Http\Controllers\IncidentController::class, 'getStats'])->name('api.incidents.stats');
+        Route::get('api/bail-mobilites/{bailMobilite}/incidents', [\App\Http\Controllers\IncidentController::class, 'getIncidentsForBailMobilite'])->name('api.bail-mobilites.incidents');
+        Route::post('api/incidents/bulk-update', [\App\Http\Controllers\IncidentController::class, 'bulkUpdate'])->name('api.incidents.bulk-update');
     });
 
     // API routes for contract templates (for Ops users)

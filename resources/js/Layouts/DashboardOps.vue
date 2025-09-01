@@ -23,6 +23,9 @@
                                 <NavLink :href="route('ops.notifications')" :active="route().current('ops.notifications')">
                                     Notifications
                                 </NavLink>
+                                <NavLink :href="route('ops.incidents.index')" :active="route().current('ops.incidents.*')">
+                                    Incidents
+                                </NavLink>
                                 <NavLink :href="route('missions.index')" :active="route().current('missions.index')">
                                     Missions
                                 </NavLink>
@@ -90,6 +93,9 @@
                         </ResponsiveNavLink>
                         <ResponsiveNavLink :href="route('ops.notifications')" :active="route().current('ops.notifications')">
                             Notifications
+                        </ResponsiveNavLink>
+                        <ResponsiveNavLink :href="route('ops.incidents.index')" :active="route().current('ops.incidents.*')">
+                            Incidents
                         </ResponsiveNavLink>
                         <ResponsiveNavLink :href="route('missions.index')" :active="route().current('missions.index')">
                             Missions

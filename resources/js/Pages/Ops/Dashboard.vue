@@ -224,7 +224,7 @@
                             </div>
 
                             <div class="bg-white rounded-xl shadow-sm p-6">
-                                <div class="flex items-center justify-between">
+                                <div class="flex items-center justify-between mb-4">
                                     <div>
                                         <p class="text-sm font-medium text-gray-600">Incidents</p>
                                         <p class="text-2xl font-semibold text-gray-900">{{ metrics.basic.incident }}</p>
@@ -237,6 +237,32 @@
                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z"/>
                                         </svg>
                                     </div>
+                                </div>
+                                <div class="grid grid-cols-2 gap-4 text-sm">
+                                    <div class="flex justify-between">
+                                        <span class="text-gray-600">Ouverts:</span>
+                                        <span class="font-medium text-red-600">{{ metrics.incidents?.total_open || 0 }}</span>
+                                    </div>
+                                    <div class="flex justify-between">
+                                        <span class="text-gray-600">Critiques:</span>
+                                        <span class="font-medium text-red-800">{{ metrics.incidents?.critical_open || 0 }}</span>
+                                    </div>
+                                    <div class="flex justify-between">
+                                        <span class="text-gray-600">Aujourd'hui:</span>
+                                        <span class="font-medium">{{ metrics.incidents?.detected_today || 0 }}</span>
+                                    </div>
+                                    <div class="flex justify-between">
+                                        <span class="text-gray-600">Cette semaine:</span>
+                                        <span class="font-medium">{{ metrics.incidents?.detected_this_week || 0 }}</span>
+                                    </div>
+                                </div>
+                                <div class="mt-4 pt-4 border-t border-gray-200">
+                                    <Link 
+                                        :href="route('ops.incidents.index')"
+                                        class="text-sm text-indigo-600 hover:text-indigo-900 font-medium"
+                                    >
+                                        Gérer les incidents →
+                                    </Link>
                                 </div>
                             </div>
                         </div>
