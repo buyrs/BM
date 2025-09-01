@@ -98,8 +98,8 @@
     -   Ajouter l'historique des notifications envoyées
     -   _Exigences : 5.3, 5.4_
 
--   [-] 8. Création du tableau de bord Ops
--   [-] 8.1 Développer le contrôleur OpsController
+-   [x] 8. Création du tableau de bord Ops
+-   [x] 8.1 Développer le contrôleur OpsController
 
     -   Implémenter les métriques et statistiques pour le dashboard
     -   Créer les données pour la vue kanban des BM
@@ -107,7 +107,7 @@
     -   Implémenter l'export des données et rapports
     -   _Exigences : 8.4, 1bis.3_
 
--   [ ] 8.2 Créer l'interface du tableau de bord Ops
+-   [x] 8.2 Créer l'interface du tableau de bord Ops
 
     -   Développer la vue kanban interactive avec drag & drop
     -   Implémenter les widgets de métriques (BM en cours, incidents, performances)
@@ -115,8 +115,8 @@
     -   Créer les filtres avancés et options d'export
     -   _Exigences : 8.1, 8.2, 8.3, 8.4_
 
--   [ ] 9. Gestion des permissions et sécurité
--   [ ] 9.1 Configurer les permissions du rôle Ops
+-   [x] 9. Gestion des permissions et sécurité
+-   [x] 9.1 Configurer les permissions du rôle Ops
 
     -   Ajouter les permissions spécifiques aux Ops dans le seeder
     -   Implémenter les middleware de contrôle d'accès pour les routes Ops
@@ -124,7 +124,7 @@
     -   Ajouter la journalisation des tentatives d'accès non autorisées
     -   _Exigences : 9.1, 9.2, 9.4_
 
--   [ ] 9.2 Sécuriser les signatures électroniques
+-   [x] 9.2 Sécuriser les signatures électroniques
 
     -   Implémenter la capture des métadonnées de signature (IP, device, timestamp)
     -   Créer le système de vérification d'intégrité des signatures
@@ -132,8 +132,8 @@
     -   Implémenter la traçabilité complète des actions
     -   _Exigences : 10.5_
 
--   [ ] 10. Gestion des incidents et cas d'erreur
--   [ ] 10.1 Implémenter la détection automatique d'incidents
+-   [-] 10. Gestion des incidents et cas d'erreur
+-   [-] 10.1 Implémenter la détection automatique d'incidents
 
     -   Créer la logique de détection des problèmes (clés non remises, signatures manquantes)
     -   Implémenter le passage automatique au statut "Incident"

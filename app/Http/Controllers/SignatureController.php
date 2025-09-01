@@ -7,6 +7,7 @@ use App\Models\BailMobiliteSignature;
 use App\Services\SignatureService;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Validator;
 
@@ -26,7 +27,7 @@ class SignatureController extends Controller
     {
         $validator = Validator::make($request->all(), [
             'signature_type' => 'required|in:entry,exit',
-            'signature_data' => 'required|string',
+            'signature_data' => 'required|string|min:10', // Ensure signature has minimum data
         ]);
 
         if ($validator->fails()) {
@@ -37,10 +38,14 @@ class SignatureController extends Controller
         }
 
         try {
+            // Enhanced metadata collection for security
             $metadata = [
                 'mission_id' => $request->input('mission_id'),
                 'checker_id' => auth()->id(),
-                'device_info' => $request->input('device_info', [])
+                'checker_email' => auth()->user()->email,
+                'device_info' => $request->input('device_info', []),
+                'signature_length' => strlen($request->input('signature_data')),
+                'request_timestamp' => now()->toISOString(),
             ];
 
             $signature = $this->signatureService->createTenantSignature(
@@ -50,13 +55,29 @@ class SignatureController extends Controller
                 $metadata
             );
 
+            // Log signature creation for audit trail
+            $this->signatureService->logSignatureAccess($signature, 'created', auth()->user());
+
             return response()->json([
                 'success' => true,
                 'signature' => $signature->load('contractTemplate'),
-                'message' => 'Signature créée avec succès'
+                'message' => 'Signature créée avec succès',
+                'security_info' => [
+                    'integrity_verified' => $this->signatureService->verifySignatureIntegrity($signature),
+                    'created_at' => $signature->created_at
+                ]
             ]);
 
         } catch (\Exception $e) {
+            // Log failed signature creation attempt
+            Log::channel('security')->error('Signature creation failed', [
+                'bail_mobilite_id' => $bailMobilite->id,
+                'signature_type' => $request->input('signature_type'),
+                'user_id' => auth()->id(),
+                'error' => $e->getMessage(),
+                'ip_address' => $request->ip()
+            ]);
+
             return response()->json([
                 'success' => false,
                 'message' => 'Erreur lors de la création de la signature: ' . $e->getMessage()
@@ -69,12 +90,16 @@ class SignatureController extends Controller
      */
     public function getSignature(BailMobiliteSignature $signature)
     {
+        // Log signature access
+        $this->signatureService->logSignatureAccess($signature, 'viewed', auth()->user());
+        
         $signature->load(['bailMobilite', 'contractTemplate']);
         
         return response()->json([
             'signature' => $signature,
             'validation' => $this->signatureService->validateSignature($signature),
-            'metadata' => $this->signatureService->getSignatureMetadata($signature)
+            'metadata' => $this->signatureService->getSignatureMetadata($signature),
+            'access_logged' => true
         ]);
     }
 
@@ -84,10 +109,12 @@ class SignatureController extends Controller
     public function downloadContract(BailMobiliteSignature $signature)
     {
         // Check permissions
-        if (!auth()->user()->can('view_bail_mobilite') && 
-            !auth()->user()->hasRole(['super-admin', 'ops'])) {
+        if (!auth()->user()->can('view_signatures')) {
             abort(403, 'Accès non autorisé');
         }
+
+        // Log PDF download for audit trail
+        $this->signatureService->logSignatureAccess($signature, 'pdf_downloaded', auth()->user());
 
         $pdfContent = $this->signatureService->getSignedContractPdf($signature);
         
@@ -113,10 +140,12 @@ class SignatureController extends Controller
     public function previewContract(BailMobiliteSignature $signature)
     {
         // Check permissions
-        if (!auth()->user()->can('view_bail_mobilite') && 
-            !auth()->user()->hasRole(['super-admin', 'ops'])) {
+        if (!auth()->user()->can('view_signatures')) {
             abort(403, 'Accès non autorisé');
         }
+
+        // Log PDF preview for audit trail
+        $this->signatureService->logSignatureAccess($signature, 'pdf_previewed', auth()->user());
 
         $pdfContent = $this->signatureService->getSignedContractPdf($signature);
         
@@ -134,12 +163,17 @@ class SignatureController extends Controller
      */
     public function validateSignature(BailMobiliteSignature $signature)
     {
+        // Log signature validation for audit trail
+        $this->signatureService->logSignatureAccess($signature, 'validated', auth()->user());
+        
         $validation = $this->signatureService->validateSignature($signature);
+        $metadata = $this->signatureService->getSignatureMetadata($signature);
         
         return response()->json([
             'signature_id' => $signature->id,
             'validation' => $validation,
-            'metadata' => $this->signatureService->getSignatureMetadata($signature)
+            'metadata' => $metadata,
+            'audit_trail' => $this->signatureService->createAuditTrail($signature)
         ]);
     }
 
@@ -169,20 +203,34 @@ class SignatureController extends Controller
      */
     public function archiveSignatures(BailMobilite $bailMobilite)
     {
-        // Only super-admin and ops can archive
-        if (!auth()->user()->hasRole(['super-admin', 'ops'])) {
+        // Check permissions
+        if (!auth()->user()->can('archive_signatures')) {
             abort(403, 'Accès non autorisé');
         }
 
         try {
+            // Log each signature before archiving
+            foreach ($bailMobilite->signatures as $signature) {
+                $this->signatureService->logSignatureAccess($signature, 'archived', auth()->user());
+            }
+
             $this->signatureService->archiveSignatures($bailMobilite);
 
             return response()->json([
                 'success' => true,
-                'message' => 'Signatures archivées avec succès'
+                'message' => 'Signatures archivées avec succès',
+                'archived_at' => now(),
+                'archived_by' => auth()->user()->email
             ]);
 
         } catch (\Exception $e) {
+            Log::channel('security')->error('Signature archiving failed', [
+                'bail_mobilite_id' => $bailMobilite->id,
+                'user_id' => auth()->id(),
+                'error' => $e->getMessage(),
+                'ip_address' => request()->ip()
+            ]);
+
             return response()->json([
                 'success' => false,
                 'message' => 'Erreur lors de l\'archivage: ' . $e->getMessage()

@@ -78,7 +78,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::patch('/{mission}/refuse', [MissionController::class, 'refuseMission'])->name('missions.refuse');
         
         // Bail Mobilité specific mission routes
-        Route::middleware(['role:ops'])->group(function () {
+        Route::middleware(['ops.access:assign_missions_to_checkers'])->group(function () {
             Route::post('/{mission}/assign-to-checker', [MissionController::class, 'assignToChecker'])->name('missions.assign-to-checker');
             Route::post('/{mission}/validate-bail-mobilite-checklist', [MissionController::class, 'validateBailMobiliteChecklist'])->name('missions.validate-bail-mobilite-checklist');
             Route::get('/ops-assigned', [MissionController::class, 'getOpsAssignedMissions'])->name('missions.ops-assigned');
@@ -104,8 +104,15 @@ Route::middleware(['auth', 'verified'])->group(function () {
     });
 
     // Ops routes for Bail Mobilité management
-    Route::middleware(['role:ops|admin'])->prefix('ops')->name('ops.')->group(function () {
+    Route::middleware(['ops.access'])->prefix('ops')->name('ops.')->group(function () {
         Route::get('/dashboard', [\App\Http\Controllers\OpsController::class, 'dashboard'])->name('dashboard');
+        
+        // Dashboard API routes
+        Route::get('/api/kanban-data', [\App\Http\Controllers\OpsController::class, 'getKanbanData'])->name('api.kanban-data');
+        Route::get('/api/bail-mobilites', [\App\Http\Controllers\OpsController::class, 'getBailMobilites'])->name('api.bail-mobilites');
+        Route::get('/api/export', [\App\Http\Controllers\OpsController::class, 'exportData'])->name('api.export');
+        Route::get('/api/ops-users', [\App\Http\Controllers\OpsController::class, 'getOpsUsers'])->name('api.ops-users');
+        Route::get('/api/checkers', [\App\Http\Controllers\OpsController::class, 'getCheckers'])->name('api.checkers');
         
         // Notification routes
         Route::get('/notifications', [\App\Http\Controllers\OpsController::class, 'notifications'])->name('notifications');
@@ -128,7 +135,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     });
 
     // API routes for contract templates (for Ops users)
-    Route::middleware(['role:ops|admin'])->prefix('api')->name('api.')->group(function () {
+    Route::middleware(['ops.access:view_contract_templates'])->prefix('api')->name('api.')->group(function () {
         Route::get('/contract-templates/active', [\App\Http\Controllers\ContractTemplateController::class, 'getActiveTemplates'])->name('contract-templates.active');
     });
 
@@ -140,7 +147,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         });
         
         // Ops and Admin routes for viewing signatures
-        Route::middleware(['role:ops|admin'])->group(function () {
+        Route::middleware(['ops.access:view_signatures'])->group(function () {
             Route::get('/{signature}', [\App\Http\Controllers\SignatureController::class, 'getSignature'])->name('show');
             Route::get('/{signature}/download', [\App\Http\Controllers\SignatureController::class, 'downloadContract'])->name('download');
             Route::get('/{signature}/preview', [\App\Http\Controllers\SignatureController::class, 'previewContract'])->name('preview');
