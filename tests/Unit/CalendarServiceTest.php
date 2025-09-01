@@ -237,13 +237,13 @@ class CalendarServiceTest extends TestCase
         // Check entry mission
         $this->assertNotNull($bailMobilite->entryMission);
         $this->assertEquals('entry', $bailMobilite->entryMission->mission_type);
-        $this->assertEquals('10:00', $bailMobilite->entryMission->scheduled_time->format('H:i'));
+        $this->assertEquals('10:00:00', $bailMobilite->entryMission->scheduled_time);
         $this->assertEquals('assigned', $bailMobilite->entryMission->status);
         
         // Check exit mission
         $this->assertNotNull($bailMobilite->exitMission);
         $this->assertEquals('exit', $bailMobilite->exitMission->mission_type);
-        $this->assertEquals('14:00', $bailMobilite->exitMission->scheduled_time->format('H:i'));
+        $this->assertEquals('14:00:00', $bailMobilite->exitMission->scheduled_time);
         $this->assertEquals('assigned', $bailMobilite->exitMission->status);
     }
 

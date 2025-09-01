@@ -193,14 +193,14 @@ class CalendarControllerTest extends TestCase
         // Verify missions were created
         $this->assertDatabaseHas('missions', [
             'mission_type' => 'entry',
-            'scheduled_time' => '10:00',
+            'scheduled_time' => '10:00:00',
             'status' => 'assigned',
             'agent_id' => $this->checkerUser->id,
         ]);
         
         $this->assertDatabaseHas('missions', [
             'mission_type' => 'exit',
-            'scheduled_time' => '14:00',
+            'scheduled_time' => '14:00:00',
             'status' => 'assigned',
             'agent_id' => $this->checkerUser->id,
         ]);
@@ -280,12 +280,7 @@ class CalendarControllerTest extends TestCase
         // Verify mission was updated
         $mission->refresh();
         
-        // Debug: Check what's actually in the database
-        if (empty($mission->scheduled_time)) {
-            $this->fail('scheduled_time is empty. Mission data: ' . json_encode($mission->toArray()));
-        }
-        
-        $this->assertEquals($updateData['scheduled_time'], substr($mission->scheduled_time, 0, 5)); // Compare HH:MM part only
+        $this->assertEquals($updateData['scheduled_time'] . ':00', $mission->scheduled_time);
         $this->assertEquals($updateData['notes'], $mission->notes);
         $this->assertEquals('assigned', $mission->status); // Should be auto-assigned
     }

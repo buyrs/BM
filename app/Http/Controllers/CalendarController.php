@@ -149,23 +149,31 @@ class CalendarController extends Controller
             'notes' => 'nullable|string',
         ]);
 
+        // Convert time format to include seconds for database storage
+        if (isset($validated['scheduled_time'])) {
+            $validated['scheduled_time'] = $validated['scheduled_time'] . ':00';
+        }
+
         try {
-            // Debug: Log what we're trying to update
-            \Log::info('Updating mission with data:', $validated);
-            
-            $mission->update($validated);
-            
-            // Debug: Log what was actually saved
-            \Log::info('Mission after update:', $mission->fresh()->toArray());
-
-            // If agent is assigned, update status
+            // If agent is assigned, add status to validated data
             if (isset($validated['agent_id']) && $validated['agent_id']) {
-                $mission->update(['status' => 'assigned']);
+                $validated['status'] = 'assigned';
             }
+            
+            // Update mission with all validated data at once
+            $mission->update($validated);
 
-            $mission->load(['agent', 'bailMobilite', 'checklist']);
+            // Reload the mission with relationships
+            $mission->refresh();
+            $mission->load(['agent', 'bailMobilite', 'checklist', 'opsAssignedBy']);
+            
             $formattedMissions = $this->calendarService->formatMissionsForCalendar(collect([$mission]));
-            $formattedMission = $formattedMissions[0] ?? null;
+            
+            if (empty($formattedMissions)) {
+                throw new \Exception('Failed to format mission for calendar display');
+            }
+            
+            $formattedMission = $formattedMissions[0];
 
             return response()->json([
                 'success' => true,
