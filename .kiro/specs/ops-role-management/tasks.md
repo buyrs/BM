@@ -132,8 +132,8 @@
     -   Implémenter la traçabilité complète des actions
     -   _Exigences : 10.5_
 
--   [-] 10. Gestion des incidents et cas d'erreur
--   [-] 10.1 Implémenter la détection automatique d'incidents
+-   [x] 10. Gestion des incidents et cas d'erreur
+-   [x] 10.1 Implémenter la détection automatique d'incidents
 
     -   Créer la logique de détection des problèmes (clés non remises, signatures manquantes)
     -   Implémenter le passage automatique au statut "Incident"
@@ -141,15 +141,15 @@
     -   Créer le système de tâches correctives
     -   _Exigences : 7.3, 7.4_
 
--   [ ] 10.2 Développer l'interface de gestion des incidents
+-   [x] 10.2 Développer l'interface de gestion des incidents
 
     -   Créer les vues de détail des incidents avec toutes les informations
     -   Implémenter les actions correctives et suivi des résolutions
     -   Ajouter l'historique complet des incidents et leurs résolutions
     -   _Exigences : 7.4_
 
--   [ ] 11. Tests et validation
--   [ ] 11.1 Créer les tests unitaires
+-   [x] 11. Tests et validation
+-   [x] 11.1 Créer les tests unitaires
 
     -   Tester tous les modèles avec leurs relations et validations
     -   Tester les services (signatures, notifications, BM)
@@ -157,7 +157,7 @@
     -   Tester la logique métier des transitions d'état
     -   _Exigences : Toutes_
 
--   [ ] 11.2 Créer les tests d'intégration
+-   [x] 11.2 Créer les tests d'intégration
 
     -   Tester le workflow complet : Création BM → Entrée → Validation → Sortie
     -   Tester le système de notifications automatiques
@@ -165,8 +165,8 @@
     -   Tester la génération et intégrité des PDF signés
     -   _Exigences : Workflow complet_
 
--   [ ] 12. Documentation et formation
--   [ ] 12.1 Créer la documentation technique
+-   [x] 12. Documentation et formation
+-   [x] 12.1 Créer la documentation technique
 
     -   Documenter les nouvelles API et endpoints
     -   Créer les guides d'utilisation pour chaque rôle
@@ -174,7 +174,7 @@
     -   Ajouter les guides de dépannage et maintenance
     -   _Exigences : Support utilisateur_
 
--   [ ] 12.2 Préparer la migration des données
+-   [x] 12.2 Préparer la migration des données
     -   Créer les scripts de migration des missions existantes vers les BM
     -   Implémenter la sauvegarde et restauration des données
     -   Tester la migration sur un environnement de test
