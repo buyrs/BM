@@ -55,4 +55,28 @@ class User extends Authenticatable implements MustVerifyEmail
     {
         return $this->hasOne(Agent::class);
     }
+
+    /**
+     * Get the missions assigned to this user (as a checker).
+     */
+    public function assignedMissions()
+    {
+        return $this->hasMany(Mission::class, 'agent_id');
+    }
+
+    /**
+     * Get the bail mobilités managed by this user (as ops).
+     */
+    public function managedBailMobilites()
+    {
+        return $this->hasMany(BailMobilite::class, 'ops_user_id');
+    }
+
+    /**
+     * Get the missions assigned by this user (as ops).
+     */
+    public function assignedMissionsByOps()
+    {
+        return $this->hasMany(Mission::class, 'ops_assigned_by');
+    }
 }

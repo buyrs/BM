@@ -76,6 +76,18 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('/{mission}', [MissionController::class, 'show'])->name('missions.show');
         Route::patch('/{mission}/status', [MissionController::class, 'updateStatus'])->name('missions.update-status');
         Route::patch('/{mission}/refuse', [MissionController::class, 'refuseMission'])->name('missions.refuse');
+        
+        // Bail Mobilité specific mission routes
+        Route::middleware(['role:ops'])->group(function () {
+            Route::post('/{mission}/assign-to-checker', [MissionController::class, 'assignToChecker'])->name('missions.assign-to-checker');
+            Route::post('/{mission}/validate-bail-mobilite-checklist', [MissionController::class, 'validateBailMobiliteChecklist'])->name('missions.validate-bail-mobilite-checklist');
+            Route::get('/ops-assigned', [MissionController::class, 'getOpsAssignedMissions'])->name('missions.ops-assigned');
+        });
+        
+        Route::middleware(['role:checker'])->group(function () {
+            Route::post('/{mission}/submit-bail-mobilite-checklist', [MissionController::class, 'submitBailMobiliteChecklist'])->name('missions.submit-bail-mobilite-checklist');
+            Route::post('/{mission}/sign-bail-mobilite-contract', [MissionController::class, 'signBailMobiliteContract'])->name('missions.sign-bail-mobilite-contract');
+        });
     });
 
     // Checklist routes
@@ -89,6 +101,20 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::prefix('pdf')->name('pdf.')->group(function () {
         Route::get('/mission/{mission}', [PdfController::class, 'mission'])->name('mission');
         Route::get('/checklist/{checklist}', [PdfController::class, 'checklist'])->name('checklist');
+    });
+
+    // Ops routes for Bail Mobilité management
+    Route::middleware(['role:ops|admin'])->prefix('ops')->name('ops.')->group(function () {
+        Route::get('/dashboard', [\App\Http\Controllers\OpsController::class, 'dashboard'])->name('dashboard');
+        
+        // Bail Mobilité routes
+        Route::resource('bail-mobilites', \App\Http\Controllers\BailMobiliteController::class);
+        Route::post('bail-mobilites/{bailMobilite}/assign-entry', [\App\Http\Controllers\BailMobiliteController::class, 'assignEntry'])->name('bail-mobilites.assign-entry');
+        Route::post('bail-mobilites/{bailMobilite}/assign-exit', [\App\Http\Controllers\BailMobiliteController::class, 'assignExit'])->name('bail-mobilites.assign-exit');
+        Route::post('bail-mobilites/{bailMobilite}/validate-entry', [\App\Http\Controllers\BailMobiliteController::class, 'validateEntry'])->name('bail-mobilites.validate-entry');
+        Route::post('bail-mobilites/{bailMobilite}/validate-exit', [\App\Http\Controllers\BailMobiliteController::class, 'validateExit'])->name('bail-mobilites.validate-exit');
+        Route::post('bail-mobilites/{bailMobilite}/handle-incident', [\App\Http\Controllers\BailMobiliteController::class, 'handleIncident'])->name('bail-mobilites.handle-incident');
+        Route::get('checkers/available', [\App\Http\Controllers\BailMobiliteController::class, 'getAvailableCheckers'])->name('checkers.available');
     });
 
     // API routes for contract templates (for Ops users)

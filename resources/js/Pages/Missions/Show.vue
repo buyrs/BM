@@ -1,9 +1,9 @@
 <template>
-    <component :is="$page.props.auth.user.roles.includes('super-admin') ? DashboardSuperAdmin : DashboardChecker">
+    <component :is="getLayoutComponent()">
         <template #header>
             <div class="flex justify-between items-center">
                 <h2 class="font-semibold text-xl text-gray-800 leading-tight">
-                    Mission Details
+                    {{ mission.bail_mobilite_id ? 'Bail Mobilité Mission' : 'Mission Details' }}
                 </h2>
                 <div v-if="$page.props.auth.user.roles.includes('super-admin')" class="flex space-x-4">
                     <Link
@@ -23,15 +23,15 @@
         </template>
 
         <div class="py-12">
-            <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
+            <div class="max-w-7xl mx-auto sm:px-6 lg:px-8 space-y-6">
+                <!-- Mission Status and Actions -->
                 <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg">
                     <div class="p-6">
-                        <!-- Status Badge -->
-                        <div class="mb-6 flex justify-between items-center">
+                        <div class="flex justify-between items-center mb-6">
                             <span :class="getStatusClass(mission.status)" class="text-sm">
                                 {{ mission.status }}
                             </span>
-                            <div v-if="canUpdateStatus" class="flex space-x-4">
+                            <div v-if="canUpdateStatus && !mission.bail_mobilite_id" class="flex space-x-4">
                                 <button
                                     v-if="mission.status === 'assigned'"
                                     @click="updateStatus('in_progress')"
@@ -56,14 +56,14 @@
                             </div>
                         </div>
 
-                        <!-- Mission Details -->
+                        <!-- Standard Mission Details -->
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                             <div>
                                 <h3 class="text-lg font-semibold mb-4">Mission Information</h3>
                                 <div class="space-y-4">
                                     <div>
                                         <label class="block text-sm font-medium text-gray-700">Type</label>
-                                        <p class="mt-1">{{ mission.type === 'checkin' ? 'Check-in' : 'Check-out' }}</p>
+                                        <p class="mt-1">{{ getMissionTypeLabel() }}</p>
                                     </div>
                                     <div>
                                         <label class="block text-sm font-medium text-gray-700">Scheduled Date/Time</label>
@@ -76,6 +76,10 @@
                                     <div v-if="mission.notes">
                                         <label class="block text-sm font-medium text-gray-700">Notes</label>
                                         <p class="mt-1">{{ mission.notes }}</p>
+                                    </div>
+                                    <div v-if="mission.ops_assigned_by">
+                                        <label class="block text-sm font-medium text-gray-700">Assigned by Ops</label>
+                                        <p class="mt-1">{{ mission.ops_assigned_by_name || 'Ops User' }}</p>
                                     </div>
                                 </div>
                             </div>
@@ -109,6 +113,14 @@
                         </div>
                     </div>
                 </div>
+
+                <!-- Bail Mobilité Specific Components -->
+                <div v-if="mission.bail_mobilite_id">
+                    <BailMobiliteMissionDetails
+                        :mission="mission"
+                        :contract-templates="contractTemplates"
+                    />
+                </div>
             </div>
         </div>
     </component>
@@ -116,21 +128,40 @@
 
 <script setup>
 import { computed } from 'vue'
-import { Link, router } from '@inertiajs/vue3'
+import { Link, router, usePage } from '@inertiajs/vue3'
 import DashboardSuperAdmin from '@/Layouts/DashboardSuperAdmin.vue'
 import DashboardChecker from '@/Layouts/DashboardChecker.vue'
+import DashboardOps from '@/Layouts/DashboardOps.vue'
+import BailMobiliteMissionDetails from '@/Components/BailMobiliteMissionDetails.vue'
 
 const props = defineProps({
-    mission: Object
+    mission: Object,
+    contractTemplates: Array
 })
 
+const page = usePage()
+
 const canUpdateStatus = computed(() => {
-    const user = usePage().props.auth.user
+    const user = page.props.auth.user
     return (
         (user.roles.includes('checker') && props.mission.agent_id === user.id) ||
         user.roles.includes('super-admin')
     )
 })
+
+const getLayoutComponent = () => {
+    const user = page.props.auth.user
+    if (user.roles.includes('super-admin')) return DashboardSuperAdmin
+    if (user.roles.includes('ops')) return DashboardOps
+    return DashboardChecker
+}
+
+const getMissionTypeLabel = () => {
+    if (props.mission.bail_mobilite_id) {
+        return props.mission.mission_type === 'entry' ? 'Bail Mobilité - Entrée' : 'Bail Mobilité - Sortie'
+    }
+    return props.mission.type === 'checkin' ? 'Check-in' : 'Check-out'
+}
 
 const formatDate = (date) => {
     return new Date(date).toLocaleString()

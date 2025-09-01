@@ -1,114 +1,143 @@
 <template>
-    <div class="flex space-x-2 items-center">
-        <input
-            type="file"
-            accept="image/jpeg,image/png,image/gif"
-            @change="onFileChange"
-            class="hidden"
-            ref="fileInput"
-            :disabled="loading"
-        >
-        <button
-            type="button"
-            @click="$refs.fileInput.click()"
-            class="px-2 py-1 bg-gray-200 rounded hover:bg-gray-300 text-sm"
-            :class="{ 'opacity-50 cursor-not-allowed': loading }"
-            :disabled="loading"
-        >
-            {{ loading ? 'Uploading...' : 'Add Photo' }}
-        </button>
-        <div class="flex space-x-2">
-            <div v-for="(photo, i) in photos" :key="photo.id || i" class="relative group">
+    <div class="space-y-2">
+        <div class="flex items-center space-x-2">
+            <input
+                type="file"
+                accept="image/jpeg,image/png,image/gif"
+                @change="onFileChange"
+                class="hidden"
+                ref="fileInput"
+                :disabled="loading"
+                multiple
+            >
+            <button
+                type="button"
+                @click="$refs.fileInput.click()"
+                class="px-3 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 text-sm"
+                :class="{ 'opacity-50 cursor-not-allowed': loading, 'bg-red-600 hover:bg-red-700': required && selectedPhotos.length === 0 }"
+                :disabled="loading"
+            >
+                {{ loading ? 'Processing...' : 'Add Photos' }}
+            </button>
+            <span v-if="required" class="text-sm text-red-600">*Required</span>
+        </div>
+        
+        <div v-if="selectedPhotos.length > 0 || existingPhotos.length > 0" class="grid grid-cols-3 md:grid-cols-4 gap-2">
+            <!-- Existing Photos -->
+            <div v-for="photo in existingPhotos" :key="photo.id" class="relative group">
                 <img
                     :src="getPhotoUrl(photo)"
-                    class="w-12 h-12 object-cover rounded border"
+                    class="w-full h-20 object-cover rounded border"
+                    @error="handleImageError"
+                >
+                <div class="absolute bottom-0 left-0 right-0 bg-black bg-opacity-50 text-white text-xs p-1 rounded-b">
+                    Existing
+                </div>
+            </div>
+            
+            <!-- New Selected Photos -->
+            <div v-for="(photo, i) in selectedPhotos" :key="`new-${i}`" class="relative group">
+                <img
+                    :src="photo.preview"
+                    class="w-full h-20 object-cover rounded border"
                     @error="handleImageError"
                 >
                 <button
-                    v-if="canDelete && !loading"
-                    @click.prevent="remove(photo)"
-                    class="absolute top-0 right-0 p-1 bg-white bg-opacity-80 rounded-bl text-xs text-red-600 hidden group-hover:block"
+                    @click.prevent="removePhoto(i)"
+                    class="absolute top-1 right-1 bg-red-600 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs hover:bg-red-700"
                 >
                     ×
                 </button>
-                <div v-if="loading" class="absolute inset-0 flex items-center justify-center bg-white bg-opacity-75">
-                    <svg class="animate-spin h-5 w-5 text-gray-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                    </svg>
+                <div class="absolute bottom-0 left-0 right-0 bg-green-600 bg-opacity-75 text-white text-xs p-1 rounded-b">
+                    New
                 </div>
             </div>
         </div>
+        
         <div v-if="error" class="text-red-500 text-sm">{{ error }}</div>
     </div>
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { ref, watch } from 'vue'
 
 const props = defineProps({
-    photos: {
+    existingPhotos: {
         type: Array,
         default: () => []
     },
-    canDelete: {
+    required: {
         type: Boolean,
-        default: true
+        default: false
     }
 })
 
-const emit = defineEmits(['upload', 'delete'])
+const emit = defineEmits(['photos-selected'])
 const fileInput = ref(null)
 const loading = ref(false)
 const error = ref('')
+const selectedPhotos = ref([])
+
+// Emit selected photos whenever they change
+watch(selectedPhotos, (newPhotos) => {
+    emit('photos-selected', newPhotos.map(p => p.file))
+}, { deep: true })
 
 function onFileChange(e) {
-    const file = e.target.files[0]
-    if (file) {
-        // Validate file type
-        const validTypes = ['image/jpeg', 'image/png', 'image/gif']
+    const files = Array.from(e.target.files)
+    if (files.length === 0) return
+
+    loading.value = true
+    error.value = ''
+
+    const validTypes = ['image/jpeg', 'image/png', 'image/gif']
+    const maxSize = 10 * 1024 * 1024 // 10MB
+
+    const validFiles = files.filter(file => {
         if (!validTypes.includes(file.type)) {
-            error.value = 'Please upload a valid image file (JPEG, PNG, or GIF)'
-            return
+            error.value = 'Please upload valid image files (JPEG, PNG, or GIF)'
+            return false
         }
+        if (file.size > maxSize) {
+            error.value = 'File size must be less than 10MB'
+            return false
+        }
+        return true
+    })
 
-        // Validate file size (5MB max)
-        if (file.size > 5 * 1024 * 1024) {
-            error.value = 'File size must be less than 5MB'
-            return
-        }
-
-        loading.value = true
-        error.value = ''
-
-        // Convert to base64
-        const reader = new FileReader()
-        reader.onload = (e) => {
-            emit('upload', {
-                file,
-                data: e.target.result
-            })
-            loading.value = false
-        }
-        reader.onerror = () => {
-            error.value = 'Error reading file'
-            loading.value = false
-        }
-        reader.readAsDataURL(file)
+    if (validFiles.length === 0) {
+        loading.value = false
+        return
     }
-    e.target.value = null // reset input for next select
+
+    // Process each file
+    const promises = validFiles.map(file => {
+        return new Promise((resolve) => {
+            const reader = new FileReader()
+            reader.onload = (e) => {
+                resolve({
+                    file,
+                    preview: e.target.result
+                })
+            }
+            reader.onerror = () => {
+                resolve(null)
+            }
+            reader.readAsDataURL(file)
+        })
+    })
+
+    Promise.all(promises).then(results => {
+        const validResults = results.filter(r => r !== null)
+        selectedPhotos.value.push(...validResults)
+        loading.value = false
+    })
+
+    e.target.value = null // reset input
 }
 
-function remove(photo) {
-    if (loading.value) return
-    loading.value = true
-    try {
-        emit('delete', photo.id ?? photo)
-    } catch (e) {
-        error.value = 'Error removing photo'
-    } finally {
-        loading.value = false
-    }
+function removePhoto(index) {
+    selectedPhotos.value.splice(index, 1)
 }
 
 function getPhotoUrl(photo) {
@@ -119,18 +148,16 @@ function getPhotoUrl(photo) {
         return photo.url
     }
     if (photo.photo_path) {
-        // Adapt this to your public upload path if needed
         return `/storage/${photo.photo_path}`
     }
-    if (photo.data) {
-        // base64
-        return `data:image/jpeg;base64,${photo.data}`
+    if (photo.preview) {
+        return photo.preview
     }
     return ''
 }
 
 function handleImageError(e) {
-    e.target.src = '/images/placeholder.png' // Add a placeholder image
-    error.value = 'Error loading image'
+    // You can add a placeholder image here
+    console.warn('Error loading image:', e.target.src)
 }
 </script>

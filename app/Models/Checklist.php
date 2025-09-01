@@ -18,7 +18,8 @@ class Checklist extends Model
         'utilities',
         'tenant_signature',
         'agent_signature',
-        'status'
+        'status',
+        'ops_validation_comments'
     ];
 
     protected $casts = [

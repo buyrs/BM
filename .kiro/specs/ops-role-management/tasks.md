@@ -31,8 +31,8 @@
     -   Ajouter la prévisualisation des contrats avec signatures
     -   _Exigences : 1.4, 1.5_
 
--   [-] 4. Implémentation du système de Bail Mobilité
--   [-] 4.1 Créer le contrôleur BailMobiliteController
+-   [x] 4. Implémentation du système de Bail Mobilité
+-   [x] 4.1 Créer le contrôleur BailMobiliteController
 
     -   Implémenter la création de BM avec génération automatique des missions d'entrée/sortie
     -   Ajouter les méthodes d'assignation des checkers aux missions
@@ -40,7 +40,7 @@
     -   Implémenter la gestion des transitions d'état (Assigné → En cours → Terminé/Incident)
     -   _Exigences : 2.1, 2.2, 2.3, 4.2, 7.2_
 
--   [ ] 4.2 Développer les vues de gestion des BM
+-   [x] 4.2 Développer les vues de gestion des BM
 
     -   Créer le formulaire de création de BM avec sélection de dates et infos locataire
     -   Implémenter la vue kanban pour le suivi des BM (colonnes : Assigné, En cours, Terminé, Incident)
@@ -48,8 +48,8 @@
     -   Créer l'interface d'assignation des checkers avec disponibilité
     -   _Exigences : 2.4, 8.1, 8.2, 8.3_
 
--   [ ] 5. Extension du système de missions pour les BM
--   [ ] 5.1 Étendre le MissionController existant
+-   [x] 5. Extension du système de missions pour les BM
+-   [x] 5.1 Étendre le MissionController existant
 
     -   Ajouter les méthodes spécifiques aux missions BM (entrée/sortie)
     -   Implémenter la logique d'assignation par les Ops
@@ -57,7 +57,7 @@
     -   Ajouter la gestion des signatures électroniques des locataires
     -   _Exigences : 3.1, 3.2, 6.1, 6.2_
 
--   [ ] 5.2 Adapter les vues de missions pour les BM
+-   [x] 5.2 Adapter les vues de missions pour les BM
 
     -   Modifier les interfaces checker pour afficher les informations BM
     -   Ajouter le processus de signature électronique du locataire

@@ -10,13 +10,31 @@ use Inertia\Inertia;
 use Illuminate\Validation\Rule;
 use App\Models\Agent;
 use Illuminate\Support\Carbon;
+use App\Models\BailMobilite;
+use App\Models\BailMobiliteSignature;
+use App\Models\ContractTemplate;
+use App\Models\Checklist;
+use App\Models\ChecklistItem;
+use App\Models\ChecklistPhoto;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 class MissionController extends Controller
 {
     public function __construct()
     {
-        $this->middleware('role:super-admin')->except(['index', 'show', 'getAssignedMissions', 'getCompletedMissions']);
-        $this->middleware('role:checker')->only(['index', 'show', 'getAssignedMissions', 'getCompletedMissions']);
+        $this->middleware('role:super-admin')->except([
+            'index', 'show', 'getAssignedMissions', 'getCompletedMissions',
+            'submitBailMobiliteChecklist', 'signBailMobiliteContract'
+        ]);
+        $this->middleware('role:checker')->only([
+            'index', 'show', 'getAssignedMissions', 'getCompletedMissions',
+            'submitBailMobiliteChecklist', 'signBailMobiliteContract'
+        ]);
+        $this->middleware('role:ops')->only([
+            'assignToChecker', 'validateBailMobiliteChecklist', 'getOpsAssignedMissions'
+        ]);
     }
 
     public function index()
@@ -132,12 +150,29 @@ class MissionController extends Controller
 
     public function show(Mission $mission)
     {
-        if (!Auth::user()->hasRole('super-admin') && $mission->agent_id !== Auth::id()) {
+        if (!Auth::user()->hasRole('super-admin') && 
+            !Auth::user()->hasRole('ops') && 
+            $mission->agent_id !== Auth::id()) {
             abort(403);
         }
 
+        $mission->load([
+            'agent', 
+            'bailMobilite.signatures.contractTemplate',
+            'checklist.items.photos'
+        ]);
+
+        $contractTemplates = [];
+        if ($mission->isBailMobiliteMission()) {
+            $contractTemplates = ContractTemplate::active()
+                ->where('type', $mission->mission_type)
+                ->whereNotNull('admin_signature')
+                ->get();
+        }
+
         return Inertia::render('Missions/Show', [
-            'mission' => $mission->load('agent')
+            'mission' => $mission,
+            'contractTemplates' => $contractTemplates
         ]);
     }
 
@@ -234,5 +269,330 @@ class MissionController extends Controller
 
         return redirect()->back()
             ->with('success', 'Mission status updated successfully.');
+    }
+
+    /**
+     * Assign a mission to a checker (used by Ops users).
+     */
+    public function assignToChecker(Request $request, Mission $mission)
+    {
+        $validated = $request->validate([
+            'agent_id' => 'required|exists:users,id',
+            'scheduled_time' => 'nullable|date_format:H:i'
+        ]);
+
+        // Verify the agent has the checker role
+        $checker = User::findOrFail($validated['agent_id']);
+        if (!$checker->hasRole('checker')) {
+            return back()->withErrors(['agent_id' => 'Selected user is not a checker.']);
+        }
+
+        // Update mission with assignment details
+        $mission->update([
+            'agent_id' => $validated['agent_id'],
+            'status' => 'assigned',
+            'ops_assigned_by' => Auth::id(),
+            'scheduled_time' => $validated['scheduled_time'] ?? null
+        ]);
+
+        return redirect()->back()
+            ->with('success', 'Mission assigned to checker successfully.');
+    }
+
+    /**
+     * Get missions assigned by the current Ops user.
+     */
+    public function getOpsAssignedMissions()
+    {
+        $missions = Mission::with(['agent', 'bailMobilite', 'checklist'])
+            ->assignedByOps(Auth::id())
+            ->latest()
+            ->paginate(10);
+
+        return Inertia::render('Missions/OpsAssigned', [
+            'missions' => $missions
+        ]);
+    }
+
+    /**
+     * Submit checklist for a Bail Mobilité mission (used by checkers).
+     */
+    public function submitBailMobiliteChecklist(Request $request, Mission $mission)
+    {
+        // Verify this is a BM mission and the checker is assigned
+        if (!$mission->isBailMobiliteMission() || $mission->agent_id !== Auth::id()) {
+            abort(403, 'Unauthorized access to this mission.');
+        }
+
+        $validated = $request->validate([
+            'checklist_data' => 'required|array',
+            'checklist_data.general_info' => 'required|array',
+            'checklist_data.rooms' => 'required|array',
+            'checklist_data.utilities' => 'required|array',
+            'photos' => 'nullable|array',
+            'photos.*' => 'file|image|max:10240', // 10MB max per photo
+            'required_photos' => 'nullable|array',
+            'required_photos.*' => 'string'
+        ]);
+
+        DB::beginTransaction();
+        try {
+            // Create or update checklist
+            $checklist = $mission->checklist ?? new Checklist();
+            $checklist->mission_id = $mission->id;
+            $checklist->general_info = $validated['checklist_data']['general_info'];
+            $checklist->rooms = $validated['checklist_data']['rooms'];
+            $checklist->utilities = $validated['checklist_data']['utilities'];
+            $checklist->status = 'pending_validation';
+            $checklist->save();
+
+            // Handle photo uploads
+            if (!empty($validated['photos'])) {
+                $this->handleChecklistPhotos($checklist, $validated['photos']);
+            }
+
+            // Validate required photos are present
+            $requiredPhotos = $validated['required_photos'] ?? [];
+            if (!$this->validateRequiredPhotos($checklist, $requiredPhotos)) {
+                DB::rollBack();
+                return back()->withErrors(['photos' => 'Required photos are missing.']);
+            }
+
+            // Update mission status
+            $mission->update(['status' => 'pending_validation']);
+
+            DB::commit();
+
+            return redirect()->back()
+                ->with('success', 'Checklist submitted successfully. Awaiting Ops validation.');
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            Log::error('Error submitting BM checklist: ' . $e->getMessage());
+            return back()->withErrors(['error' => 'Failed to submit checklist. Please try again.']);
+        }
+    }
+
+    /**
+     * Sign Bail Mobilité contract (used by checkers with tenant).
+     */
+    public function signBailMobiliteContract(Request $request, Mission $mission)
+    {
+        // Verify this is a BM mission and the checker is assigned
+        if (!$mission->isBailMobiliteMission() || $mission->agent_id !== Auth::id()) {
+            abort(403, 'Unauthorized access to this mission.');
+        }
+
+        $validated = $request->validate([
+            'tenant_signature' => 'required|string',
+            'contract_template_id' => 'required|exists:contract_templates,id'
+        ]);
+
+        // Verify the contract template is active and of the correct type
+        $contractTemplate = ContractTemplate::findOrFail($validated['contract_template_id']);
+        $expectedType = $mission->isEntryMission() ? 'entry' : 'exit';
+        
+        if (!$contractTemplate->isReadyForUse() || $contractTemplate->type !== $expectedType) {
+            return back()->withErrors(['contract' => 'Invalid or inactive contract template.']);
+        }
+
+        DB::beginTransaction();
+        try {
+            // Create or update signature record
+            $signature = BailMobiliteSignature::updateOrCreate(
+                [
+                    'bail_mobilite_id' => $mission->bail_mobilite_id,
+                    'signature_type' => $expectedType
+                ],
+                [
+                    'contract_template_id' => $validated['contract_template_id'],
+                    'tenant_signature' => $validated['tenant_signature'],
+                    'tenant_signed_at' => now()
+                ]
+            );
+
+            // Generate PDF contract (this would be implemented in a service)
+            $pdfPath = $this->generateContractPdf($signature);
+            $signature->update(['contract_pdf_path' => $pdfPath]);
+
+            DB::commit();
+
+            return redirect()->back()
+                ->with('success', 'Contract signed successfully.');
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            Log::error('Error signing BM contract: ' . $e->getMessage());
+            return back()->withErrors(['error' => 'Failed to sign contract. Please try again.']);
+        }
+    }
+
+    /**
+     * Validate Bail Mobilité checklist (used by Ops users).
+     */
+    public function validateBailMobiliteChecklist(Request $request, Mission $mission)
+    {
+        // Verify this is a BM mission and user has ops role
+        if (!$mission->isBailMobiliteMission() || !Auth::user()->hasRole('ops')) {
+            abort(403, 'Unauthorized access to this mission.');
+        }
+
+        $validated = $request->validate([
+            'validation_status' => ['required', Rule::in(['approved', 'rejected'])],
+            'validation_comments' => 'nullable|string|max:1000'
+        ]);
+
+        DB::beginTransaction();
+        try {
+            $checklist = $mission->checklist;
+            if (!$checklist) {
+                return back()->withErrors(['error' => 'No checklist found for this mission.']);
+            }
+
+            if ($validated['validation_status'] === 'approved') {
+                // Approve checklist and update BM status
+                $checklist->update([
+                    'status' => 'validated',
+                    'ops_validation_comments' => $validated['validation_comments']
+                ]);
+
+                $mission->update(['status' => 'completed']);
+
+                // Update Bail Mobilité status based on mission type
+                $bailMobilite = $mission->bailMobilite;
+                if ($mission->isEntryMission()) {
+                    $bailMobilite->update(['status' => 'in_progress']);
+                    // Schedule exit reminder notification (would be implemented in a service)
+                    $this->scheduleExitReminder($bailMobilite);
+                } elseif ($mission->isExitMission()) {
+                    // Check if all requirements are met for completion
+                    if ($this->isExitComplete($mission)) {
+                        $bailMobilite->update(['status' => 'completed']);
+                    } else {
+                        $bailMobilite->update(['status' => 'incident']);
+                    }
+                }
+
+            } else {
+                // Reject checklist
+                $checklist->update([
+                    'status' => 'rejected',
+                    'ops_validation_comments' => $validated['validation_comments']
+                ]);
+
+                $mission->update(['status' => 'assigned']); // Send back to checker
+            }
+
+            DB::commit();
+
+            $message = $validated['validation_status'] === 'approved' 
+                ? 'Checklist approved successfully.' 
+                : 'Checklist rejected and sent back to checker.';
+
+            return redirect()->back()->with('success', $message);
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            Log::error('Error validating BM checklist: ' . $e->getMessage());
+            return back()->withErrors(['error' => 'Failed to validate checklist. Please try again.']);
+        }
+    }
+
+    /**
+     * Handle photo uploads for checklist items.
+     */
+    private function handleChecklistPhotos(Checklist $checklist, array $photos)
+    {
+        foreach ($photos as $itemKey => $photoFiles) {
+            if (!is_array($photoFiles)) {
+                $photoFiles = [$photoFiles];
+            }
+
+            // Find or create checklist item
+            $checklistItem = ChecklistItem::firstOrCreate([
+                'checklist_id' => $checklist->id,
+                'item_name' => $itemKey
+            ], [
+                'category' => 'general',
+                'condition' => 'documented'
+            ]);
+
+            // Upload and save photos
+            foreach ($photoFiles as $photo) {
+                $path = $photo->store('checklist-photos', 'public');
+                
+                ChecklistPhoto::create([
+                    'checklist_item_id' => $checklistItem->id,
+                    'photo_path' => $path
+                ]);
+            }
+        }
+    }
+
+    /**
+     * Validate that all required photos are present.
+     */
+    private function validateRequiredPhotos(Checklist $checklist, array $requiredPhotos): bool
+    {
+        foreach ($requiredPhotos as $requiredPhoto) {
+            $item = $checklist->items()->where('item_name', $requiredPhoto)->first();
+            if (!$item || $item->photos()->count() === 0) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    /**
+     * Generate contract PDF with signatures.
+     * This is a placeholder - would be implemented with a PDF generation service.
+     */
+    private function generateContractPdf(BailMobiliteSignature $signature): string
+    {
+        // This would use a service like DomPDF or similar to generate the contract
+        // For now, return a placeholder path
+        $filename = 'contract_' . $signature->bail_mobilite_id . '_' . $signature->signature_type . '_' . time() . '.pdf';
+        $path = 'contracts/' . $filename;
+        
+        // Placeholder: In real implementation, generate actual PDF here
+        Storage::disk('public')->put($path, 'PDF content placeholder');
+        
+        return $path;
+    }
+
+    /**
+     * Schedule exit reminder notification.
+     * This is a placeholder - would be implemented with a notification service.
+     */
+    private function scheduleExitReminder(BailMobilite $bailMobilite): void
+    {
+        // This would schedule a notification 10 days before end date
+        // Implementation would depend on the notification system (queues, cron, etc.)
+        Log::info('Exit reminder scheduled for Bail Mobilité ID: ' . $bailMobilite->id);
+    }
+
+    /**
+     * Check if exit mission is complete (all requirements met).
+     */
+    private function isExitComplete(Mission $mission): bool
+    {
+        $bailMobilite = $mission->bailMobilite;
+        
+        // Check if checklist is validated
+        if (!$mission->checklist || $mission->checklist->status !== 'validated') {
+            return false;
+        }
+
+        // Check if contract is signed
+        $exitSignature = $bailMobilite->exitSignature;
+        if (!$exitSignature || !$exitSignature->isComplete()) {
+            return false;
+        }
+
+        // Check if keys are returned (this would be part of checklist data)
+        $checklistData = $mission->checklist->general_info ?? [];
+        $keysReturned = $checklistData['keys']['returned'] ?? false;
+        
+        return $keysReturned;
     }
 }

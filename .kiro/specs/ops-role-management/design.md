@@ -7,15 +7,17 @@ Cette conception étend le système existant de conciergerie Airbnb pour introdu
 ## Architecture
 
 ### Architecture Existante
-- **Laravel/Inertia.js** avec Vue.js pour l'interface
-- **Spatie Laravel Permission** pour la gestion des rôles
-- **Base de données relationnelle** avec migrations Laravel
-- **Modèles principaux** : User, Agent, Mission, Checklist
-- **Contrôleurs** : MissionController, ChecklistController, DashboardController
+
+-   **Laravel/Inertia.js** avec Vue.js pour l'interface
+-   **Spatie Laravel Permission** pour la gestion des rôles
+-   **Base de données relationnelle** avec migrations Laravel
+-   **Modèles principaux** : User, Agent, Mission, Checklist
+-   **Contrôleurs** : MissionController, ChecklistController, DashboardController
 
 ### Extensions Architecturales
 
 #### Nouveau Modèle : BailMobilite
+
 ```php
 // Représente un séjour complet avec entrée et sortie
 BailMobilite {
@@ -26,6 +28,7 @@ BailMobilite {
 ```
 
 #### Extension du Modèle Mission
+
 ```php
 // Ajout de la relation avec BailMobilite
 Mission {
@@ -38,6 +41,7 @@ Mission {
 ```
 
 #### Nouveau Modèle : Notification
+
 ```php
 // Système de notifications automatiques
 Notification {
@@ -51,11 +55,12 @@ Notification {
 ### 1. Gestion des Rôles et Permissions
 
 #### Nouveau Rôle : "ops"
+
 ```php
 // Permissions spécifiques au rôle Ops
 $opsPermissions = [
     'create_bail_mobilite',
-    'edit_bail_mobilite', 
+    'edit_bail_mobilite',
     'assign_missions',
     'validate_checklists',
     'view_ops_dashboard',
@@ -64,6 +69,7 @@ $opsPermissions = [
 ```
 
 #### Middleware de Contrôle d'Accès
+
 ```php
 // Extension du middleware CheckRole existant
 class CheckOpsAccess extends CheckRole {
@@ -75,6 +81,7 @@ class CheckOpsAccess extends CheckRole {
 ### 2. Contrôleurs
 
 #### BailMobiliteController
+
 ```php
 class BailMobiliteController extends Controller {
     // CRUD des Bail Mobilité
@@ -92,6 +99,7 @@ class BailMobiliteController extends Controller {
 ```
 
 #### ContractTemplateController
+
 ```php
 class ContractTemplateController extends Controller {
     public function index() // Liste des modèles
@@ -107,6 +115,7 @@ class ContractTemplateController extends Controller {
 ```
 
 #### Extension MissionController
+
 ```php
 // Nouvelles méthodes pour les Ops
 public function assignToChecker() // Assignation par Ops
@@ -115,6 +124,7 @@ public function getOpsAssignedMissions() // Missions assignées par cet Ops
 ```
 
 #### OpsController
+
 ```php
 class OpsController extends Controller {
     public function dashboard() // Tableau de bord Ops
@@ -127,20 +137,23 @@ class OpsController extends Controller {
 ### 3. Interfaces Utilisateur
 
 #### Tableau de Bord Ops
-- **Vue Kanban** : Colonnes Assigné, En cours, Terminé, Incident
-- **Notifications** : Alertes 10 jours avant fin de séjour
-- **Métriques** : Performance checkers, incidents, délais
-- **Actions rapides** : Assignation, validation, gestion incidents
+
+-   **Vue Kanban** : Colonnes Assigné, En cours, Terminé, Incident
+-   **Notifications** : Alertes 10 jours avant fin de séjour
+-   **Métriques** : Performance checkers, incidents, délais
+-   **Actions rapides** : Assignation, validation, gestion incidents
 
 #### Formulaires de Gestion BM
-- **Création BM** : Dates, adresse, infos locataire, notes
-- **Assignation** : Sélection checker avec disponibilité
-- **Validation** : Révision checklist avec photos
-- **Gestion incidents** : Création tâches correctives
+
+-   **Création BM** : Dates, adresse, infos locataire, notes
+-   **Assignation** : Sélection checker avec disponibilité
+-   **Validation** : Révision checklist avec photos
+-   **Gestion incidents** : Création tâches correctives
 
 ### 4. Système de Notifications
 
 #### NotificationService
+
 ```php
 class NotificationService {
     public function scheduleExitReminder() // Programme notification 10 jours
@@ -151,16 +164,18 @@ class NotificationService {
 ```
 
 #### Types de Notifications
-- **EXIT_REMINDER** : 10 jours avant fin de séjour
-- **CHECKLIST_VALIDATION** : Checklist à valider
-- **INCIDENT_ALERT** : Incident détecté
-- **MISSION_ASSIGNED** : Mission assignée à checker
+
+-   **EXIT_REMINDER** : 10 jours avant fin de séjour
+-   **CHECKLIST_VALIDATION** : Checklist à valider
+-   **INCIDENT_ALERT** : Incident détecté
+-   **MISSION_ASSIGNED** : Mission assignée à checker
 
 ## Modèles de Données
 
 ### Schéma Base de Données
 
 #### Table : bail_mobilites
+
 ```sql
 CREATE TABLE bail_mobilites (
     id BIGINT PRIMARY KEY AUTO_INCREMENT,
@@ -184,6 +199,7 @@ CREATE TABLE bail_mobilites (
 ```
 
 #### Extension Table : missions
+
 ```sql
 ALTER TABLE missions ADD COLUMN bail_mobilite_id BIGINT;
 ALTER TABLE missions ADD COLUMN mission_type ENUM('entry', 'exit');
@@ -194,6 +210,7 @@ ALTER TABLE missions ADD FOREIGN KEY (ops_assigned_by) REFERENCES users(id);
 ```
 
 #### Table : contract_templates
+
 ```sql
 CREATE TABLE contract_templates (
     id BIGINT PRIMARY KEY AUTO_INCREMENT,
@@ -211,6 +228,7 @@ CREATE TABLE contract_templates (
 ```
 
 #### Table : bail_mobilite_signatures
+
 ```sql
 CREATE TABLE bail_mobilite_signatures (
     id BIGINT PRIMARY KEY AUTO_INCREMENT,
@@ -228,6 +246,7 @@ CREATE TABLE bail_mobilite_signatures (
 ```
 
 #### Table : notifications
+
 ```sql
 CREATE TABLE notifications (
     id BIGINT PRIMARY KEY AUTO_INCREMENT,
@@ -248,6 +267,7 @@ CREATE TABLE notifications (
 ### Relations Eloquent
 
 #### BailMobilite Model
+
 ```php
 class BailMobilite extends Model {
     public function opsUser() { return $this->belongsTo(User::class, 'ops_user_id'); }
@@ -255,15 +275,15 @@ class BailMobilite extends Model {
     public function exitMission() { return $this->belongsTo(Mission::class, 'exit_mission_id'); }
     public function notifications() { return $this->hasMany(Notification::class); }
     public function signatures() { return $this->hasMany(BailMobiliteSignature::class); }
-    
+
     // Relations pour les signatures spécifiques
-    public function entrySignature() { 
-        return $this->hasOne(BailMobiliteSignature::class)->where('signature_type', 'entry'); 
+    public function entrySignature() {
+        return $this->hasOne(BailMobiliteSignature::class)->where('signature_type', 'entry');
     }
-    public function exitSignature() { 
-        return $this->hasOne(BailMobiliteSignature::class)->where('signature_type', 'exit'); 
+    public function exitSignature() {
+        return $this->hasOne(BailMobiliteSignature::class)->where('signature_type', 'exit');
     }
-    
+
     // Scopes pour les statuts
     public function scopeAssigned($query) { return $query->where('status', 'assigned'); }
     public function scopeInProgress($query) { return $query->where('status', 'in_progress'); }
@@ -273,21 +293,22 @@ class BailMobilite extends Model {
 ```
 
 #### ContractTemplate Model
+
 ```php
 class ContractTemplate extends Model {
     protected $fillable = [
-        'name', 'type', 'content', 'admin_signature', 
+        'name', 'type', 'content', 'admin_signature',
         'admin_signed_at', 'is_active', 'created_by'
     ];
-    
+
     protected $casts = [
         'admin_signed_at' => 'datetime',
         'is_active' => 'boolean'
     ];
-    
+
     public function creator() { return $this->belongsTo(User::class, 'created_by'); }
     public function signatures() { return $this->hasMany(BailMobiliteSignature::class); }
-    
+
     // Scopes
     public function scopeActive($query) { return $query->where('is_active', true); }
     public function scopeEntry($query) { return $query->where('type', 'entry'); }
@@ -296,23 +317,24 @@ class ContractTemplate extends Model {
 ```
 
 #### BailMobiliteSignature Model
+
 ```php
 class BailMobiliteSignature extends Model {
     protected $fillable = [
         'bail_mobilite_id', 'signature_type', 'contract_template_id',
         'tenant_signature', 'tenant_signed_at', 'contract_pdf_path'
     ];
-    
+
     protected $casts = [
         'tenant_signed_at' => 'datetime'
     ];
-    
+
     public function bailMobilite() { return $this->belongsTo(BailMobilite::class); }
     public function contractTemplate() { return $this->belongsTo(ContractTemplate::class); }
-    
+
     // Vérification si toutes les signatures sont complètes
     public function isComplete() {
-        return !empty($this->tenant_signature) && 
+        return !empty($this->tenant_signature) &&
                !empty($this->contractTemplate->admin_signature);
     }
 }
@@ -321,6 +343,7 @@ class BailMobiliteSignature extends Model {
 ## Gestion des Photos
 
 ### Système de Photos Existant
+
 Le système utilise déjà les modèles `ChecklistItem` et `ChecklistPhoto` pour gérer les photos des checklists :
 
 ```php
@@ -330,48 +353,56 @@ ChecklistPhoto -> belongsTo(ChecklistItem)
 ```
 
 ### Intégration avec les BM
-- **Photos obligatoires** : Certains éléments de checklist nécessitent des photos
-- **Validation** : Le système vérifie la présence des photos requises avant soumission
-- **Stockage** : Photos stockées via le système de fichiers Laravel existant
-- **Affichage** : Les Ops peuvent consulter toutes les photos lors de la validation
+
+-   **Photos obligatoires** : Certains éléments de checklist nécessitent des photos
+-   **Validation** : Le système vérifie la présence des photos requises avant soumission
+-   **Stockage** : Photos stockées via le système de fichiers Laravel existant
+-   **Affichage** : Les Ops peuvent consulter toutes les photos lors de la validation
 
 ## Gestion des Erreurs
 
 ### Validation des Données
-- **Dates BM** : Date fin > date début, dates futures
-- **Assignations** : Checker disponible, pas de conflit horaire
-- **Checklists** : Photos obligatoires, signatures requises
-- **Photos** : Format valide, taille limite, photos obligatoires présentes
-- **Permissions** : Vérification rôle pour chaque action
+
+-   **Dates BM** : Date fin > date début, dates futures
+-   **Assignations** : Checker disponible, pas de conflit horaire
+-   **Checklists** : Photos obligatoires, signatures requises
+-   **Photos** : Format valide, taille limite, photos obligatoires présentes
+-   **Permissions** : Vérification rôle pour chaque action
 
 ### Gestion des Incidents
-- **Détection automatique** : Checklist incomplète, pas de signature, clés non remises
-- **Escalade** : Notification Ops, création tâches correctives
-- **Suivi** : Historique des actions, résolution documentée
+
+-   **Détection automatique** : Checklist incomplète, pas de signature, clés non remises
+-   **Escalade** : Notification Ops, création tâches correctives
+-   **Suivi** : Historique des actions, résolution documentée
 
 ### Cas d'Erreur
-- **Checker indisponible** : Proposition alternatives, réassignation
-- **Modification dates** : Recalcul notifications, mise à jour missions
-- **Panne système** : Sauvegarde état, récupération données
+
+-   **Checker indisponible** : Proposition alternatives, réassignation
+-   **Modification dates** : Recalcul notifications, mise à jour missions
+-   **Panne système** : Sauvegarde état, récupération données
 
 ## Stratégie de Test
 
 ### Tests Unitaires
-- **Modèles** : Relations, scopes, validations
-- **Services** : Logique métier, calculs dates
-- **Notifications** : Programmation, envoi, annulation
+
+-   **Modèles** : Relations, scopes, validations
+-   **Services** : Logique métier, calculs dates
+-   **Notifications** : Programmation, envoi, annulation
 
 ### Tests d'Intégration
-- **Workflow complet** : Création BM → Entrée → Validation → Sortie
-- **Permissions** : Accès par rôle, restrictions
-- **API** : Endpoints, réponses, codes erreur
+
+-   **Workflow complet** : Création BM → Entrée → Validation → Sortie
+-   **Permissions** : Accès par rôle, restrictions
+-   **API** : Endpoints, réponses, codes erreur
 
 ### Tests Fonctionnels
-- **Interface utilisateur** : Navigation, formulaires, kanban
-- **Notifications** : Réception, affichage, actions
-- **Rapports** : Génération PDF, export données
+
+-   **Interface utilisateur** : Navigation, formulaires, kanban
+-   **Notifications** : Réception, affichage, actions
+-   **Rapports** : Génération PDF, export données
 
 ### Scénarios de Test
+
 1. **Création BM par Ops** → Génération missions automatique
 2. **Assignation entrée** → Notification checker
 3. **Validation entrée** → Passage "En cours" + programmation notification
@@ -382,16 +413,19 @@ ChecklistPhoto -> belongsTo(ChecklistItem)
 ## Considérations de Performance
 
 ### Optimisations Base de Données
-- **Index** sur dates, statuts, relations fréquentes
-- **Eager loading** pour éviter N+1 queries
-- **Pagination** pour listes importantes
+
+-   **Index** sur dates, statuts, relations fréquentes
+-   **Eager loading** pour éviter N+1 queries
+-   **Pagination** pour listes importantes
 
 ### Cache et Sessions
-- **Cache** des métriques dashboard
-- **Sessions** pour états temporaires formulaires
-- **Queue** pour notifications asynchrones
+
+-   **Cache** des métriques dashboard
+-   **Sessions** pour états temporaires formulaires
+-   **Queue** pour notifications asynchrones
 
 ### Monitoring
-- **Logs** des actions critiques
-- **Métriques** temps de réponse, erreurs
-- **Alertes** sur incidents système
+
+-   **Logs** des actions critiques
+-   **Métriques** temps de réponse, erreurs
+-   **Alertes** sur incidents système

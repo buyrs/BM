@@ -40,6 +40,14 @@ class Mission extends Model
     }
 
     /**
+     * Get the checklist associated with this mission.
+     */
+    public function checklist(): HasOne
+    {
+        return $this->hasOne(Checklist::class);
+    }
+
+    /**
      * Get the bail mobilité associated with this mission.
      */
     public function bailMobilite(): BelongsTo
