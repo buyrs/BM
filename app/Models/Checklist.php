@@ -19,13 +19,16 @@ class Checklist extends Model
         'tenant_signature',
         'agent_signature',
         'status',
-        'ops_validation_comments'
+        'ops_validation_comments',
+        'validated_by',
+        'validated_at'
     ];
 
     protected $casts = [
         'general_info' => 'array',
         'rooms' => 'array',
-        'utilities' => 'array'
+        'utilities' => 'array',
+        'validated_at' => 'datetime'
     ];
 
     public function mission(): BelongsTo
@@ -36,6 +39,11 @@ class Checklist extends Model
     public function items(): HasMany
     {
         return $this->hasMany(ChecklistItem::class);
+    }
+
+    public function validatedBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'validated_by');
     }
 
     public function getDefaultStructure(): array

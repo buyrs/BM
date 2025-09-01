@@ -84,23 +84,7 @@
                     <!-- Notifications and Actions -->
                     <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
                         <!-- Pending Notifications -->
-                        <div class="bg-white rounded-xl shadow-sm p-6">
-                            <h3 class="text-lg font-semibold text-gray-900 mb-4">Notifications en Attente</h3>
-                            <div class="space-y-3">
-                                <div v-for="notification in pendingNotifications" :key="notification.id" class="flex items-center p-3 bg-gray-50 rounded-lg">
-                                    <div class="flex-shrink-0">
-                                        <div class="w-2 h-2 bg-blue-500 rounded-full"></div>
-                                    </div>
-                                    <div class="ml-3 flex-1">
-                                        <p class="text-sm font-medium text-gray-900">{{ notification.data.message }}</p>
-                                        <p class="text-xs text-gray-500">{{ formatDate(notification.scheduled_at) }}</p>
-                                    </div>
-                                </div>
-                                <div v-if="pendingNotifications.length === 0" class="text-center py-4 text-gray-500">
-                                    Aucune notification en attente
-                                </div>
-                            </div>
-                        </div>
+                        <NotificationPanel :notifications="pendingNotifications" />
 
                         <!-- Missions for Validation -->
                         <div class="bg-white rounded-xl shadow-sm p-6">
@@ -220,6 +204,7 @@
 <script setup>
 import { Head, Link } from '@inertiajs/vue3'
 import DashboardOps from '@/Layouts/DashboardOps.vue'
+import NotificationPanel from '@/Components/NotificationPanel.vue'
 
 const props = defineProps({
     stats: Object,
@@ -227,6 +212,7 @@ const props = defineProps({
     pendingNotifications: Array,
     missionsForValidation: Array,
     endingSoon: Array,
+    notificationStats: Object,
 })
 
 const formatDate = (date) => {

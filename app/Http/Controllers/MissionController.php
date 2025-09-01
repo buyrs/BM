@@ -19,6 +19,8 @@ use App\Models\ChecklistPhoto;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use App\Services\NotificationService;
+use Illuminate\Support\Facades\Log;
 
 class MissionController extends Controller
 {
@@ -594,5 +596,104 @@ class MissionController extends Controller
         $keysReturned = $checklistData['keys']['returned'] ?? false;
         
         return $keysReturned;
+    }
+
+    /**
+     * Show mission validation page for Ops users.
+     */
+    public function showValidation(Mission $mission)
+    {
+        // Verify this is a BM mission and user has ops role
+        if (!$mission->isBailMobiliteMission() || !Auth::user()->hasRole('ops')) {
+            abort(403, 'Unauthorized access to this mission.');
+        }
+
+        $mission->load(['bailMobilite', 'agent', 'checklist.items.photos']);
+
+        return Inertia::render('Ops/MissionValidation', [
+            'mission' => $mission
+        ]);
+    }
+
+    /**
+     * Validate mission (used by Ops users).
+     */
+    public function validateMission(Request $request, Mission $mission)
+    {
+        // Verify this is a BM mission and user has ops role
+        if (!$mission->isBailMobiliteMission() || !Auth::user()->hasRole('ops')) {
+            abort(403, 'Unauthorized access to this mission.');
+        }
+
+        $validated = $request->validate([
+            'validation_status' => ['required', Rule::in(['approved', 'rejected'])],
+            'validation_comments' => 'nullable|string|max:1000'
+        ]);
+
+        DB::beginTransaction();
+        try {
+            $checklist = $mission->checklist;
+            if (!$checklist) {
+                return back()->withErrors(['error' => 'No checklist found for this mission.']);
+            }
+
+            if ($validated['validation_status'] === 'approved') {
+                // Approve checklist and update BM status
+                $checklist->update([
+                    'status' => 'validated',
+                    'ops_validation_comments' => $validated['validation_comments'],
+                    'validated_by' => Auth::id(),
+                    'validated_at' => now()
+                ]);
+
+                $mission->update(['status' => 'completed']);
+
+                // Update Bail Mobilité status based on mission type
+                $bailMobilite = $mission->bailMobilite;
+                if ($mission->isEntryMission()) {
+                    $bailMobilite->update(['status' => 'in_progress']);
+                    
+                    // Schedule exit reminder notification using NotificationService
+                    $notificationService = app(NotificationService::class);
+                    $notificationService->scheduleExitReminder($bailMobilite);
+                    
+                } elseif ($mission->isExitMission()) {
+                    // Check if all requirements are met for completion
+                    if ($this->isExitComplete($mission)) {
+                        $bailMobilite->update(['status' => 'completed']);
+                    } else {
+                        $bailMobilite->update(['status' => 'incident']);
+                        
+                        // Send incident alert
+                        $notificationService = app(NotificationService::class);
+                        $notificationService->sendIncidentAlert($bailMobilite, 'Exit validation failed - requirements not met');
+                    }
+                }
+
+            } else {
+                // Reject checklist
+                $checklist->update([
+                    'status' => 'rejected',
+                    'ops_validation_comments' => $validated['validation_comments'],
+                    'validated_by' => Auth::id(),
+                    'validated_at' => now()
+                ]);
+
+                $mission->update(['status' => 'assigned']); // Send back to checker
+            }
+
+            DB::commit();
+
+            $message = $validated['validation_status'] === 'approved' 
+                ? 'Mission validated successfully.' 
+                : 'Mission rejected and sent back to checker.';
+
+            return redirect()->route('ops.dashboard')->with('success', $message);
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            Log::error('Error validating mission: ' . $e->getMessage());
+            return back()->withErrors(['error' => 'Failed to validate mission. Please try again.']);
+        }
     }
 }

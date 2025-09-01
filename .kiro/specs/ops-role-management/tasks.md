@@ -82,8 +82,8 @@
     -   Créer l'interface de consultation des documents signés pour les Ops
     -   _Exigences : 10.2, 10.3_
 
--   [ ] 7. Implémentation du système de notifications automatiques
--   [ ] 7.1 Créer le service NotificationService
+-   [x] 7. Implémentation du système de notifications automatiques
+-   [x] 7.1 Créer le service NotificationService
 
     -   Implémenter la programmation des notifications 10 jours avant fin de séjour
     -   Créer la logique d'envoi d'emails et notifications push
@@ -91,15 +91,15 @@
     -   Implémenter l'annulation des notifications en cas de modification de dates
     -   _Exigences : 5.1, 5.2, 7.4_
 
--   [ ] 7.2 Développer l'interface de notifications
+-   [x] 7.2 Développer l'interface de notifications
 
     -   Créer le système d'affichage des notifications dans le tableau de bord Ops
     -   Implémenter les actions rapides depuis les notifications
     -   Ajouter l'historique des notifications envoyées
     -   _Exigences : 5.3, 5.4_
 
--   [ ] 8. Création du tableau de bord Ops
--   [ ] 8.1 Développer le contrôleur OpsController
+-   [-] 8. Création du tableau de bord Ops
+-   [-] 8.1 Développer le contrôleur OpsController
 
     -   Implémenter les métriques et statistiques pour le dashboard
     -   Créer les données pour la vue kanban des BM

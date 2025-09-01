@@ -20,6 +20,9 @@
                                 <NavLink :href="route('ops.bail-mobilites.index')" :active="route().current('ops.bail-mobilites.*')">
                                     Bail Mobilité
                                 </NavLink>
+                                <NavLink :href="route('ops.notifications')" :active="route().current('ops.notifications')">
+                                    Notifications
+                                </NavLink>
                                 <NavLink :href="route('missions.index')" :active="route().current('missions.index')">
                                     Missions
                                 </NavLink>
@@ -29,14 +32,14 @@
                         <div class="hidden sm:flex sm:items-center sm:ml-6">
                             <!-- Notifications -->
                             <div class="mr-4">
-                                <button class="relative p-2 text-gray-500 hover:text-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 rounded-full">
+                                <Link :href="route('ops.notifications')" class="relative p-2 text-gray-500 hover:text-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 rounded-full">
                                     <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-5 5v-5zM12 17.5a6.5 6.5 0 110-13 6.5 6.5 0 010 13z"/>
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-5 5-5-5h5v-12"></path>
                                     </svg>
                                     <span v-if="notificationCount > 0" class="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">
                                         {{ notificationCount }}
                                     </span>
-                                </button>
+                                </Link>
                             </div>
 
                             <!-- Settings Dropdown -->
@@ -84,6 +87,9 @@
                         </ResponsiveNavLink>
                         <ResponsiveNavLink :href="route('ops.bail-mobilites.index')" :active="route().current('ops.bail-mobilites.*')">
                             Bail Mobilité
+                        </ResponsiveNavLink>
+                        <ResponsiveNavLink :href="route('ops.notifications')" :active="route().current('ops.notifications')">
+                            Notifications
                         </ResponsiveNavLink>
                         <ResponsiveNavLink :href="route('missions.index')" :active="route().current('missions.index')">
                             Missions

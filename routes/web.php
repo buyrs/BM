@@ -107,6 +107,12 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::middleware(['role:ops|admin'])->prefix('ops')->name('ops.')->group(function () {
         Route::get('/dashboard', [\App\Http\Controllers\OpsController::class, 'dashboard'])->name('dashboard');
         
+        // Notification routes
+        Route::get('/notifications', [\App\Http\Controllers\OpsController::class, 'notifications'])->name('notifications');
+        Route::post('/notifications/{notification}/mark-handled', [\App\Http\Controllers\OpsController::class, 'markNotificationAsHandled'])->name('notifications.mark-handled');
+        Route::get('/api/notifications/pending', [\App\Http\Controllers\OpsController::class, 'getPendingNotifications'])->name('api.notifications.pending');
+        Route::post('/notifications/{notification}/action', [\App\Http\Controllers\OpsController::class, 'handleNotificationAction'])->name('notifications.action');
+        
         // Bail Mobilité routes
         Route::resource('bail-mobilites', \App\Http\Controllers\BailMobiliteController::class);
         Route::post('bail-mobilites/{bailMobilite}/assign-entry', [\App\Http\Controllers\BailMobiliteController::class, 'assignEntry'])->name('bail-mobilites.assign-entry');
@@ -115,6 +121,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::post('bail-mobilites/{bailMobilite}/validate-exit', [\App\Http\Controllers\BailMobiliteController::class, 'validateExit'])->name('bail-mobilites.validate-exit');
         Route::post('bail-mobilites/{bailMobilite}/handle-incident', [\App\Http\Controllers\BailMobiliteController::class, 'handleIncident'])->name('bail-mobilites.handle-incident');
         Route::get('checkers/available', [\App\Http\Controllers\BailMobiliteController::class, 'getAvailableCheckers'])->name('checkers.available');
+        
+        // Mission validation routes
+        Route::get('missions/{mission}/validate', [MissionController::class, 'showValidation'])->name('missions.validate');
+        Route::post('missions/{mission}/validate', [MissionController::class, 'validateMission'])->name('missions.validate.submit');
     });
 
     // API routes for contract templates (for Ops users)
