@@ -91,11 +91,23 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('/checklist/{checklist}', [PdfController::class, 'checklist'])->name('checklist');
     });
 
+    // API routes for contract templates (for Ops users)
+    Route::middleware(['role:ops|admin'])->prefix('api')->name('api.')->group(function () {
+        Route::get('/contract-templates/active', [\App\Http\Controllers\ContractTemplateController::class, 'getActiveTemplates'])->name('contract-templates.active');
+    });
+
     // Admin routes
     Route::middleware(['role:admin'])->prefix('admin')->name('admin.')->group(function () {
         Route::get('/dashboard', [DashboardController::class, 'adminDashboard'])->name('dashboard');
         Route::get('/analytics/data', [\App\Http\Controllers\Admin\AnalyticsController::class, 'index'])->name('analytics.data');
         Route::get('/checkers', [\App\Http\Controllers\Admin\AnalyticsController::class, 'checkers'])->name('checkers');
+        
+        // Contract Templates routes
+        Route::resource('contract-templates', \App\Http\Controllers\ContractTemplateController::class);
+        Route::post('contract-templates/{contractTemplate}/sign', [\App\Http\Controllers\ContractTemplateController::class, 'signTemplate'])->name('contract-templates.sign');
+        Route::patch('contract-templates/{contractTemplate}/toggle-active', [\App\Http\Controllers\ContractTemplateController::class, 'toggleActive'])->name('contract-templates.toggle-active');
+        Route::get('contract-templates/{contractTemplate}/preview', [\App\Http\Controllers\ContractTemplateController::class, 'preview'])->name('contract-templates.preview');
+        Route::post('contract-templates/{contractTemplate}/create-version', [\App\Http\Controllers\ContractTemplateController::class, 'createVersion'])->name('contract-templates.create-version');
     });
 });
 

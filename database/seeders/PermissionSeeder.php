@@ -13,6 +13,7 @@ class PermissionSeeder extends Seeder
         // Get existing roles
         $superAdmin = Role::findByName('super-admin');
         $checker = Role::findByName('checker');
+        $ops = Role::findByName('ops');
 
         // Create permissions
         $permissions = [
@@ -26,7 +27,21 @@ class PermissionSeeder extends Seeder
             'edit_checklists',
             'delete_checklists',
             'export_pdf',
-            'share_whatsapp'
+            'share_whatsapp',
+            // New permissions for Ops role
+            'create_bail_mobilite',
+            'edit_bail_mobilite',
+            'view_bail_mobilite',
+            'delete_bail_mobilite',
+            'assign_missions_to_checkers',
+            'validate_checklists',
+            'view_ops_dashboard',
+            'manage_incidents',
+            'view_contract_templates',
+            'create_contract_templates',
+            'edit_contract_templates',
+            'delete_contract_templates',
+            'sign_contract_templates'
         ];
 
         foreach ($permissions as $permission) {
@@ -45,5 +60,25 @@ class PermissionSeeder extends Seeder
             'export_pdf',
             'share_whatsapp'
         ]);
+
+        // Assign Ops-specific permissions
+        if ($ops) {
+            $ops->givePermissionTo([
+                'view_missions',
+                'create_missions',
+                'edit_missions',
+                'assign_missions',
+                'view_checklists',
+                'validate_checklists',
+                'export_pdf',
+                'share_whatsapp',
+                'create_bail_mobilite',
+                'edit_bail_mobilite',
+                'view_bail_mobilite',
+                'assign_missions_to_checkers',
+                'view_ops_dashboard',
+                'manage_incidents'
+            ]);
+        }
     }
 } 

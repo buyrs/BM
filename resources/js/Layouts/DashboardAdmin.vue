@@ -32,6 +32,9 @@
                                 <NavLink :href="route('admin.analytics')" :active="route().current('admin.analytics')">
                                     Analytics
                                 </NavLink>
+                                <NavLink :href="route('admin.contract-templates.index')" :active="route().current('admin.contract-templates.*')">
+                                    Contract Templates
+                                </NavLink>
                                 <NavLink :href="route('admin.settings')" :active="route().current('admin.settings')">
                                     Settings
                                 </NavLink>

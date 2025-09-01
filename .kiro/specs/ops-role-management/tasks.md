@@ -1,13 +1,13 @@
 # Plan d'Implémentation - Gestion du Rôle Ops et Bail Mobilité
 
--   [-] 1. Mise en place de l'infrastructure de base
+-   [x] 1. Mise en place de l'infrastructure de base
 
     -   Créer les migrations pour les nouvelles tables (contract_templates, bail_mobilites, bail_mobilite_signatures, notifications)
     -   Ajouter le nouveau rôle "ops" au système de permissions existant
     -   Étendre la table missions avec les nouvelles colonnes pour les BM
     -   _Exigences : 1bis.1, 9.1, 9.3_
 
--   [ ] 2. Création des modèles Eloquent et relations
+-   [x] 2. Création des modèles Eloquent et relations
 
     -   Implémenter le modèle ContractTemplate avec ses relations et scopes
     -   Implémenter le modèle BailMobilite avec toutes ses relations
@@ -16,23 +16,23 @@
     -   Étendre le modèle Mission existant pour supporter les BM
     -   _Exigences : 1.2, 2.1, 10.1_
 
--   [ ] 3. Développement du système de gestion des modèles de contrats
--   [ ] 3.1 Créer le contrôleur ContractTemplateController
+-   [x] 3. Développement du système de gestion des modèles de contrats
+-   [x] 3.1 Créer le contrôleur ContractTemplateController
 
     -   Implémenter les méthodes CRUD pour les modèles de contrats
     -   Ajouter la fonctionnalité de signature électronique pour l'admin
     -   Créer la validation des contenus légaux et signatures
     -   _Exigences : 1.1, 1.2, 1.3_
 
--   [ ] 3.2 Développer l'interface de gestion des modèles de contrats
+-   [x] 3.2 Développer l'interface de gestion des modèles de contrats
 
     -   Créer les vues Vue.js pour la création/édition des modèles
     -   Implémenter le composant de signature électronique pour l'admin
     -   Ajouter la prévisualisation des contrats avec signatures
     -   _Exigences : 1.4, 1.5_
 
--   [ ] 4. Implémentation du système de Bail Mobilité
--   [ ] 4.1 Créer le contrôleur BailMobiliteController
+-   [-] 4. Implémentation du système de Bail Mobilité
+-   [-] 4.1 Créer le contrôleur BailMobiliteController
 
     -   Implémenter la création de BM avec génération automatique des missions d'entrée/sortie
     -   Ajouter les méthodes d'assignation des checkers aux missions
