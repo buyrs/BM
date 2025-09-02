@@ -25,6 +25,10 @@ class PermissionSeeder extends Seeder
             'delete_missions', // Admin only
             'assign_missions',
             
+            // Calendar permissions
+            'view_calendar',
+            'manage_calendar_events',
+            
             // Checklist permissions
             'view_checklists',
             'create_checklists',
@@ -115,6 +119,8 @@ class PermissionSeeder extends Seeder
                 'access_admin_panel',
                 'view_notifications',
                 'manage_notifications',
+                'view_calendar',
+                'manage_calendar_events',
             ]);
         }
 
@@ -155,6 +161,8 @@ class PermissionSeeder extends Seeder
                 'archive_signatures',
                 'view_notifications',
                 'manage_notifications',
+                'view_calendar',
+                'manage_calendar_events',
             ]);
         }
     }

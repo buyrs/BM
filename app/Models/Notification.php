@@ -15,6 +15,7 @@ class Notification extends Model
     const TYPE_CHECKLIST_VALIDATION = 'checklist_validation';
     const TYPE_INCIDENT_ALERT = 'incident_alert';
     const TYPE_MISSION_ASSIGNED = 'mission_assigned';
+    const TYPE_CALENDAR_UPDATE = 'calendar_update';
 
     protected $fillable = [
         'type',
@@ -130,6 +131,14 @@ class Notification extends Model
     }
 
     /**
+     * Scope to get calendar update notifications.
+     */
+    public function scopeCalendarUpdates($query)
+    {
+        return $query->where('type', self::TYPE_CALENDAR_UPDATE);
+    }
+
+    /**
      * Mark the notification as sent.
      */
     public function markAsSent(): void
@@ -187,6 +196,19 @@ class Notification extends Model
                 return "Incident détecté pour {$this->bailMobilite->tenant_name}";
             case self::TYPE_MISSION_ASSIGNED:
                 return "Nouvelle mission assignée";
+            case self::TYPE_CALENDAR_UPDATE:
+                $updateType = $this->data['update_type'] ?? 'update';
+                $tenantName = $this->data['tenant_name'] ?? 'Unknown';
+                switch ($updateType) {
+                    case 'creation':
+                        return "Nouveau Bail Mobilité créé - {$tenantName}";
+                    case 'assignment':
+                        return "Mission assignée - {$tenantName}";
+                    case 'status_change':
+                        return "Statut mission modifié - {$tenantName}";
+                    default:
+                        return "Calendrier mis à jour - {$tenantName}";
+                }
             default:
                 return "Notification";
         }

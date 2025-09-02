@@ -6,6 +6,8 @@ use App\Models\BailMobilite;
 use App\Models\Mission;
 use App\Models\User;
 use App\Services\CalendarService;
+use App\Services\NotificationService;
+use App\Services\CalendarEventService;
 use App\Http\Resources\MissionCalendarResource;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
@@ -18,11 +20,22 @@ use Carbon\Carbon;
 class CalendarController extends Controller
 {
     protected CalendarService $calendarService;
+    protected NotificationService $notificationService;
+    protected CalendarEventService $calendarEventService;
 
-    public function __construct(CalendarService $calendarService)
+    public function __construct(CalendarService $calendarService, NotificationService $notificationService, CalendarEventService $calendarEventService)
     {
         $this->calendarService = $calendarService;
+        $this->notificationService = $notificationService;
+        $this->calendarEventService = $calendarEventService;
         // Middleware is handled at route level via ops.access
+        
+        // Additional permission checks for specific calendar operations
+        $this->middleware('can:view_calendar')->only(['index', 'getMissions', 'getMissionDetails']);
+        $this->middleware('can:create_missions')->only(['createMission']);
+        $this->middleware('can:assign_missions_to_checkers')->only(['assignMissionToChecker', 'bulkUpdateMissions']);
+        $this->middleware('can:manage_calendar_events')->only(['updateMission', 'updateMissionStatus']);
+        $this->middleware('can:delete_missions')->only(['deleteMission']);
     }
 
     /**
@@ -170,6 +183,14 @@ class CalendarController extends Controller
         try {
             $bailMobilite = $this->calendarService->createBailMobiliteMission($validated);
 
+            // Handle mission creation events
+            if ($bailMobilite->entryMission) {
+                $this->calendarEventService->handleMissionCreated($bailMobilite->entryMission);
+            }
+            if ($bailMobilite->exitMission) {
+                $this->calendarEventService->handleMissionCreated($bailMobilite->exitMission);
+            }
+
             DB::commit();
 
             // Return the created missions formatted for calendar
@@ -223,6 +244,9 @@ class CalendarController extends Controller
         }
 
         try {
+            // Store original values for change tracking
+            $originalAgentId = $mission->agent_id;
+            $originalStatus = $mission->status;
             
             // If agent is assigned, add status to validated data
             if (isset($validated['agent_id']) && $validated['agent_id']) {
@@ -232,6 +256,18 @@ class CalendarController extends Controller
             // Update mission with all validated data at once
             $updateResult = $mission->update($validated);
             \Log::info('CalendarController updateMission - Update result:', ['result' => $updateResult]);
+
+            // Handle mission lifecycle events
+            if (isset($validated['agent_id']) && $validated['agent_id'] !== $originalAgentId) {
+                $previousAgent = $originalAgentId ? User::find($originalAgentId) : null;
+                $this->calendarEventService->handleMissionAssigned($mission, $previousAgent);
+            } elseif (isset($validated['status']) && $validated['status'] !== $originalStatus) {
+                $this->calendarEventService->handleMissionStatusChanged($mission, $originalStatus, $validated['status']);
+            } elseif (isset($validated['scheduled_at']) && $validated['scheduled_at'] !== $mission->getOriginal('scheduled_at')) {
+                $oldDate = Carbon::parse($mission->getOriginal('scheduled_at'));
+                $newDate = Carbon::parse($validated['scheduled_at']);
+                $this->calendarEventService->handleMissionRescheduled($mission, $oldDate, $newDate);
+            }
 
             // Reload the mission with relationships
             $mission->refresh();
@@ -340,7 +376,12 @@ class CalendarController extends Controller
             // Validate status transition
             $this->validateStatusTransition($mission, $validated['status']);
 
+            $oldStatus = $mission->status;
             $mission->update($validated);
+            
+            // Handle status change event
+            $this->calendarEventService->handleMissionStatusChanged($mission, $oldStatus, $validated['status']);
+            
             $mission->refresh();
             $mission->load(['agent', 'bailMobilite', 'checklist', 'opsAssignedBy']);
 
@@ -378,12 +419,17 @@ class CalendarController extends Controller
                 throw new \Exception('Selected user is not a checker');
             }
 
+            $previousAgent = $mission->agent;
+            
             $mission->update([
                 'agent_id' => $validated['agent_id'],
                 'status' => 'assigned',
                 'ops_assigned_by' => Auth::id(),
                 'notes' => $validated['notes'] ?? $mission->notes,
             ]);
+
+            // Handle assignment event
+            $this->calendarEventService->handleMissionAssigned($mission, $previousAgent);
 
             $mission->refresh();
             $mission->load(['agent', 'bailMobilite', 'checklist', 'opsAssignedBy']);
@@ -421,6 +467,10 @@ class CalendarController extends Controller
             }
 
             $missionId = $mission->id;
+            
+            // Handle deletion event before deleting
+            $this->calendarEventService->handleMissionDeleted($mission);
+            
             $mission->delete();
 
             return response()->json([

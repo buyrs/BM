@@ -69,6 +69,24 @@ class OpsController extends Controller
         // Get performance trends
         $performanceTrends = $this->getPerformanceTrends();
 
+        // Get today's missions for calendar quick view
+        $todayMissions = Mission::whereDate('scheduled_at', today())
+            ->with(['bailMobilite', 'agent'])
+            ->orderBy('scheduled_at')
+            ->limit(5)
+            ->get()
+            ->map(function ($mission) {
+                return [
+                    'id' => $mission->id,
+                    'tenant_name' => $mission->bailMobilite->tenant_name ?? 'Unknown',
+                    'type' => $mission->mission_type,
+                    'status' => $mission->status,
+                    'scheduled_date' => $mission->scheduled_at->format('Y-m-d'),
+                    'scheduled_time' => $mission->scheduled_at->format('H:i'),
+                    'agent_name' => $mission->agent->name ?? null,
+                ];
+            });
+
         return Inertia::render('Ops/Dashboard', [
             'metrics' => $metrics,
             'kanbanData' => $kanbanData,
@@ -77,6 +95,7 @@ class OpsController extends Controller
             'endingSoon' => $endingSoon,
             'notificationStats' => $notificationStats,
             'performanceTrends' => $performanceTrends,
+            'todayMissions' => $todayMissions,
         ]);
     }
 

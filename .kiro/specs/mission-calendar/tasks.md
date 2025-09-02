@@ -89,7 +89,7 @@
     -   Create empty state displays when no missions exist
     -   _Requirements: 1.1, 3.5, 4.5, 7.5_
 
--   [-] 11. Add calendar integration with existing systems
+-   [x] 11. Add calendar integration with existing systems
 
     -   Integrate calendar with existing notification system for mission updates
     -   Connect calendar to current role-based access control system
@@ -98,7 +98,7 @@
     -   Create calendar event triggers for mission lifecycle events
     -   _Requirements: 1.1, 2.1, 5.4_
 
--   [ ] 12. Write comprehensive tests for calendar functionality
+-   [-] 12. Write comprehensive tests for calendar functionality
     -   Create unit tests for CalendarService methods and data formatting
     -   Write integration tests for calendar API endpoints and responses
     -   Implement Vue component tests for calendar user interactions

@@ -317,6 +317,47 @@
                             </div>
                         </div>
 
+                        <!-- Calendar Quick View -->
+                        <div class="bg-white rounded-xl shadow-sm p-6">
+                            <div class="flex items-center justify-between mb-4">
+                                <h3 class="text-lg font-semibold text-gray-900">Missions Aujourd'hui</h3>
+                                <Link
+                                    :href="route('ops.calendar')"
+                                    class="text-sm text-primary-600 hover:text-primary-700 font-medium"
+                                >
+                                    Voir Calendrier →
+                                </Link>
+                            </div>
+                            <div class="space-y-3">
+                                <div v-for="mission in todayMissions" :key="mission.id" class="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                                    <div>
+                                        <p class="text-sm font-medium text-gray-900">{{ mission.tenant_name }}</p>
+                                        <p class="text-xs text-gray-500">{{ mission.type === 'entry' ? 'Entrée' : 'Sortie' }} - {{ mission.scheduled_time || 'Non programmé' }}</p>
+                                    </div>
+                                    <div class="flex items-center space-x-2">
+                                        <span :class="[
+                                            'text-xs px-2 py-1 rounded-full',
+                                            mission.status === 'assigned' ? 'bg-yellow-100 text-yellow-800' :
+                                            mission.status === 'in_progress' ? 'bg-blue-100 text-blue-800' :
+                                            mission.status === 'completed' ? 'bg-green-100 text-green-800' :
+                                            'bg-gray-100 text-gray-800'
+                                        ]">
+                                            {{ mission.status }}
+                                        </span>
+                                        <Link
+                                            :href="route('ops.calendar', { date: mission.scheduled_date })"
+                                            class="text-primary-600 hover:text-primary-700 text-sm font-medium"
+                                        >
+                                            Voir
+                                        </Link>
+                                    </div>
+                                </div>
+                                <div v-if="todayMissions.length === 0" class="text-center py-4 text-gray-500">
+                                    Aucune mission aujourd'hui
+                                </div>
+                            </div>
+                        </div>
+
                         <!-- Ending Soon -->
                         <div class="bg-white rounded-xl shadow-sm p-6">
                             <h3 class="text-lg font-semibold text-gray-900 mb-4">Se Terminent Bientôt (10 jours)</h3>

@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasOne;
+use Illuminate\Support\Facades\Cache;
 
 class Mission extends Model
 {
@@ -32,6 +33,71 @@ class Mission extends Model
     protected $casts = [
         'scheduled_at' => 'datetime',
     ];
+
+    /**
+     * Boot the model and add event listeners for calendar synchronization.
+     */
+    protected static function boot()
+    {
+        parent::boot();
+
+        // Clear calendar cache when mission is updated
+        static::updated(function ($mission) {
+            static::clearCalendarCache($mission);
+            static::broadcastCalendarUpdate($mission, 'updated');
+        });
+
+        // Clear calendar cache when mission is created
+        static::created(function ($mission) {
+            static::clearCalendarCache($mission);
+            static::broadcastCalendarUpdate($mission, 'created');
+        });
+
+        // Clear calendar cache when mission is deleted
+        static::deleted(function ($mission) {
+            static::clearCalendarCache($mission);
+            static::broadcastCalendarUpdate($mission, 'deleted');
+        });
+    }
+
+    /**
+     * Clear calendar-related cache entries.
+     */
+    protected static function clearCalendarCache($mission)
+    {
+        $date = $mission->scheduled_at ? $mission->scheduled_at->format('Y-m-d') : now()->format('Y-m-d');
+        $month = $mission->scheduled_at ? $mission->scheduled_at->format('Y-m') : now()->format('Y-m');
+        
+        // Clear specific date cache
+        Cache::forget("calendar_missions_{$date}");
+        
+        // Clear month cache
+        Cache::forget("calendar_missions_month_{$month}");
+        
+        // Clear week cache
+        $weekStart = $mission->scheduled_at ? $mission->scheduled_at->startOfWeek()->format('Y-m-d') : now()->startOfWeek()->format('Y-m-d');
+        Cache::forget("calendar_missions_week_{$weekStart}");
+        
+        // Clear general calendar cache
+        Cache::forget('calendar_missions_all');
+        Cache::forget('calendar_stats');
+    }
+
+    /**
+     * Broadcast calendar update event.
+     */
+    protected static function broadcastCalendarUpdate($mission, $action)
+    {
+        // This could be extended to use Laravel Broadcasting for real-time updates
+        // For now, we'll just log the event
+        \Log::info("Calendar sync: Mission {$mission->id} {$action}", [
+            'mission_id' => $mission->id,
+            'action' => $action,
+            'status' => $mission->status,
+            'scheduled_at' => $mission->scheduled_at?->toISOString(),
+            'bail_mobilite_id' => $mission->bail_mobilite_id,
+        ]);
+    }
 
     public function agent(): BelongsTo
     {

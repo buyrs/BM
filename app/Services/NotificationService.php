@@ -401,6 +401,144 @@ class NotificationService
     }
 
     /**
+     * Send calendar mission update notification.
+     */
+    public function sendCalendarMissionUpdateNotification(Mission $mission, string $updateType, array $changes = []): Collection
+    {
+        $bailMobilite = $mission->bailMobilite;
+        if (!$bailMobilite) {
+            Log::warning("Cannot send calendar mission update notification: Mission {$mission->id} has no associated BailMobilite");
+            return collect();
+        }
+
+        // Get all ops users to notify
+        $opsUsers = User::role('ops')->get();
+        
+        $notifications = collect();
+        
+        foreach ($opsUsers as $opsUser) {
+            // Create notification record
+            $notification = Notification::create([
+                'type' => Notification::TYPE_CALENDAR_UPDATE,
+                'recipient_id' => $opsUser->id,
+                'bail_mobilite_id' => $bailMobilite->id,
+                'scheduled_at' => now(),
+                'status' => 'pending',
+                'data' => [
+                    'mission_id' => $mission->id,
+                    'mission_type' => $mission->mission_type,
+                    'update_type' => $updateType,
+                    'changes' => $changes,
+                    'bail_mobilite_id' => $bailMobilite->id,
+                    'tenant_name' => $bailMobilite->tenant_name,
+                    'address' => $bailMobilite->address,
+                    'checker_name' => $mission->agent->name ?? null,
+                    'updated_by' => auth()->user()->name ?? 'System'
+                ]
+            ]);
+            
+            $notifications->push($notification);
+        }
+
+        Log::info("Calendar mission update notification sent for Mission {$mission->id}: {$updateType}");
+        
+        return $notifications;
+    }
+
+    /**
+     * Send calendar mission assignment notification.
+     */
+    public function sendCalendarMissionAssignmentNotification(Mission $mission): Collection
+    {
+        $notifications = collect();
+        
+        // Send to assigned checker
+        if ($mission->agent) {
+            $checkerNotification = $this->sendMissionAssignedNotification($mission);
+            if ($checkerNotification) {
+                $notifications->push($checkerNotification);
+            }
+        }
+        
+        // Send calendar update to ops users
+        $opsNotifications = $this->sendCalendarMissionUpdateNotification($mission, 'assignment', [
+            'assigned_to' => $mission->agent->name ?? null,
+            'assigned_by' => auth()->user()->name ?? 'System'
+        ]);
+        
+        $notifications = $notifications->merge($opsNotifications);
+        
+        return $notifications;
+    }
+
+    /**
+     * Send calendar mission status change notification.
+     */
+    public function sendCalendarMissionStatusNotification(Mission $mission, string $oldStatus, string $newStatus): Collection
+    {
+        $notifications = collect();
+        
+        // Send calendar update to ops users
+        $opsNotifications = $this->sendCalendarMissionUpdateNotification($mission, 'status_change', [
+            'old_status' => $oldStatus,
+            'new_status' => $newStatus,
+            'changed_by' => auth()->user()->name ?? 'System'
+        ]);
+        
+        $notifications = $notifications->merge($opsNotifications);
+        
+        // If mission is completed, send checklist validation alert
+        if ($newStatus === 'completed') {
+            $validationNotifications = $this->sendChecklistValidationAlert($mission);
+            $notifications = $notifications->merge($validationNotifications);
+        }
+        
+        return $notifications;
+    }
+
+    /**
+     * Send calendar mission creation notification.
+     */
+    public function sendCalendarMissionCreationNotification(BailMobilite $bailMobilite): Collection
+    {
+        // Get all ops users to notify
+        $opsUsers = User::role('ops')->get();
+        
+        $notifications = collect();
+        
+        foreach ($opsUsers as $opsUser) {
+            // Skip the user who created the mission
+            if ($opsUser->id === auth()->id()) {
+                continue;
+            }
+            
+            // Create notification record
+            $notification = Notification::create([
+                'type' => Notification::TYPE_CALENDAR_UPDATE,
+                'recipient_id' => $opsUser->id,
+                'bail_mobilite_id' => $bailMobilite->id,
+                'scheduled_at' => now(),
+                'status' => 'pending',
+                'data' => [
+                    'update_type' => 'creation',
+                    'bail_mobilite_id' => $bailMobilite->id,
+                    'tenant_name' => $bailMobilite->tenant_name,
+                    'address' => $bailMobilite->address,
+                    'start_date' => $bailMobilite->start_date->toDateString(),
+                    'end_date' => $bailMobilite->end_date->toDateString(),
+                    'created_by' => auth()->user()->name ?? 'System'
+                ]
+            ]);
+            
+            $notifications->push($notification);
+        }
+
+        Log::info("Calendar mission creation notification sent for BailMobilite {$bailMobilite->id}");
+        
+        return $notifications;
+    }
+
+    /**
      * Get notification statistics for ops dashboard.
      */
     public function getNotificationStats(User $opsUser = null): array
@@ -416,6 +554,7 @@ class NotificationService
             'exit_reminders_pending' => (clone $query)->pending()->exitReminders()->count(),
             'checklist_validations_pending' => (clone $query)->pending()->checklistValidations()->count(),
             'incident_alerts_pending' => (clone $query)->pending()->incidentAlerts()->count(),
+            'calendar_updates_pending' => (clone $query)->pending()->calendarUpdates()->count(),
             'total_sent_today' => (clone $query)->sent()->whereDate('sent_at', today())->count(),
             'total_sent_this_week' => (clone $query)->sent()->whereBetween('sent_at', [now()->startOfWeek(), now()->endOfWeek()])->count(),
         ];
