@@ -1,0 +1,181 @@
+/* Calendar Component Styles */
+
+/* Base Calendar Styles */
+.calendar-container {
+    @apply max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6;
+}
+
+.calendar-header {
+    @apply mb-6;
+}
+
+.calendar-filters {
+    @apply bg-white p-4 rounded-lg shadow-sm border border-gray-200 mb-6;
+}
+
+.calendar-navigation {
+    @apply bg-white p-4 rounded-lg shadow-sm border border-gray-200 mb-6;
+}
+
+.calendar-grid {
+    @apply bg-white rounded-lg shadow-sm border border-gray-200;
+}
+
+/* Mission Event Styles */
+.mission-event {
+    @apply relative cursor-pointer transition-all duration-200;
+}
+
+.mission-event:hover {
+    @apply shadow-md;
+    transform: translateY(-1px);
+}
+
+/* Calendar Grid Responsive Styles */
+.month-view .grid {
+    @apply min-h-96;
+}
+
+.week-view,
+.day-view {
+    @apply overflow-x-auto;
+}
+
+/* Mobile Responsive Styles */
+@media (max-width: 768px) {
+    .calendar-container {
+        @apply px-2 py-4;
+    }
+    
+    .calendar-filters .flex {
+        @apply flex-col space-y-3;
+    }
+    
+    .calendar-filters .space-x-4 {
+        @apply space-x-0;
+    }
+    
+    .calendar-filters select,
+    .calendar-filters input {
+        @apply w-full;
+    }
+    
+    .calendar-navigation .flex {
+        @apply flex-col space-y-4;
+    }
+    
+    .calendar-navigation .justify-between {
+        @apply justify-start;
+    }
+    
+    .calendar-navigation .space-x-4 {
+        @apply space-x-2;
+    }
+    
+    .month-view .min-h-32 {
+        @apply min-h-24;
+    }
+    
+    .month-view .p-2 {
+        @apply p-1;
+    }
+    
+    .week-view {
+        @apply text-sm;
+    }
+    
+    .day-view .w-20 {
+        @apply w-16;
+    }
+    
+    .mission-event {
+        @apply text-xs;
+    }
+    
+    .mission-event .w-3 {
+        @apply w-2 h-2;
+    }
+}
+
+/* Tablet Responsive Styles */
+@media (max-width: 1024px) and (min-width: 769px) {
+    .calendar-container {
+        @apply px-4 py-5;
+    }
+    
+    .calendar-filters .flex {
+        @apply flex-wrap gap-3;
+    }
+    
+    .calendar-navigation .space-x-4 {
+        @apply space-x-3;
+    }
+}
+
+/* Loading States */
+.calendar-loading {
+    @apply animate-pulse;
+}
+
+.calendar-skeleton {
+    @apply bg-gray-200 rounded;
+}
+
+/* Status Colors */
+.status-unassigned {
+    @apply bg-gray-100 text-gray-800;
+}
+
+.status-assigned {
+    @apply bg-blue-100 text-blue-800;
+}
+
+.status-in-progress {
+    @apply bg-green-100 text-green-800;
+}
+
+.status-completed {
+    @apply bg-green-100 text-green-800;
+}
+
+.status-cancelled {
+    @apply bg-red-100 text-red-800;
+}
+
+/* Mission Type Colors */
+.mission-entry {
+    @apply bg-blue-50 border-blue-500 text-blue-900;
+}
+
+.mission-exit {
+    @apply bg-orange-50 border-orange-500 text-orange-900;
+}
+
+/* Accessibility Improvements */
+.calendar-grid:focus-within {
+    @apply ring-2 ring-blue-500 ring-offset-2;
+}
+
+.mission-event:focus {
+    @apply outline-none ring-2 ring-blue-500 ring-offset-1;
+}
+
+/* Print Styles */
+@media print {
+    .calendar-container {
+        @apply max-w-none px-0;
+    }
+    
+    .calendar-filters,
+    .calendar-navigation {
+        @apply hidden;
+    }
+    
+    .calendar-grid {
+        @apply shadow-none border-2 border-gray-400;
+    }
+    
+    .mission-event {
+        @apply shadow-none;
+    }
+}

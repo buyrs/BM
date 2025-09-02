@@ -29,6 +29,9 @@
                                 <NavLink :href="route('missions.index')" :active="route().current('missions.index')">
                                     Missions
                                 </NavLink>
+                                <NavLink :href="route('ops.calendar')" :active="route().current('ops.calendar')">
+                                    Calendar
+                                </NavLink>
                             </div>
                         </div>
 
@@ -99,6 +102,9 @@
                         </ResponsiveNavLink>
                         <ResponsiveNavLink :href="route('missions.index')" :active="route().current('missions.index')">
                             Missions
+                        </ResponsiveNavLink>
+                        <ResponsiveNavLink :href="route('ops.calendar')" :active="route().current('ops.calendar')">
+                            Calendar
                         </ResponsiveNavLink>
                     </div>
 

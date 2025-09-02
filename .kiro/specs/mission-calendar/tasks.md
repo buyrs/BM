@@ -17,7 +17,7 @@
     -   Write unit tests for all calendar API endpoints
     -   _Requirements: 1.1, 1.2, 3.1, 3.2, 5.1_
 
--   [-] 3. Build core calendar Vue components
+-   [x] 3. Build core calendar Vue components
 
     -   Create main Calendar.vue page component with layout and state management
     -   Implement CalendarGrid.vue component with monthly view and date cell rendering
