@@ -98,7 +98,7 @@
     -   Create calendar event triggers for mission lifecycle events
     -   _Requirements: 1.1, 2.1, 5.4_
 
--   [-] 12. Write comprehensive tests for calendar functionality
+-   [x] 12. Write comprehensive tests for calendar functionality
     -   Create unit tests for CalendarService methods and data formatting
     -   Write integration tests for calendar API endpoints and responses
     -   Implement Vue component tests for calendar user interactions

@@ -32,9 +32,8 @@ class MissionCalendarResource extends JsonResource
             'agent' => $this->whenLoaded('agent', function () {
                 return [
                     'id' => $this->agent->id,
-                    'user_id' => $this->agent->user->id,
-                    'name' => $this->agent->user->name,
-                    'email' => $this->agent->user->email,
+                    'name' => $this->agent->name,
+                    'email' => $this->agent->email,
                 ];
             }),
             

@@ -302,7 +302,7 @@ class CalendarController extends Controller
     public function getMissionDetails(Mission $mission): JsonResponse
     {
         $mission->load([
-            'agent.user',
+            'agent',
             'bailMobilite.opsUser',
             'checklist.items.photos',
             'bailMobilite.signatures.contractTemplate',
