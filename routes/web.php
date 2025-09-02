@@ -50,6 +50,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('/missions', [DashboardController::class, 'missions'])->name('missions');
         Route::get('/checkers', [DashboardController::class, 'checkers'])->name('checkers');
         Route::get('/reports', [DashboardController::class, 'reports'])->name('reports');
+        Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
+        Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
+        Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
     });
 
     // Checker routes
@@ -190,9 +193,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
         });
     });
 
-    // Admin routes
+    // Admin routes (authenticated)
     Route::middleware(['role:admin'])->prefix('admin')->name('admin.')->group(function () {
-        Route::get('/dashboard', [DashboardController::class, 'adminDashboard'])->name('dashboard');
         Route::get('/analytics/data', [\App\Http\Controllers\Admin\AnalyticsController::class, 'index'])->name('analytics.data');
         Route::get('/checkers', [\App\Http\Controllers\Admin\AnalyticsController::class, 'checkers'])->name('checkers');
         
@@ -208,6 +210,13 @@ Route::middleware(['auth', 'verified'])->group(function () {
 // Google OAuth routes
 Route::get('/auth/google', [GoogleController::class, 'redirectToGoogle'])->name('auth.google');
 Route::get('/auth/google/callback', [GoogleController::class, 'handleGoogleCallback']);
+
+// Super Admin authentication
+Route::prefix('super-admin')->name('super-admin.')->group(function () {
+    Route::get('login', [\App\Http\Controllers\Auth\AuthenticatedSessionController::class, 'create'])->name('login');
+    Route::post('login', [\App\Http\Controllers\Auth\AuthenticatedSessionController::class, 'store']);
+    Route::post('logout', [\App\Http\Controllers\Auth\AuthenticatedSessionController::class, 'destroy'])->name('logout');
+});
 
 require __DIR__.'/auth.php';
 
@@ -226,6 +235,9 @@ Route::prefix('admin')->name('admin.')->group(function () {
         Route::get('missions', [MissionController::class, 'index'])->name('missions');
         Route::get('missions/assigned', [MissionController::class, 'getAssignedMissions'])->name('missions.assigned');
         Route::get('missions/completed', [MissionController::class, 'getCompletedMissions'])->name('missions.completed');
+        Route::get('profile', [ProfileController::class, 'edit'])->name('profile.edit');
+        Route::patch('profile', [ProfileController::class, 'update'])->name('profile.update');
+        Route::delete('profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
     });
 });
 
