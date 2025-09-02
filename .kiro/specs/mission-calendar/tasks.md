@@ -71,7 +71,7 @@
     -   Add bulk operations for multiple mission management
     -   _Requirements: 5.4, 1.2, 2.1_
 
--   [-] 9. Create responsive design and mobile support
+-   [x] 9. Create responsive design and mobile support
 
     -   Implement responsive calendar layout for mobile and tablet devices
     -   Add touch gesture support for calendar navigation
@@ -80,7 +80,7 @@
     -   Add accessibility features including screen reader support
     -   _Requirements: 6.1, 6.2, 6.3, 6.4, 6.5_
 
--   [ ] 10. Implement error handling and loading states
+-   [-] 10. Implement error handling and loading states
 
     -   Add comprehensive error handling for all API operations
     -   Create loading skeletons for calendar data fetching

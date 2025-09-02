@@ -1,5 +1,8 @@
 <template>
-    <div class="calendar-filters bg-white p-4 rounded-lg shadow-sm border border-gray-200 mb-6">
+    <div :class="[
+        'calendar-filters bg-white rounded-lg shadow-sm border border-gray-200',
+        mobile ? 'mobile-filters' : 'p-4 mb-6'
+    ]">
         <!-- Filter Header -->
         <div class="flex items-center justify-between mb-4">
             <h3 class="text-lg font-medium text-gray-900">Filters</h3>
@@ -13,13 +16,19 @@
         </div>
 
         <!-- Filter Controls -->
-        <div class="filter-grid grid gap-4 mb-4">
+        <div :class="[
+            'filter-grid grid gap-4 mb-4',
+            mobile ? 'grid-cols-1' : ''
+        ]">
             <!-- Status Filter -->
             <div class="space-y-1">
                 <label class="block text-sm font-medium text-gray-700">Status</label>
                 <select
                     v-model="localFilters.status"
-                    class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    :class="[
+                        'w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500',
+                        mobile ? 'mobile-form text-base' : ''
+                    ]"
                     :disabled="loading"
                 >
                     <option value="">All Statuses</option>
@@ -226,6 +235,10 @@ const props = defineProps({
         default: () => []
     },
     loading: {
+        type: Boolean,
+        default: false
+    },
+    mobile: {
         type: Boolean,
         default: false
     }

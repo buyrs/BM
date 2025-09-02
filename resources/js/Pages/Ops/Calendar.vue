@@ -1,30 +1,100 @@
 <template>
     <DashboardOps>
-        <div class="calendar-container">
-            <!-- Calendar Header -->
+        <div class="calendar-container touch-enabled" ref="calendarContainer">
+            <!-- Mobile Header -->
             <div class="calendar-header">
-                <h1 class="text-2xl font-bold text-gray-900">Mission Calendar</h1>
-                <p class="text-gray-600">View and manage all missions in calendar format</p>
+                <div class="flex items-center justify-between">
+                    <div>
+                        <h1 class="text-2xl md:text-3xl font-bold text-gray-900">Mission Calendar</h1>
+                        <p class="text-gray-600 text-sm md:text-base">View and manage all missions in calendar format</p>
+                    </div>
+                    
+                    <!-- Mobile Menu Toggle -->
+                    <button
+                        @click="toggleMobileMenu"
+                        class="md:hidden p-2 rounded-md hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        :aria-expanded="showMobileMenu"
+                        aria-label="Toggle mobile menu"
+                    >
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
+                        </svg>
+                    </button>
+                </div>
             </div>
 
-            <!-- Calendar Navigation -->
-            <CalendarNavigation
-                :current-date="currentDate"
-                :view-mode="viewMode"
-                :loading="loading"
-                :total-missions="filteredMissions.length"
-                @date-change="handleDateChange"
-                @view-change="handleViewChange"
-            />
+            <!-- Mobile Menu Overlay -->
+            <div
+                v-if="showMobileMenu"
+                class="fixed inset-0 bg-black bg-opacity-50 z-40 md:hidden"
+                @click="closeMobileMenu"
+            ></div>
 
-            <!-- Calendar Filters -->
-            <CalendarFilters
-                :filters="filters"
-                :checkers="checkers"
-                :loading="filtersLoading"
-                @filter-change="handleFilterChange"
-                @clear-filters="handleClearFilters"
-            />
+            <!-- Mobile Slide-out Menu -->
+            <div
+                :class="[
+                    'fixed top-0 right-0 h-full w-80 bg-white shadow-xl transform transition-transform duration-300 ease-in-out z-50 md:hidden',
+                    showMobileMenu ? 'translate-x-0' : 'translate-x-full'
+                ]"
+            >
+                <div class="p-4 border-b">
+                    <div class="flex items-center justify-between">
+                        <h2 class="text-lg font-semibold">Calendar Options</h2>
+                        <button
+                            @click="closeMobileMenu"
+                            class="p-2 rounded-md hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            aria-label="Close mobile menu"
+                        >
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="p-4 space-y-4 overflow-y-auto">
+                    <!-- Mobile Navigation -->
+                    <CalendarNavigation
+                        :current-date="currentDate"
+                        :view-mode="viewMode"
+                        :loading="loading"
+                        :total-missions="filteredMissions.length"
+                        :mobile="true"
+                        @date-change="handleDateChange"
+                        @view-change="handleViewChange"
+                    />
+
+                    <!-- Mobile Filters -->
+                    <CalendarFilters
+                        :filters="filters"
+                        :checkers="checkers"
+                        :loading="filtersLoading"
+                        :mobile="true"
+                        @filter-change="handleFilterChange"
+                        @clear-filters="handleClearFilters"
+                    />
+                </div>
+            </div>
+
+            <!-- Desktop Navigation and Filters -->
+            <div class="hidden md:block">
+                <CalendarNavigation
+                    :current-date="currentDate"
+                    :view-mode="viewMode"
+                    :loading="loading"
+                    :total-missions="filteredMissions.length"
+                    @date-change="handleDateChange"
+                    @view-change="handleViewChange"
+                />
+
+                <CalendarFilters
+                    :filters="filters"
+                    :checkers="checkers"
+                    :loading="filtersLoading"
+                    @filter-change="handleFilterChange"
+                    @clear-filters="handleClearFilters"
+                />
+            </div>
 
             <!-- Bulk Operations Toolbar -->
             <div v-if="selectionMode || selectedMissionsForBulk.length > 0" 
@@ -90,19 +160,106 @@
                 <span class="ml-2 text-gray-600">Loading missions...</span>
             </div>
 
-            <!-- Calendar Grid -->
-            <CalendarGrid
-                v-else
-                :missions="filteredMissions"
-                :current-date="currentDate"
-                :view-mode="viewMode"
-                :loading="loading"
-                :selection-mode="selectionMode"
-                :selected-missions="selectedMissionsForBulk"
-                @mission-click="handleMissionClick"
-                @date-click="showCreateMission"
-                @mission-select="handleMissionSelect"
-            />
+            <!-- Mobile Quick Actions Bar -->
+            <div class="md:hidden bg-white border-b border-gray-200 p-3 mb-4">
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center space-x-2">
+                        <button
+                            @click="handlePreviousPeriod"
+                            class="p-2 rounded-md hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 touch-feedback"
+                            :disabled="loading"
+                            :aria-label="getPreviousButtonLabel()"
+                        >
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+                            </svg>
+                        </button>
+                        
+                        <div class="text-center">
+                            <h2 class="text-lg font-semibold text-gray-900">{{ formattedCurrentPeriod }}</h2>
+                            <p class="text-xs text-gray-600">{{ filteredMissions.length }} missions</p>
+                        </div>
+                        
+                        <button
+                            @click="handleNextPeriod"
+                            class="p-2 rounded-md hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 touch-feedback"
+                            :disabled="loading"
+                            :aria-label="getNextButtonLabel()"
+                        >
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+                            </svg>
+                        </button>
+                    </div>
+                    
+                    <div class="flex items-center space-x-1">
+                        <button
+                            v-for="mode in viewModes"
+                            :key="mode.value"
+                            @click="handleViewChange(mode.value)"
+                            :class="[
+                                'px-2 py-1 text-xs font-medium rounded touch-feedback',
+                                viewMode === mode.value
+                                    ? 'bg-blue-600 text-white'
+                                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                            ]"
+                            :disabled="loading"
+                            :aria-pressed="viewMode === mode.value"
+                            :aria-label="`Switch to ${mode.label.toLowerCase()} view`"
+                        >
+                            {{ mode.short }}
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Swipe Container for Touch Gestures -->
+            <div
+                class="swipe-container relative"
+                @touchstart="handleTouchStart"
+                @touchmove="handleTouchMove"
+                @touchend="handleTouchEnd"
+                ref="swipeContainer"
+            >
+                <!-- Swipe Indicators -->
+                <div class="swipe-indicator left" ref="leftIndicator">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+                    </svg>
+                </div>
+                <div class="swipe-indicator right" ref="rightIndicator">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+                    </svg>
+                </div>
+
+                <!-- Calendar Grid -->
+                <CalendarGrid
+                    v-if="!loading"
+                    :missions="filteredMissions"
+                    :current-date="currentDate"
+                    :view-mode="viewMode"
+                    :loading="loading"
+                    :selection-mode="selectionMode"
+                    :selected-missions="selectedMissionsForBulk"
+                    :mobile="isMobile"
+                    @mission-click="handleMissionClick"
+                    @date-click="showCreateMission"
+                    @mission-select="handleMissionSelect"
+                />
+            </div>
+
+            <!-- Mobile Floating Action Button -->
+            <button
+                v-if="isMobile && !selectionMode"
+                @click="showCreateMissionFab"
+                class="mobile-fab touch-feedback"
+                aria-label="Create new mission"
+            >
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+                </svg>
+            </button>
 
             <!-- Mission Details Modal -->
             <MissionDetailsModal
@@ -221,6 +378,21 @@ const selectedDate = ref(null)
 const selectedMissionsForBulk = ref([])
 const selectionMode = ref(false)
 
+// Mobile-specific state
+const showMobileMenu = ref(false)
+const isMobile = ref(false)
+const touchStartX = ref(0)
+const touchStartY = ref(0)
+const touchEndX = ref(0)
+const touchEndY = ref(0)
+const isSwipeGesture = ref(false)
+
+// Template refs
+const calendarContainer = ref(null)
+const swipeContainer = ref(null)
+const leftIndicator = ref(null)
+const rightIndicator = ref(null)
+
 // Mission cache for efficient loading
 const missionCache = reactive(new Map())
 const lastLoadedRange = ref(null)
@@ -228,7 +400,35 @@ const lastLoadedRange = ref(null)
 // Filters
 const filters = reactive(initialState.filters)
 
+// View modes configuration
+const viewModes = [
+    { value: 'month', label: 'Month', short: 'M' },
+    { value: 'week', label: 'Week', short: 'W' },
+    { value: 'day', label: 'Day', short: 'D' }
+]
+
 // Computed properties
+const formattedCurrentPeriod = computed(() => {
+    const date = currentDate.value
+    const months = [
+        'January', 'February', 'March', 'April', 'May', 'June',
+        'July', 'August', 'September', 'October', 'November', 'December'
+    ]
+    
+    switch (viewMode.value) {
+        case 'month':
+            return `${months[date.getMonth()]} ${date.getFullYear()}`
+        case 'week':
+            const startOfWeek = getStartOfWeek(date)
+            const endOfWeek = getEndOfWeek(date)
+            return `${formatShortDate(startOfWeek)} - ${formatShortDate(endOfWeek)}`
+        case 'day':
+            return formatLongDate(date)
+        default:
+            return ''
+    }
+})
+
 const filteredMissions = computed(() => {
     let filtered = props.missions
 
@@ -310,6 +510,154 @@ const handleViewChange = (newViewMode) => {
     viewMode.value = newViewMode
     persistCalendarState()
     loadMissionsIfNeeded()
+    
+    // Close mobile menu after view change
+    if (isMobile.value) {
+        closeMobileMenu()
+    }
+}
+
+// Mobile-specific methods
+const toggleMobileMenu = () => {
+    showMobileMenu.value = !showMobileMenu.value
+}
+
+const closeMobileMenu = () => {
+    showMobileMenu.value = false
+}
+
+const checkMobileDevice = () => {
+    isMobile.value = window.innerWidth < 768
+}
+
+const handlePreviousPeriod = () => {
+    const newDate = new Date(currentDate.value)
+    
+    switch (viewMode.value) {
+        case 'month':
+            newDate.setMonth(newDate.getMonth() - 1)
+            break
+        case 'week':
+            newDate.setDate(newDate.getDate() - 7)
+            break
+        case 'day':
+            newDate.setDate(newDate.getDate() - 1)
+            break
+    }
+    
+    handleDateChange(newDate)
+}
+
+const handleNextPeriod = () => {
+    const newDate = new Date(currentDate.value)
+    
+    switch (viewMode.value) {
+        case 'month':
+            newDate.setMonth(newDate.getMonth() + 1)
+            break
+        case 'week':
+            newDate.setDate(newDate.getDate() + 7)
+            break
+        case 'day':
+            newDate.setDate(newDate.getDate() + 1)
+            break
+    }
+    
+    handleDateChange(newDate)
+}
+
+const getPreviousButtonLabel = () => {
+    switch (viewMode.value) {
+        case 'month':
+            return 'Previous month'
+        case 'week':
+            return 'Previous week'
+        case 'day':
+            return 'Previous day'
+        default:
+            return 'Previous'
+    }
+}
+
+const getNextButtonLabel = () => {
+    switch (viewMode.value) {
+        case 'month':
+            return 'Next month'
+        case 'week':
+            return 'Next week'
+        case 'day':
+            return 'Next day'
+        default:
+            return 'Next'
+    }
+}
+
+const showCreateMissionFab = () => {
+    const today = new Date()
+    showCreateMission(today)
+}
+
+// Touch gesture handling
+const handleTouchStart = (event) => {
+    if (!isMobile.value) return
+    
+    const touch = event.touches[0]
+    touchStartX.value = touch.clientX
+    touchStartY.value = touch.clientY
+    isSwipeGesture.value = false
+}
+
+const handleTouchMove = (event) => {
+    if (!isMobile.value) return
+    
+    const touch = event.touches[0]
+    const deltaX = touch.clientX - touchStartX.value
+    const deltaY = touch.clientY - touchStartY.value
+    
+    // Check if this is a horizontal swipe gesture
+    if (Math.abs(deltaX) > Math.abs(deltaY) && Math.abs(deltaX) > 50) {
+        isSwipeGesture.value = true
+        
+        // Show swipe indicators
+        if (deltaX > 0 && leftIndicator.value) {
+            leftIndicator.value.classList.add('show')
+            rightIndicator.value?.classList.remove('show')
+        } else if (deltaX < 0 && rightIndicator.value) {
+            rightIndicator.value.classList.add('show')
+            leftIndicator.value?.classList.remove('show')
+        }
+        
+        // Prevent default scrolling during swipe
+        event.preventDefault()
+    }
+}
+
+const handleTouchEnd = (event) => {
+    if (!isMobile.value || !isSwipeGesture.value) return
+    
+    const touch = event.changedTouches[0]
+    touchEndX.value = touch.clientX
+    touchEndY.value = touch.clientY
+    
+    const deltaX = touchEndX.value - touchStartX.value
+    const deltaY = touchEndY.value - touchStartY.value
+    
+    // Hide swipe indicators
+    leftIndicator.value?.classList.remove('show')
+    rightIndicator.value?.classList.remove('show')
+    
+    // Check if this is a valid swipe gesture
+    if (Math.abs(deltaX) > Math.abs(deltaY) && Math.abs(deltaX) > 100) {
+        if (deltaX > 0) {
+            // Swipe right - go to previous period
+            handlePreviousPeriod()
+        } else {
+            // Swipe left - go to next period
+            handleNextPeriod()
+        }
+    }
+    
+    isSwipeGesture.value = false
 }
 
 const showMissionDetails = (mission) => {
@@ -701,6 +1049,22 @@ const getEndOfWeek = (date) => {
     return end
 }
 
+const formatShortDate = (date) => {
+    return date.toLocaleDateString('en-US', { 
+        month: 'short', 
+        day: 'numeric' 
+    })
+}
+
+const formatLongDate = (date) => {
+    return date.toLocaleDateString('en-US', { 
+        weekday: 'long',
+        year: 'numeric',
+        month: 'long', 
+        day: 'numeric' 
+    })
+}
+
 // Debounced filter change handler for search
 let filterTimeout = null
 const debouncedFilterChange = (newFilters) => {
@@ -726,6 +1090,17 @@ onMounted(() => {
     // Set up browser navigation handling
     window.addEventListener('popstate', handlePopState)
     
+    // Set up mobile detection
+    checkMobileDevice()
+    window.addEventListener('resize', checkMobileDevice)
+    
+    // Set up mobile menu close on outside click
+    document.addEventListener('click', (event) => {
+        if (showMobileMenu.value && !event.target.closest('.mobile-menu')) {
+            closeMobileMenu()
+        }
+    })
+    
     // Load missions if not already provided or if state changed
     if (!props.missions.length || 
         currentDate.value.toISOString().split('T')[0] !== new Date().toISOString().split('T')[0]) {
@@ -746,6 +1121,7 @@ onMounted(() => {
 // Cleanup
 onUnmounted(() => {
     window.removeEventListener('popstate', handlePopState)
+    window.removeEventListener('resize', checkMobileDevice)
     clearTimeout(filterTimeout)
 })
 </script>

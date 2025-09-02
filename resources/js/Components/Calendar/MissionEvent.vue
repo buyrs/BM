@@ -1,13 +1,20 @@
 <template>
     <div
         :class="[
-            'mission-event cursor-pointer transition-all duration-200 hover:shadow-md relative',
+            'mission-event cursor-pointer transition-all duration-200 hover:shadow-md relative touch-feedback',
             eventClasses,
             compact ? 'p-1 rounded text-xs' : 'p-2 rounded-md text-sm',
             selectionMode ? 'hover:ring-2 hover:ring-blue-300' : '',
-            selected ? 'ring-2 ring-blue-500 bg-blue-100' : ''
+            selected ? 'ring-2 ring-blue-500 bg-blue-100' : '',
+            mission.type === 'entry' ? 'colorblind-pattern-entry' : 'colorblind-pattern-exit'
         ]"
+        role="button"
+        :tabindex="0"
+        :aria-label="getMissionAriaLabel()"
+        :aria-pressed="selected"
+        :aria-describedby="compact ? null : `mission-tooltip-${mission.id}`"
         @click="handleClick"
+        @keydown="handleKeydown"
         @mouseenter="handleMouseEnter"
         @mouseleave="handleMouseLeave"
     >
@@ -280,6 +287,46 @@ const handleMouseLeave = () => {
 const handleClick = (event) => {
     event.stopPropagation()
     emit('click', props.mission)
+}
+
+const handleKeydown = (event) => {
+    if (event.key === 'Enter' || event.key === ' ') {
+        event.preventDefault()
+        event.stopPropagation()
+        emit('click', props.mission)
+    }
+}
+
+const getMissionAriaLabel = () => {
+    let label = `${missionTypeLabel.value} mission`
+    
+    if (props.mission.tenant_name) {
+        label += ` for ${props.mission.tenant_name}`
+    }
+    
+    if (props.mission.address) {
+        label += ` at ${props.mission.address}`
+    }
+    
+    if (props.mission.scheduled_time) {
+        label += ` scheduled for ${formattedTime.value}`
+    }
+    
+    label += `, status: ${formattedStatus.value}`
+    
+    if (props.mission.agent) {
+        label += `, assigned to ${props.mission.agent.name}`
+    }
+    
+    if (props.mission.conflicts && props.mission.conflicts.length > 0) {
+        label += `, has scheduling conflicts`
+    }
+    
+    if (props.selectionMode) {
+        label += props.selected ? ', selected' : ', not selected'
+    }
+    
+    return label
 }
 </script>
 

@@ -1,6 +1,7 @@
 <template>
-    <Modal :show="show" @close="$emit('close')" max-width="2xl">
-        <div class="p-6">
+    <Modal :show="show" @close="$emit('close')" :max-width="isMobile ? 'full' : '2xl'" :mobile="isMobile">
+        <div :class="isMobile ? 'modal-mobile' : 'p-6'">
+            <div v-if="isMobile" class="modal-content">
             <div class="flex items-center justify-between mb-4">
                 <h3 class="text-lg font-medium text-gray-900">
                     Create New Bail Mobilité Mission
@@ -15,7 +16,7 @@
                 </button>
             </div>
 
-            <form @submit.prevent="handleSubmit" class="space-y-4">
+            <form @submit.prevent="handleSubmit" :class="['space-y-4', isMobile ? 'mobile-form' : '']">
                 <!-- Date Information -->
                 <div class="bg-blue-50 p-3 rounded-md">
                     <p class="text-sm text-blue-800">
@@ -37,8 +38,11 @@
                             v-model="form.tenant_name"
                             type="text"
                             required
-                            class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-                            :class="{ 'border-red-300': errors.tenant_name }"
+                            :class="[
+                                'mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500',
+                                isMobile ? 'text-base py-3' : 'sm:text-sm',
+                                { 'border-red-300': errors.tenant_name }
+                            ]"
                         />
                         <p v-if="errors.tenant_name" class="mt-1 text-sm text-red-600">
                             {{ errors.tenant_name }}
@@ -260,12 +264,13 @@
                     </button>
                 </div>
             </form>
+            </div>
         </div>
     </Modal>
 </template>
 
 <script setup>
-import { ref, reactive, computed, watch } from 'vue'
+import { ref, reactive, computed, watch, onMounted, onUnmounted } from 'vue'
 import { router } from '@inertiajs/vue3'
 import Modal from '@/Components/Modal.vue'
 
@@ -291,6 +296,7 @@ const emit = defineEmits(['close', 'create'])
 // Reactive state
 const processing = ref(false)
 const errors = ref({})
+const isMobile = ref(false)
 
 const form = reactive({
     tenant_name: '',
@@ -402,10 +408,27 @@ watch(() => props.selectedDate, (newDate) => {
     }
 })
 
+// Mobile detection
+const checkMobileDevice = () => {
+    isMobile.value = window.innerWidth < 768
+}
+
 // Watch for modal close to reset form
 watch(() => props.show, (isShown) => {
     if (!isShown) {
         resetForm()
+    } else {
+        checkMobileDevice()
     }
+})
+
+// Set up mobile detection
+onMounted(() => {
+    checkMobileDevice()
+    window.addEventListener('resize', checkMobileDevice)
+})
+
+onUnmounted(() => {
+    window.removeEventListener('resize', checkMobileDevice)
 })
 </script>

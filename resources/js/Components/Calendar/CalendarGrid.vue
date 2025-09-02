@@ -5,31 +5,80 @@
         tabindex="0"
         ref="calendarGrid"
     >
-        <!-- Month View -->
-        <div v-if="viewMode === 'month'" class="month-view">
+        <!-- Mobile List View (for small screens) -->
+        <div v-if="mobile && viewMode === 'month'" class="mobile-list-view md:hidden">
+            <div
+                v-for="day in calendarDays.filter(d => d.isCurrentMonth && d.missions.length > 0)"
+                :key="day.date.toISOString()"
+                class="mobile-list-item"
+                @click="handleDateClick(day.date)"
+            >
+                <div class="flex items-center justify-between mb-2">
+                    <h3 class="text-lg font-semibold text-gray-900">
+                        {{ day.date.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }) }}
+                    </h3>
+                    <span class="bg-blue-600 text-white text-xs rounded-full px-2 py-1">
+                        {{ day.missions.length }} mission{{ day.missions.length !== 1 ? 's' : '' }}
+                    </span>
+                </div>
+                
+                <div class="space-y-2">
+                    <MissionEvent
+                        v-for="mission in day.missions"
+                        :key="mission.id"
+                        :mission="mission"
+                        :compact="false"
+                        :selection-mode="selectionMode"
+                        :selected="selectedMissions.some(m => m.id === mission.id)"
+                        @click="handleMissionClick(mission, $event)"
+                    />
+                </div>
+            </div>
+            
+            <!-- Empty state for mobile list -->
+            <div v-if="calendarDays.filter(d => d.isCurrentMonth && d.missions.length > 0).length === 0" 
+                 class="text-center py-8">
+                <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                </svg>
+                <h3 class="mt-2 text-sm font-medium text-gray-900">No missions this month</h3>
+                <p class="mt-1 text-sm text-gray-500">Tap the + button to create a new mission.</p>
+            </div>
+        </div>
+
+        <!-- Desktop Month View -->
+        <div v-else-if="viewMode === 'month'" class="month-view hidden md:block">
             <!-- Days of Week Header -->
             <div class="grid grid-cols-7 gap-px bg-gray-200 rounded-t-lg overflow-hidden">
                 <div
                     v-for="day in daysOfWeek"
                     :key="day"
-                    class="bg-gray-50 p-3 text-center text-sm font-medium text-gray-700"
+                    class="days-header bg-gray-50 p-3 text-center text-sm font-medium text-gray-700"
+                    role="columnheader"
+                    :aria-label="`${day} column`"
                 >
-                    {{ day }}
+                    <span class="sr-only">{{ day === 'Sun' ? 'Sunday' : day === 'Mon' ? 'Monday' : day === 'Tue' ? 'Tuesday' : day === 'Wed' ? 'Wednesday' : day === 'Thu' ? 'Thursday' : day === 'Fri' ? 'Friday' : 'Saturday' }}</span>
+                    <span aria-hidden="true">{{ day }}</span>
                 </div>
             </div>
 
             <!-- Calendar Days -->
-            <div class="grid grid-cols-7 gap-px bg-gray-200 rounded-b-lg overflow-hidden">
+            <div class="grid grid-cols-7 gap-px bg-gray-200 rounded-b-lg overflow-hidden" role="grid">
                 <div
                     v-for="(day, index) in calendarDays"
                     :key="`${day.date}-${index}`"
                     :class="[
-                        'bg-white min-h-32 p-2 cursor-pointer hover:bg-gray-50 transition-colors',
+                        'bg-white min-h-32 p-2 cursor-pointer hover:bg-gray-50 transition-colors touch-feedback',
                         day.isCurrentMonth ? 'text-gray-900' : 'text-gray-400',
                         day.isToday ? 'bg-blue-50 border-2 border-blue-200' : '',
-                        day.isSelected ? 'bg-blue-100' : ''
+                        day.isSelected ? 'keyboard-selected' : ''
                     ]"
+                    role="gridcell"
+                    :tabindex="day.isCurrentMonth ? 0 : -1"
+                    :aria-label="getDateAriaLabel(day)"
+                    :aria-selected="day.isSelected"
                     @click="handleDateClick(day.date)"
+                    @keydown="handleDateKeydown($event, day.date)"
                 >
                     <!-- Date Number -->
                     <div class="flex justify-between items-start mb-2">
@@ -266,6 +315,10 @@ const props = defineProps({
     selectedMissions: {
         type: Array,
         default: () => []
+    },
+    mobile: {
+        type: Boolean,
+        default: false
     }
 })
 
@@ -395,6 +448,40 @@ const handleTimeSlotClick = (date, hour) => {
     const dateTime = new Date(date)
     dateTime.setHours(hour, 0, 0, 0)
     emit('date-click', dateTime)
+}
+
+const handleDateKeydown = (event, date) => {
+    if (event.key === 'Enter' || event.key === ' ') {
+        event.preventDefault()
+        handleDateClick(date)
+    }
+}
+
+const getDateAriaLabel = (day) => {
+    const dateStr = day.date.toLocaleDateString('en-US', { 
+        weekday: 'long', 
+        month: 'long', 
+        day: 'numeric',
+        year: 'numeric'
+    })
+    
+    let label = dateStr
+    
+    if (day.isToday) {
+        label += ', today'
+    }
+    
+    if (!day.isCurrentMonth) {
+        label += ', outside current month'
+    }
+    
+    if (day.missions.length > 0) {
+        label += `, ${day.missions.length} mission${day.missions.length !== 1 ? 's' : ''}`
+    } else {
+        label += ', no missions'
+    }
+    
+    return label
 }
 
 // Keyboard navigation for calendar grid

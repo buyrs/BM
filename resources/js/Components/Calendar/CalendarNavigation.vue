@@ -1,6 +1,9 @@
 <template>
     <div 
-        class="calendar-navigation"
+        :class="[
+            'calendar-navigation',
+            mobile ? 'mobile-navigation' : ''
+        ]"
         @keydown="handleKeyboardNavigation"
         tabindex="0"
         ref="navigationContainer"
@@ -49,15 +52,15 @@
             </div>
 
             <!-- View Mode Selector -->
-            <div class="flex items-center space-x-2">
+            <div v-if="!mobile" class="flex items-center space-x-2">
                 <span class="text-sm text-gray-600">View:</span>
-                <div class="flex rounded-md shadow-sm" role="group" aria-label="Calendar view modes">
+                <div class="view-mode-selector flex rounded-md shadow-sm" role="group" aria-label="Calendar view modes">
                     <button
                         v-for="mode in viewModes"
                         :key="mode.value"
                         @click="changeViewMode(mode.value)"
                         :class="[
-                            'px-3 py-2 text-sm font-medium border focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed',
+                            'px-3 py-2 text-sm font-medium border focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed touch-feedback',
                             viewMode === mode.value
                                 ? 'bg-blue-600 text-white border-blue-600'
                                 : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50',
@@ -68,6 +71,29 @@
                         :disabled="loading"
                         :aria-pressed="viewMode === mode.value"
                         :title="`Switch to ${mode.label.toLowerCase()} view`"
+                        :aria-label="`Switch to ${mode.label.toLowerCase()} view`"
+                    >
+                        {{ mode.label }}
+                    </button>
+                </div>
+            </div>
+            
+            <!-- Mobile View Mode Selector -->
+            <div v-else class="space-y-2">
+                <label class="block text-sm font-medium text-gray-700">View Mode</label>
+                <div class="view-mode-selector flex space-x-1">
+                    <button
+                        v-for="mode in viewModes"
+                        :key="mode.value"
+                        @click="changeViewMode(mode.value)"
+                        :class="[
+                            'flex-1 px-3 py-2 text-sm font-medium rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 touch-feedback',
+                            viewMode === mode.value
+                                ? 'bg-blue-600 text-white'
+                                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                        ]"
+                        :disabled="loading"
+                        :aria-pressed="viewMode === mode.value"
                         :aria-label="`Switch to ${mode.label.toLowerCase()} view`"
                     >
                         {{ mode.label }}
@@ -184,6 +210,10 @@ const props = defineProps({
     totalMissions: {
         type: Number,
         default: 0
+    },
+    mobile: {
+        type: Boolean,
+        default: false
     }
 })
 

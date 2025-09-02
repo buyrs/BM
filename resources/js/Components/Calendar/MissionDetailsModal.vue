@@ -1,6 +1,7 @@
 <template>
-    <Modal :show="show" @close="$emit('close')" max-width="2xl">
-        <div class="p-6">
+    <Modal :show="show" @close="$emit('close')" :max-width="isMobile ? 'full' : '2xl'" :mobile="isMobile">
+        <div :class="isMobile ? 'modal-mobile' : 'p-6'">
+            <div v-if="isMobile" class="modal-content">
             <div class="flex items-center justify-between mb-4">
                 <h3 class="text-lg font-medium text-gray-900">
                     Mission Details
@@ -211,11 +212,13 @@
                     </button>
                 </div>
             </div>
+            </div>
         </div>
     </Modal>
 </template>
 
 <script setup>
+import { ref, onMounted, onUnmounted, watch } from 'vue'
 import Modal from '@/Components/Modal.vue'
 
 // Props
@@ -232,6 +235,29 @@ const props = defineProps({
 
 // Emits
 const emit = defineEmits(['close', 'update', 'assign', 'status-change', 'duplicate', 'view-bail-mobilite', 'delete'])
+
+// Mobile detection
+const isMobile = ref(false)
+
+const checkMobileDevice = () => {
+    isMobile.value = window.innerWidth < 768
+}
+
+// Set up mobile detection
+onMounted(() => {
+    checkMobileDevice()
+    window.addEventListener('resize', checkMobileDevice)
+})
+
+onUnmounted(() => {
+    window.removeEventListener('resize', checkMobileDevice)
+})
+
+watch(() => props.show, (isShown) => {
+    if (isShown) {
+        checkMobileDevice()
+    }
+})
 
 // Methods
 const formatDate = (dateString) => {
