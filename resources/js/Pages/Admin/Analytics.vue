@@ -53,14 +53,25 @@
                     <canvas ref="checkerChart"></canvas>
                 </div>
 
-                <div class="bg-white shadow rounded-lg p-6">
-                    <h3 class="text-lg font-semibold mb-2">Assignment Efficiency</h3>
-                    <div v-if="analytics.assignmentEfficiency">
-                        <p>Average time to assign: <span class="font-bold">{{ formatMinutes(analytics.assignmentEfficiency.avg_minutes_to_assign) }}</span></p>
-                        <p>Average time to complete: <span class="font-bold">{{ formatMinutes(analytics.assignmentEfficiency.avg_minutes_to_complete) }}</span></p>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                    <div class="bg-white shadow rounded-lg p-6">
+                        <h3 class="text-lg font-semibold mb-2">Assignment Efficiency</h3>
+                        <div v-if="analytics.assignmentEfficiency">
+                            <p>Average time to complete: <span class="font-bold">{{ formatMinutes(analytics.assignmentEfficiency.avg_minutes_to_complete) }}</span></p>
+                        </div>
+                        <div v-else>
+                            <p>No data available.</p>
+                        </div>
                     </div>
-                    <div v-else>
-                        <p>No data available.</p>
+
+                    <div class="bg-white shadow rounded-lg p-6">
+                        <h3 class="text-lg font-semibold mb-2">Incident Management</h3>
+                        <div v-if="analytics.avgResolutionTime !== undefined">
+                            <p>Average time to resolve incidents: <span class="font-bold">{{ analytics.avgResolutionTime }} hours</span></p>
+                        </div>
+                        <div v-else>
+                            <p>No data available.</p>
+                        </div>
                     </div>
                 </div>
             </div>

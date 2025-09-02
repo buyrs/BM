@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use App\Models\Mission;
+use App\Models\IncidentReport;
 use App\Models\Agent;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -64,13 +65,22 @@ class AnalyticsController extends Controller
 
         // Assignment Efficiency
         $assignmentEfficiency = Mission::select(
-                DB::raw('AVG(TIMESTAMPDIFF(MINUTE, created_at, updated_at)) as avg_minutes_to_complete'),
-                DB::raw('AVG(TIMESTAMPDIFF(MINUTE, created_at, assigned_at)) as avg_minutes_to_assign')
+                DB::raw("AVG(CAST(strftime('%s', updated_at) AS REAL) - CAST(strftime('%s', created_at) AS REAL)) / 60 as avg_minutes_to_complete")
             )
             ->when($type, fn($q) => $q->where('type', $type))
             ->when($checkerId, fn($q) => $q->where('agent_id', $checkerId))
             ->whereBetween('created_at', [$start, $end])
             ->first();
+
+        // Average time to resolve incidents
+        $avgResolutionTimeInSeconds = IncidentReport::whereIn('status', ['resolved', 'closed'])
+            ->whereNotNull('resolved_at')
+            ->whereNotNull('detected_at')
+            ->select(DB::raw("AVG(CAST(strftime('%s', resolved_at) AS REAL) - CAST(strftime('%s', detected_at) AS REAL)) as avg_seconds"))
+            ->value('avg_seconds');
+
+        $avgResolutionTime = $avgResolutionTimeInSeconds ? round($avgResolutionTimeInSeconds / 3600, 2) : 0;
+
 
         return response()->json([
             'missionsCreated' => $missionsCreated,
@@ -78,6 +88,7 @@ class AnalyticsController extends Controller
             'statusDistribution' => $statusDistribution,
             'checkerPerformance' => $checkerPerformance,
             'assignmentEfficiency' => $assignmentEfficiency,
+            'avgResolutionTime' => $avgResolutionTime,
         ]);
     }
 
