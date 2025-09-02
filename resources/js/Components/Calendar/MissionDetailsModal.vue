@@ -193,6 +193,14 @@
                         >
                             Duplicate
                         </button>
+                        
+                        <button
+                            v-if="mission.can_edit && mission.status !== 'in_progress' && mission.status !== 'completed'"
+                            @click="handleDelete"
+                            class="px-4 py-2 text-sm font-medium text-white bg-red-600 border border-transparent rounded-md hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
+                        >
+                            Delete
+                        </button>
                     </div>
                     
                     <button
@@ -223,7 +231,7 @@ const props = defineProps({
 })
 
 // Emits
-const emit = defineEmits(['close', 'update', 'assign', 'status-change', 'duplicate', 'view-bail-mobilite'])
+const emit = defineEmits(['close', 'update', 'assign', 'status-change', 'duplicate', 'view-bail-mobilite', 'delete'])
 
 // Methods
 const formatDate = (dateString) => {
@@ -299,5 +307,11 @@ const handleDuplicate = () => {
 
 const handleViewBailMobilite = () => {
     emit('view-bail-mobilite', props.mission.bail_mobilite)
+}
+
+const handleDelete = () => {
+    if (confirm('Are you sure you want to delete this mission? This action cannot be undone.')) {
+        emit('delete', props.mission)
+    }
 }
 </script>

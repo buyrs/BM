@@ -13,7 +13,7 @@
         </div>
 
         <!-- Filter Controls -->
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
+        <div class="filter-grid grid gap-4 mb-4">
             <!-- Status Filter -->
             <div class="space-y-1">
                 <label class="block text-sm font-medium text-gray-700">Status</label>
@@ -368,14 +368,20 @@ onMounted(() => {
 
 /* Responsive adjustments */
 @media (max-width: 768px) {
-    .grid-cols-1.md\:grid-cols-2.lg\:grid-cols-4 {
-        @apply grid-cols-1;
+    .filter-grid {
+        grid-template-columns: repeat(1, minmax(0, 1fr));
     }
 }
 
 @media (min-width: 768px) and (max-width: 1024px) {
-    .grid-cols-1.md\:grid-cols-2.lg\:grid-cols-4 {
-        @apply grid-cols-2;
+    .filter-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+
+@media (min-width: 1024px) {
+    .filter-grid {
+        grid-template-columns: repeat(4, minmax(0, 1fr));
     }
 }
 </style>

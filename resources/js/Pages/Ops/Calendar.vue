@@ -11,6 +11,8 @@
             <CalendarNavigation
                 :current-date="currentDate"
                 :view-mode="viewMode"
+                :loading="loading"
+                :total-missions="filteredMissions.length"
                 @date-change="handleDateChange"
                 @view-change="handleViewChange"
             />
@@ -23,6 +25,64 @@
                 @filter-change="handleFilterChange"
                 @clear-filters="handleClearFilters"
             />
+
+            <!-- Bulk Operations Toolbar -->
+            <div v-if="selectionMode || selectedMissionsForBulk.length > 0" 
+                 class="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center space-x-4">
+                        <div class="flex items-center space-x-2">
+                            <svg class="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                            <span class="text-sm font-medium text-blue-900">
+                                {{ selectedMissionsForBulk.length }} mission(s) selected
+                            </span>
+                        </div>
+                        
+                        <button
+                            @click="selectAllVisibleMissions"
+                            class="text-sm text-blue-700 hover:text-blue-900 underline"
+                        >
+                            Select All Visible
+                        </button>
+                        
+                        <button
+                            @click="clearSelection"
+                            class="text-sm text-blue-700 hover:text-blue-900 underline"
+                        >
+                            Clear Selection
+                        </button>
+                    </div>
+                    
+                    <div class="flex items-center space-x-2">
+                        <button
+                            @click="showBulkModal = true"
+                            :disabled="selectedMissionsForBulk.length === 0"
+                            class="px-3 py-2 text-sm font-medium text-white bg-blue-600 border border-transparent rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                            Bulk Actions
+                        </button>
+                        
+                        <button
+                            @click="exitSelectionMode"
+                            class="px-3 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                        >
+                            Exit Selection
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Selection Mode Toggle -->
+            <div v-else class="flex justify-end mb-4">
+                <button
+                    @click="enterSelectionMode"
+                    class="px-3 py-2 text-sm font-medium text-blue-700 bg-blue-100 border border-blue-300 rounded-md hover:bg-blue-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                >
+                    Select Missions
+                </button>
+            </div>
 
             <!-- Loading State -->
             <div v-if="loading" class="flex justify-center items-center py-12">
@@ -37,8 +97,11 @@
                 :current-date="currentDate"
                 :view-mode="viewMode"
                 :loading="loading"
-                @mission-click="showMissionDetails"
+                :selection-mode="selectionMode"
+                :selected-missions="selectedMissionsForBulk"
+                @mission-click="handleMissionClick"
                 @date-click="showCreateMission"
+                @mission-select="handleMissionSelect"
             />
 
             <!-- Mission Details Modal -->
@@ -51,6 +114,7 @@
                 @status-change="handleMissionStatusChange"
                 @duplicate="handleMissionDuplicate"
                 @view-bail-mobilite="handleViewBailMobilite"
+                @delete="handleMissionDelete"
             />
 
             <!-- Create Mission Modal -->
@@ -61,12 +125,39 @@
                 @close="closeCreateModal"
                 @create="handleMissionCreate"
             />
+
+            <!-- Edit Mission Modal -->
+            <EditMissionModal
+                :show="showEditModal"
+                :mission="selectedMission"
+                :checkers="checkers"
+                @close="closeEditModal"
+                @updated="handleMissionUpdated"
+            />
+
+            <!-- Assign Mission Modal -->
+            <AssignMissionModal
+                :show="showAssignModal"
+                :mission="selectedMission"
+                :checkers="checkers"
+                @close="closeAssignModal"
+                @assigned="handleMissionAssigned"
+            />
+
+            <!-- Bulk Operations Modal -->
+            <BulkOperationsModal
+                :show="showBulkModal"
+                :selected-missions="selectedMissionsForBulk"
+                :checkers="checkers"
+                @close="closeBulkModal"
+                @completed="handleBulkOperationCompleted"
+            />
         </div>
     </DashboardOps>
 </template>
 
 <script setup>
-import { ref, reactive, computed, onMounted, watch } from 'vue'
+import { ref, reactive, computed, onMounted, onUnmounted, watch } from 'vue'
 import { router } from '@inertiajs/vue3'
 import DashboardOps from '@/Layouts/DashboardOps.vue'
 import CalendarNavigation from '@/Components/Calendar/CalendarNavigation.vue'
@@ -74,6 +165,9 @@ import CalendarFilters from '@/Components/Calendar/CalendarFilters.vue'
 import CalendarGrid from '@/Components/Calendar/CalendarGrid.vue'
 import MissionDetailsModal from '@/Components/Calendar/MissionDetailsModal.vue'
 import CreateMissionModal from '@/Components/Calendar/CreateMissionModal.vue'
+import EditMissionModal from '@/Components/Calendar/EditMissionModal.vue'
+import AssignMissionModal from '@/Components/Calendar/AssignMissionModal.vue'
+import BulkOperationsModal from '@/Components/Calendar/BulkOperationsModal.vue'
 
 // Props
 const props = defineProps({
@@ -91,30 +185,48 @@ const props = defineProps({
     }
 })
 
+// Initialize state from URL parameters or localStorage
+const initializeCalendarState = () => {
+    const urlParams = new URLSearchParams(window.location.search)
+    const savedState = localStorage.getItem('calendar-state')
+    const parsedSavedState = savedState ? JSON.parse(savedState) : {}
+    
+    return {
+        currentDate: urlParams.get('date') || parsedSavedState.currentDate || new Date().toISOString().split('T')[0],
+        viewMode: urlParams.get('view') || parsedSavedState.viewMode || 'month',
+        filters: {
+            status: urlParams.get('status') || parsedSavedState.filters?.status || props.initialFilters.status || '',
+            mission_type: urlParams.get('mission_type') || parsedSavedState.filters?.mission_type || props.initialFilters.mission_type || '',
+            checker_id: urlParams.get('checker_id') ? parseInt(urlParams.get('checker_id')) : (parsedSavedState.filters?.checker_id || props.initialFilters.checker_id || null),
+            date_range: urlParams.get('date_range') || parsedSavedState.filters?.date_range || props.initialFilters.date_range || '',
+            search: urlParams.get('search') || parsedSavedState.filters?.search || props.initialFilters.search || ''
+        }
+    }
+}
+
+const initialState = initializeCalendarState()
+
 // Reactive state
-const currentDate = ref(new Date())
-const viewMode = ref('month')
+const currentDate = ref(new Date(initialState.currentDate))
+const viewMode = ref(initialState.viewMode)
 const loading = ref(false)
 const filtersLoading = ref(false)
 const showDetailsModal = ref(false)
 const showCreateModal = ref(false)
+const showEditModal = ref(false)
+const showAssignModal = ref(false)
+const showBulkModal = ref(false)
 const selectedMission = ref(null)
 const selectedDate = ref(null)
+const selectedMissionsForBulk = ref([])
+const selectionMode = ref(false)
 
-// Initialize filters from URL parameters or props
-const initializeFilters = () => {
-    const urlParams = new URLSearchParams(window.location.search)
-    return {
-        status: urlParams.get('status') || props.initialFilters.status || '',
-        mission_type: urlParams.get('mission_type') || props.initialFilters.mission_type || '',
-        checker_id: urlParams.get('checker_id') ? parseInt(urlParams.get('checker_id')) : (props.initialFilters.checker_id || null),
-        date_range: urlParams.get('date_range') || props.initialFilters.date_range || '',
-        search: urlParams.get('search') || props.initialFilters.search || ''
-    }
-}
+// Mission cache for efficient loading
+const missionCache = reactive(new Map())
+const lastLoadedRange = ref(null)
 
 // Filters
-const filters = reactive(initializeFilters())
+const filters = reactive(initialState.filters)
 
 // Computed properties
 const filteredMissions = computed(() => {
@@ -190,12 +302,14 @@ const filteredMissions = computed(() => {
 // Methods
 const handleDateChange = (newDate) => {
     currentDate.value = newDate
-    loadMissions()
+    persistCalendarState()
+    loadMissionsIfNeeded()
 }
 
 const handleViewChange = (newViewMode) => {
     viewMode.value = newViewMode
-    loadMissions()
+    persistCalendarState()
+    loadMissionsIfNeeded()
 }
 
 const showMissionDetails = (mission) => {
@@ -218,9 +332,24 @@ const closeCreateModal = () => {
     selectedDate.value = null
 }
 
-const handleMissionUpdate = (updatedMission) => {
-    // Reload missions after update
-    loadMissions()
+const closeEditModal = () => {
+    showEditModal.value = false
+    selectedMission.value = null
+}
+
+const closeAssignModal = () => {
+    showAssignModal.value = false
+    selectedMission.value = null
+}
+
+const closeBulkModal = () => {
+    showBulkModal.value = false
+    selectedMissionsForBulk.value = []
+}
+
+const handleMissionUpdate = (mission) => {
+    selectedMission.value = mission
+    showEditModal.value = true
     closeDetailsModal()
 }
 
@@ -231,28 +360,33 @@ const handleMissionCreate = (newMission) => {
 }
 
 const handleMissionAssign = (mission) => {
-    // Handle mission assignment - use assign-to-checker route for ops users
-    router.post(route('missions.assign-to-checker', mission.id), {}, {
-        onSuccess: () => {
-            loadMissions()
-            closeDetailsModal()
-        }
-    })
+    selectedMission.value = mission
+    showAssignModal.value = true
+    closeDetailsModal()
 }
 
-const handleMissionStatusChange = ({ mission, status }) => {
-    // Handle mission status change
-    router.patch(route('missions.update-status', mission.id), {
-        status: status
-    }, {
-        onSuccess: () => {
+const handleMissionStatusChange = async ({ mission, status }) => {
+    try {
+        const response = await fetch(route('ops.calendar.missions.update-status', mission.id), {
+            method: 'PATCH',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+            },
+            body: JSON.stringify({ status })
+        })
+
+        const data = await response.json()
+
+        if (data.success) {
             loadMissions()
             closeDetailsModal()
-        },
-        onError: (errors) => {
-            console.error('Failed to update mission status:', errors)
+        } else {
+            console.error('Failed to update mission status:', data.message)
         }
-    })
+    } catch (error) {
+        console.error('Error updating mission status:', error)
+    }
 }
 
 const handleMissionDuplicate = (mission) => {
@@ -285,20 +419,97 @@ const handleViewBailMobilite = (bailMobilite) => {
     router.visit(route('ops.bail-mobilites.show', bailMobilite.id))
 }
 
+const handleMissionUpdated = (updatedMission) => {
+    // Reload missions after update
+    loadMissions()
+    closeEditModal()
+}
+
+const handleMissionAssigned = (assignedMission) => {
+    // Reload missions after assignment
+    loadMissions()
+    closeAssignModal()
+}
+
+const handleBulkOperationCompleted = (results) => {
+    // Reload missions after bulk operation
+    loadMissions()
+    // Modal will close automatically after showing results
+}
+
+const handleMissionClick = (mission) => {
+    if (selectionMode.value) {
+        handleMissionSelect(mission)
+    } else {
+        showMissionDetails(mission)
+    }
+}
+
+const handleMissionSelect = (mission) => {
+    const index = selectedMissionsForBulk.value.findIndex(m => m.id === mission.id)
+    if (index > -1) {
+        selectedMissionsForBulk.value.splice(index, 1)
+    } else {
+        selectedMissionsForBulk.value.push(mission)
+    }
+}
+
+const enterSelectionMode = () => {
+    selectionMode.value = true
+    selectedMissionsForBulk.value = []
+}
+
+const exitSelectionMode = () => {
+    selectionMode.value = false
+    selectedMissionsForBulk.value = []
+}
+
+const selectAllVisibleMissions = () => {
+    selectedMissionsForBulk.value = [...filteredMissions.value]
+}
+
+const clearSelection = () => {
+    selectedMissionsForBulk.value = []
+}
+
+const handleMissionDelete = async (mission) => {
+    try {
+        const response = await fetch(route('ops.calendar.missions.delete', mission.id), {
+            method: 'DELETE',
+            headers: {
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+            }
+        })
+
+        const data = await response.json()
+
+        if (data.success) {
+            loadMissions()
+            closeDetailsModal()
+        } else {
+            console.error('Failed to delete mission:', data.message)
+        }
+    } catch (error) {
+        console.error('Error deleting mission:', error)
+    }
+}
+
 // Filter management methods
-const updateURLParams = (newFilters) => {
+const updateURLParams = (newParams) => {
     const url = new URL(window.location)
     const params = url.searchParams
 
-    // Clear existing filter params
+    // Clear existing params
+    params.delete('date')
+    params.delete('view')
     params.delete('status')
     params.delete('mission_type')
     params.delete('checker_id')
     params.delete('date_range')
     params.delete('search')
 
-    // Add new filter params
-    Object.entries(newFilters).forEach(([key, value]) => {
+    // Add new params
+    Object.entries(newParams).forEach(([key, value]) => {
         if (value !== '' && value !== null && value !== undefined) {
             params.set(key, value)
         }
@@ -312,11 +523,12 @@ const handleFilterChange = (newFilters) => {
     // Update local filters
     Object.assign(filters, newFilters)
     
-    // Update URL parameters
-    updateURLParams(newFilters)
+    // Clear cache since filters changed
+    missionCache.clear()
     
-    // Load missions with new filters
-    loadMissions()
+    // Persist state and load missions
+    persistCalendarState()
+    loadMissionsIfNeeded()
 }
 
 const handleClearFilters = () => {
@@ -331,20 +543,108 @@ const handleClearFilters = () => {
     // Update local filters
     Object.assign(filters, clearedFilters)
     
-    // Update URL parameters
-    updateURLParams(clearedFilters)
+    // Clear cache since filters changed
+    missionCache.clear()
     
-    // Load missions without filters
-    loadMissions()
+    // Persist state and load missions
+    persistCalendarState()
+    loadMissionsIfNeeded()
 }
 
-const loadMissions = () => {
+// State persistence
+const persistCalendarState = () => {
+    const state = {
+        currentDate: currentDate.value.toISOString().split('T')[0],
+        viewMode: viewMode.value,
+        filters: { ...filters }
+    }
+    
+    localStorage.setItem('calendar-state', JSON.stringify(state))
+    updateURLParams({
+        date: state.currentDate,
+        view: state.viewMode,
+        ...state.filters
+    })
+}
+
+// Efficient mission loading with caching
+const getDateRangeForView = (date, view) => {
+    const current = new Date(date)
+    let startDate, endDate
+    
+    switch (view) {
+        case 'month':
+            startDate = new Date(current.getFullYear(), current.getMonth(), 1)
+            endDate = new Date(current.getFullYear(), current.getMonth() + 1, 0)
+            // Extend to show full weeks
+            startDate.setDate(startDate.getDate() - startDate.getDay())
+            endDate.setDate(endDate.getDate() + (6 - endDate.getDay()))
+            break
+        case 'week':
+            startDate = getStartOfWeek(current)
+            endDate = getEndOfWeek(current)
+            break
+        case 'day':
+            startDate = new Date(current)
+            endDate = new Date(current)
+            break
+        default:
+            startDate = new Date(current.getFullYear(), current.getMonth(), 1)
+            endDate = new Date(current.getFullYear(), current.getMonth() + 1, 0)
+    }
+    
+    return { startDate, endDate }
+}
+
+const getCacheKey = (startDate, endDate, filters) => {
+    const filterString = Object.entries(filters)
+        .filter(([key, value]) => value !== '' && value !== null && value !== undefined)
+        .sort()
+        .map(([key, value]) => `${key}:${value}`)
+        .join('|')
+    
+    return `${startDate.toISOString().split('T')[0]}_${endDate.toISOString().split('T')[0]}_${filterString}`
+}
+
+const loadMissionsIfNeeded = () => {
+    const { startDate, endDate } = getDateRangeForView(currentDate.value, viewMode.value)
+    const cacheKey = getCacheKey(startDate, endDate, filters)
+    
+    // Check if we already have this data cached
+    if (missionCache.has(cacheKey)) {
+        return
+    }
+    
+    // Check if we need to load a larger range to avoid frequent API calls
+    const shouldLoadExtendedRange = viewMode.value === 'day' || viewMode.value === 'week'
+    
+    if (shouldLoadExtendedRange) {
+        // For day/week views, load the entire month to reduce API calls
+        const monthStart = new Date(currentDate.value.getFullYear(), currentDate.value.getMonth(), 1)
+        const monthEnd = new Date(currentDate.value.getFullYear(), currentDate.value.getMonth() + 1, 0)
+        loadMissions(monthStart, monthEnd, cacheKey)
+    } else {
+        loadMissions(startDate, endDate, cacheKey)
+    }
+}
+
+const loadMissions = (startDate = null, endDate = null, cacheKey = null) => {
+    if (!startDate || !endDate) {
+        const range = getDateRangeForView(currentDate.value, viewMode.value)
+        startDate = range.startDate
+        endDate = range.endDate
+    }
+    
+    if (!cacheKey) {
+        cacheKey = getCacheKey(startDate, endDate, filters)
+    }
+    
     loading.value = true
     filtersLoading.value = true
     
     const params = {
-        date: currentDate.value.toISOString().split('T')[0],
-        view: viewMode.value,
+        start_date: startDate.toISOString().split('T')[0],
+        end_date: endDate.toISOString().split('T')[0],
         ...filters
     }
 
@@ -358,7 +658,24 @@ const loadMissions = () => {
     router.get(route('ops.calendar.missions'), params, {
         preserveState: true,
         preserveScroll: true,
-        onSuccess: () => {
+        onSuccess: (page) => {
+            // Cache the loaded missions
+            if (page.props.missions) {
+                missionCache.set(cacheKey, {
+                    missions: page.props.missions,
+                    timestamp: Date.now(),
+                    startDate: startDate.toISOString().split('T')[0],
+                    endDate: endDate.toISOString().split('T')[0]
+                })
+                
+                // Clean old cache entries (keep last 10)
+                if (missionCache.size > 10) {
+                    const oldestKey = Array.from(missionCache.keys())[0]
+                    missionCache.delete(oldestKey)
+                }
+            }
+            
+            lastLoadedRange.value = { startDate, endDate, cacheKey }
             loading.value = false
             filtersLoading.value = false
         },
@@ -367,6 +684,21 @@ const loadMissions = () => {
             filtersLoading.value = false
         }
     })
+}
+
+// Utility functions for date handling
+const getStartOfWeek = (date) => {
+    const start = new Date(date)
+    const day = start.getDay()
+    const diff = start.getDate() - day + (day === 0 ? -6 : 1)
+    start.setDate(diff)
+    return start
+}
+
+const getEndOfWeek = (date) => {
+    const end = getStartOfWeek(date)
+    end.setDate(end.getDate() + 6)
+    return end
 }
 
 // Debounced filter change handler for search
@@ -380,11 +712,41 @@ const debouncedFilterChange = (newFilters) => {
     }, 300) // 300ms debounce for search
 }
 
+// Handle browser back/forward navigation
+const handlePopState = () => {
+    const state = initializeCalendarState()
+    currentDate.value = new Date(state.currentDate)
+    viewMode.value = state.viewMode
+    Object.assign(filters, state.filters)
+    loadMissionsIfNeeded()
+}
+
 // Load initial data
 onMounted(() => {
-    if (!props.missions.length) {
-        loadMissions()
+    // Set up browser navigation handling
+    window.addEventListener('popstate', handlePopState)
+    
+    // Load missions if not already provided or if state changed
+    if (!props.missions.length || 
+        currentDate.value.toISOString().split('T')[0] !== new Date().toISOString().split('T')[0]) {
+        loadMissionsIfNeeded()
+    } else {
+        // Cache the initial missions
+        const { startDate, endDate } = getDateRangeForView(currentDate.value, viewMode.value)
+        const cacheKey = getCacheKey(startDate, endDate, filters)
+        missionCache.set(cacheKey, {
+            missions: props.missions,
+            timestamp: Date.now(),
+            startDate: startDate.toISOString().split('T')[0],
+            endDate: endDate.toISOString().split('T')[0]
+        })
     }
+})
+
+// Cleanup
+onUnmounted(() => {
+    window.removeEventListener('popstate', handlePopState)
+    clearTimeout(filterTimeout)
 })
 </script>
 

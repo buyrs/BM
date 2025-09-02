@@ -30,14 +30,43 @@ class CalendarController extends Controller
      */
     public function index(Request $request): Response
     {
-        $currentDate = $request->get('date', now()->format('Y-m-d'));
-        $startDate = Carbon::parse($currentDate)->startOfMonth();
-        $endDate = Carbon::parse($currentDate)->endOfMonth();
+        $validated = $request->validate([
+            'date' => 'nullable|date',
+            'view' => 'nullable|string|in:month,week,day',
+            'status' => 'nullable|string|in:unassigned,assigned,in_progress,completed,cancelled',
+            'checker_id' => 'nullable|integer|exists:users,id',
+            'mission_type' => 'nullable|string|in:entry,exit',
+            'date_range' => 'nullable|string|in:today,tomorrow,this_week,next_week,this_month,overdue',
+            'search' => 'nullable|string|max:255',
+        ]);
+
+        $currentDate = $validated['date'] ?? now()->format('Y-m-d');
+        $viewMode = $validated['view'] ?? 'month';
+        $parsedDate = Carbon::parse($currentDate);
+
+        // Calculate date range based on view mode
+        switch ($viewMode) {
+            case 'month':
+                $startDate = $parsedDate->copy()->startOfMonth()->startOfWeek();
+                $endDate = $parsedDate->copy()->endOfMonth()->endOfWeek();
+                break;
+            case 'week':
+                $startDate = $parsedDate->copy()->startOfWeek();
+                $endDate = $parsedDate->copy()->endOfWeek();
+                break;
+            case 'day':
+                $startDate = $parsedDate->copy()->startOfDay();
+                $endDate = $parsedDate->copy()->endOfDay();
+                break;
+            default:
+                $startDate = $parsedDate->copy()->startOfMonth();
+                $endDate = $parsedDate->copy()->endOfMonth();
+        }
 
         // Get filters from request
         $filters = $request->only(['status', 'checker_id', 'mission_type', 'date_range', 'search']);
 
-        // Get missions for the current month with filters
+        // Get missions for the calculated date range with filters
         $missions = $this->calendarService->getMissionsForDateRange($startDate, $endDate, $filters);
         $formattedMissions = $this->calendarService->formatMissionsForCalendar($missions);
 
@@ -50,8 +79,13 @@ class CalendarController extends Controller
         return Inertia::render('Ops/Calendar', [
             'missions' => $formattedMissions,
             'currentDate' => $currentDate,
+            'viewMode' => $viewMode,
             'checkers' => $checkers,
             'initialFilters' => $filters,
+            'dateRange' => [
+                'start' => $startDate->format('Y-m-d'),
+                'end' => $endDate->format('Y-m-d'),
+            ],
         ]);
     }
 
@@ -87,6 +121,7 @@ class CalendarController extends Controller
             'applied_filters' => array_filter($filters, function($value) {
                 return $value !== null && $value !== '';
             }),
+            'cache_key' => md5($startDate->format('Y-m-d') . '_' . $endDate->format('Y-m-d') . '_' . serialize($filters)),
         ]);
     }
 
@@ -267,5 +302,251 @@ class CalendarController extends Controller
             'has_conflicts' => !empty($conflicts),
             'conflicts' => $conflicts,
         ]);
+    }
+
+    /**
+     * Update mission status with validation.
+     */
+    public function updateMissionStatus(Request $request, Mission $mission): JsonResponse
+    {
+        $validated = $request->validate([
+            'status' => 'required|string|in:unassigned,assigned,in_progress,completed,cancelled',
+            'notes' => 'nullable|string',
+        ]);
+
+        try {
+            // Validate status transition
+            $this->validateStatusTransition($mission, $validated['status']);
+
+            $mission->update($validated);
+            $mission->refresh();
+            $mission->load(['agent', 'bailMobilite', 'checklist', 'opsAssignedBy']);
+
+            $formattedMissions = $this->calendarService->formatMissionsForCalendar(collect([$mission]));
+            $formattedMission = $formattedMissions[0] ?? null;
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Mission status updated successfully',
+                'mission' => $formattedMission,
+            ]);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage(),
+            ], 422);
+        }
+    }
+
+    /**
+     * Assign mission to checker.
+     */
+    public function assignMissionToChecker(Request $request, Mission $mission): JsonResponse
+    {
+        $validated = $request->validate([
+            'agent_id' => 'required|integer|exists:users,id',
+            'notes' => 'nullable|string',
+        ]);
+
+        try {
+            // Verify the user is a checker
+            $checker = User::findOrFail($validated['agent_id']);
+            if (!$checker->hasRole('checker')) {
+                throw new \Exception('Selected user is not a checker');
+            }
+
+            $mission->update([
+                'agent_id' => $validated['agent_id'],
+                'status' => 'assigned',
+                'ops_assigned_by' => Auth::id(),
+                'notes' => $validated['notes'] ?? $mission->notes,
+            ]);
+
+            $mission->refresh();
+            $mission->load(['agent', 'bailMobilite', 'checklist', 'opsAssignedBy']);
+
+            $formattedMissions = $this->calendarService->formatMissionsForCalendar(collect([$mission]));
+            $formattedMission = $formattedMissions[0] ?? null;
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Mission assigned successfully',
+                'mission' => $formattedMission,
+            ]);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage(),
+            ], 422);
+        }
+    }
+
+    /**
+     * Delete mission with validation.
+     */
+    public function deleteMission(Mission $mission): JsonResponse
+    {
+        try {
+            // Check if mission can be deleted
+            if ($mission->status === 'in_progress') {
+                throw new \Exception('Cannot delete mission that is in progress');
+            }
+
+            if ($mission->status === 'completed') {
+                throw new \Exception('Cannot delete completed mission');
+            }
+
+            $missionId = $mission->id;
+            $mission->delete();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Mission deleted successfully',
+                'deleted_mission_id' => $missionId,
+            ]);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage(),
+            ], 422);
+        }
+    }
+
+    /**
+     * Bulk update missions.
+     */
+    public function bulkUpdateMissions(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'mission_ids' => 'required|array|min:1',
+            'mission_ids.*' => 'integer|exists:missions,id',
+            'action' => 'required|string|in:assign,update_status,delete',
+            'agent_id' => 'nullable|integer|exists:users,id',
+            'status' => 'nullable|string|in:unassigned,assigned,in_progress,completed,cancelled',
+            'notes' => 'nullable|string',
+        ]);
+
+        DB::beginTransaction();
+        try {
+            $missions = Mission::whereIn('id', $validated['mission_ids'])->get();
+            $updatedMissions = collect();
+            $errors = collect();
+
+            foreach ($missions as $mission) {
+                try {
+                    switch ($validated['action']) {
+                        case 'assign':
+                            if (!$validated['agent_id']) {
+                                throw new \Exception('Agent ID is required for assignment');
+                            }
+                            
+                            $checker = User::findOrFail($validated['agent_id']);
+                            if (!$checker->hasRole('checker')) {
+                                throw new \Exception('Selected user is not a checker');
+                            }
+
+                            $mission->update([
+                                'agent_id' => $validated['agent_id'],
+                                'status' => 'assigned',
+                                'ops_assigned_by' => Auth::id(),
+                                'notes' => $validated['notes'] ?? $mission->notes,
+                            ]);
+                            break;
+
+                        case 'update_status':
+                            if (!$validated['status']) {
+                                throw new \Exception('Status is required for status update');
+                            }
+                            
+                            $this->validateStatusTransition($mission, $validated['status']);
+                            $mission->update([
+                                'status' => $validated['status'],
+                                'notes' => $validated['notes'] ?? $mission->notes,
+                            ]);
+                            break;
+
+                        case 'delete':
+                            if ($mission->status === 'in_progress') {
+                                throw new \Exception('Cannot delete mission that is in progress');
+                            }
+                            if ($mission->status === 'completed') {
+                                throw new \Exception('Cannot delete completed mission');
+                            }
+                            $mission->delete();
+                            continue 2; // Skip adding to updated missions
+                    }
+
+                    $mission->refresh();
+                    $mission->load(['agent', 'bailMobilite', 'checklist', 'opsAssignedBy']);
+                    $updatedMissions->push($mission);
+
+                } catch (\Exception $e) {
+                    $errors->push([
+                        'mission_id' => $mission->id,
+                        'error' => $e->getMessage(),
+                    ]);
+                }
+            }
+
+            DB::commit();
+
+            $formattedMissions = $this->calendarService->formatMissionsForCalendar($updatedMissions);
+
+            return response()->json([
+                'success' => true,
+                'message' => sprintf(
+                    'Bulk operation completed. %d missions updated, %d errors.',
+                    $updatedMissions->count(),
+                    $errors->count()
+                ),
+                'missions' => $formattedMissions,
+                'errors' => $errors->toArray(),
+                'deleted_mission_ids' => $validated['action'] === 'delete' ? $validated['mission_ids'] : [],
+            ]);
+
+        } catch (\Exception $e) {
+            DB::rollback();
+            return response()->json([
+                'success' => false,
+                'message' => 'Bulk operation failed: ' . $e->getMessage(),
+            ], 422);
+        }
+    }
+
+    /**
+     * Validate status transition.
+     */
+    private function validateStatusTransition(Mission $mission, string $newStatus): void
+    {
+        $currentStatus = $mission->status;
+        
+        // Define valid transitions
+        $validTransitions = [
+            'unassigned' => ['assigned', 'cancelled'],
+            'assigned' => ['in_progress', 'unassigned', 'cancelled'],
+            'in_progress' => ['completed', 'cancelled'],
+            'completed' => [], // Completed missions cannot change status
+            'cancelled' => ['unassigned'], // Cancelled missions can be reactivated
+        ];
+
+        if (!isset($validTransitions[$currentStatus])) {
+            throw new \Exception("Invalid current status: {$currentStatus}");
+        }
+
+        if (!in_array($newStatus, $validTransitions[$currentStatus])) {
+            throw new \Exception("Cannot transition from {$currentStatus} to {$newStatus}");
+        }
+
+        // Additional validation for specific transitions
+        if ($newStatus === 'assigned' && !$mission->agent_id) {
+            throw new \Exception('Cannot set status to assigned without assigning a checker');
+        }
+
+        if ($newStatus === 'in_progress' && !$mission->agent_id) {
+            throw new \Exception('Cannot start mission without assigned checker');
+        }
     }
 }

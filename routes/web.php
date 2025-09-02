@@ -155,6 +155,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
             Route::post('/missions', [\App\Http\Controllers\CalendarController::class, 'createMission'])->name('missions.create');
             Route::patch('/missions/{mission}', [\App\Http\Controllers\CalendarController::class, 'updateMission'])->name('missions.update');
             Route::get('/missions/{mission}/details', [\App\Http\Controllers\CalendarController::class, 'getMissionDetails'])->name('missions.details');
+            Route::patch('/missions/{mission}/status', [\App\Http\Controllers\CalendarController::class, 'updateMissionStatus'])->name('missions.update-status');
+            Route::post('/missions/{mission}/assign', [\App\Http\Controllers\CalendarController::class, 'assignMissionToChecker'])->name('missions.assign');
+            Route::delete('/missions/{mission}', [\App\Http\Controllers\CalendarController::class, 'deleteMission'])->name('missions.delete');
+            Route::post('/missions/bulk-update', [\App\Http\Controllers\CalendarController::class, 'bulkUpdateMissions'])->name('missions.bulk-update');
             Route::get('/time-slots', [\App\Http\Controllers\CalendarController::class, 'getAvailableTimeSlots'])->name('time-slots');
             Route::post('/conflicts', [\App\Http\Controllers\CalendarController::class, 'detectConflicts'])->name('conflicts');
         });

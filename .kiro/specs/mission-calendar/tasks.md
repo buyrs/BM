@@ -53,7 +53,7 @@
     -   Add loading states during filter application
     -   _Requirements: 7.1, 7.2, 7.3, 7.4, 7.5_
 
--   [-] 7. Implement calendar navigation and view modes
+-   [x] 7. Implement calendar navigation and view modes
 
     -   Add month/year navigation with proper date boundary handling
     -   Implement calendar view switching between different time periods
@@ -62,7 +62,7 @@
     -   Handle calendar state persistence across page refreshes
     -   _Requirements: 4.1, 4.2, 4.3, 4.4, 4.5, 6.3_
 
--   [ ] 8. Add mission management features
+-   [x] 8. Add mission management features
 
     -   Implement inline mission editing from calendar view
     -   Add mission status update functionality with proper validation
@@ -71,7 +71,7 @@
     -   Add bulk operations for multiple mission management
     -   _Requirements: 5.4, 1.2, 2.1_
 
--   [ ] 9. Create responsive design and mobile support
+-   [-] 9. Create responsive design and mobile support
 
     -   Implement responsive calendar layout for mobile and tablet devices
     -   Add touch gesture support for calendar navigation

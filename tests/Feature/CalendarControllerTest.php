@@ -48,6 +48,39 @@ class CalendarControllerTest extends TestCase
         $response->assertStatus(200);
     }
 
+    public function test_calendar_index_handles_view_mode_parameter()
+    {
+        $response = $this->withoutMiddleware()->actingAs($this->opsUser)
+            ->get(route('ops.calendar.index', ['view' => 'week', 'date' => '2024-01-15']));
+
+        $response->assertStatus(200);
+    }
+
+    public function test_calendar_index_validates_view_mode()
+    {
+        $response = $this->withoutMiddleware()->actingAs($this->opsUser)
+            ->get(route('ops.calendar.index', ['view' => 'invalid']));
+
+        $response->assertStatus(302); // Redirect due to validation error
+    }
+
+    public function test_calendar_index_handles_date_boundaries()
+    {
+        // Test with different view modes and dates
+        $testCases = [
+            ['view' => 'month', 'date' => '2024-01-15'],
+            ['view' => 'week', 'date' => '2024-01-15'],
+            ['view' => 'day', 'date' => '2024-01-15'],
+        ];
+
+        foreach ($testCases as $params) {
+            $response = $this->withoutMiddleware()->actingAs($this->opsUser)
+                ->get(route('ops.calendar.index', $params));
+
+            $response->assertStatus(200);
+        }
+    }
+
     public function test_get_missions_endpoint_returns_missions_for_date_range()
     {
         $startDate = Carbon::now()->startOfMonth();

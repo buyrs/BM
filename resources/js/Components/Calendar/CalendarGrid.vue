@@ -1,5 +1,10 @@
 <template>
-    <div class="calendar-grid">
+    <div 
+        class="calendar-grid"
+        @keydown="handleKeyboardNavigation"
+        tabindex="0"
+        ref="calendarGrid"
+    >
         <!-- Month View -->
         <div v-if="viewMode === 'month'" class="month-view">
             <!-- Days of Week Header -->
@@ -54,6 +59,8 @@
                             :key="mission.id"
                             :mission="mission"
                             :compact="true"
+                            :selection-mode="selectionMode"
+                            :selected="selectedMissions.some(m => m.id === mission.id)"
                             @click="handleMissionClick(mission, $event)"
                         />
                         
@@ -71,6 +78,8 @@
                                     :key="day.missions[2].id"
                                     :mission="day.missions[2]"
                                     :compact="true"
+                                    :selection-mode="selectionMode"
+                                    :selected="selectedMissions.some(m => m.id === day.missions[2].id)"
                                     @click="handleMissionClick(day.missions[2], $event)"
                                 />
                             </div>
@@ -147,6 +156,8 @@
                             :key="mission.id"
                             :mission="mission"
                             :compact="false"
+                            :selection-mode="selectionMode"
+                            :selected="selectedMissions.some(m => m.id === mission.id)"
                             @click="handleMissionClick(mission, $event)"
                         />
                     </div>
@@ -190,6 +201,8 @@
                                     :key="mission.id"
                                     :mission="mission"
                                     :compact="false"
+                                    :selection-mode="selectionMode"
+                                    :selected="selectedMissions.some(m => m.id === mission.id)"
                                     @click="handleMissionClick(mission, $event)"
                                 />
                             </div>
@@ -224,7 +237,7 @@
 </template>
 
 <script setup>
-import { computed } from 'vue'
+import { computed, ref, onMounted } from 'vue'
 import MissionEvent from './MissionEvent.vue'
 
 // Props
@@ -245,11 +258,25 @@ const props = defineProps({
     loading: {
         type: Boolean,
         default: false
+    },
+    selectionMode: {
+        type: Boolean,
+        default: false
+    },
+    selectedMissions: {
+        type: Array,
+        default: () => []
     }
 })
 
 // Emits
-const emit = defineEmits(['mission-click', 'date-click'])
+const emit = defineEmits(['mission-click', 'date-click', 'mission-select', 'bulk-select'])
+
+// Template refs
+const calendarGrid = ref(null)
+
+// Selected date for keyboard navigation
+const selectedDateIndex = ref(0)
 
 // Constants
 const daysOfWeek = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
@@ -357,7 +384,11 @@ const handleDateClick = (date) => {
 
 const handleMissionClick = (mission, event) => {
     event.stopPropagation()
-    emit('mission-click', mission)
+    if (props.selectionMode) {
+        emit('mission-select', mission)
+    } else {
+        emit('mission-click', mission)
+    }
 }
 
 const handleTimeSlotClick = (date, hour) => {
@@ -365,6 +396,86 @@ const handleTimeSlotClick = (date, hour) => {
     dateTime.setHours(hour, 0, 0, 0)
     emit('date-click', dateTime)
 }
+
+// Keyboard navigation for calendar grid
+const handleKeyboardNavigation = (event) => {
+    // Don't handle keyboard events if user is typing in an input
+    if (event.target.tagName === 'INPUT' || event.target.tagName === 'SELECT') {
+        return
+    }
+    
+    if (props.viewMode === 'month') {
+        const totalDays = calendarDays.value.length
+        
+        switch (event.key) {
+            case 'ArrowLeft':
+                event.preventDefault()
+                selectedDateIndex.value = Math.max(0, selectedDateIndex.value - 1)
+                highlightSelectedDate()
+                break
+            case 'ArrowRight':
+                event.preventDefault()
+                selectedDateIndex.value = Math.min(totalDays - 1, selectedDateIndex.value + 1)
+                highlightSelectedDate()
+                break
+            case 'ArrowUp':
+                event.preventDefault()
+                selectedDateIndex.value = Math.max(0, selectedDateIndex.value - 7)
+                highlightSelectedDate()
+                break
+            case 'ArrowDown':
+                event.preventDefault()
+                selectedDateIndex.value = Math.min(totalDays - 1, selectedDateIndex.value + 7)
+                highlightSelectedDate()
+                break
+            case 'Enter':
+            case ' ':
+                event.preventDefault()
+                if (calendarDays.value[selectedDateIndex.value]) {
+                    handleDateClick(calendarDays.value[selectedDateIndex.value].date)
+                }
+                break
+            case 'Home':
+                event.preventDefault()
+                selectedDateIndex.value = 0
+                highlightSelectedDate()
+                break
+            case 'End':
+                event.preventDefault()
+                selectedDateIndex.value = totalDays - 1
+                highlightSelectedDate()
+                break
+        }
+    }
+}
+
+const highlightSelectedDate = () => {
+    // Update the selected state in calendar days
+    calendarDays.value.forEach((day, index) => {
+        day.isSelected = index === selectedDateIndex.value
+    })
+}
+
+// Lifecycle hooks
+onMounted(() => {
+    // Set initial selected date to today or current date
+    const today = new Date()
+    const todayIndex = calendarDays.value.findIndex(day => 
+        day.date.toDateString() === today.toDateString()
+    )
+    
+    if (todayIndex !== -1) {
+        selectedDateIndex.value = todayIndex
+    } else {
+        // Find the current month's first day
+        const currentMonthIndex = calendarDays.value.findIndex(day => day.isCurrentMonth)
+        if (currentMonthIndex !== -1) {
+            selectedDateIndex.value = currentMonthIndex
+        }
+    }
+    
+    highlightSelectedDate()
+})
 </script>
 
 <style scoped>
