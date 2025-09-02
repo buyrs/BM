@@ -35,8 +35,22 @@
                 </div>
             </div>
             
+            <!-- Loading state for mobile list -->
+            <div v-if="loading" class="space-y-4">
+                <div v-for="i in 3" :key="i" class="mobile-list-item animate-pulse">
+                    <div class="flex items-center justify-between mb-2">
+                        <div class="bg-gray-300 h-6 w-32 rounded"></div>
+                        <div class="bg-gray-300 h-5 w-16 rounded-full"></div>
+                    </div>
+                    <div class="space-y-2">
+                        <div class="bg-gray-300 h-12 w-full rounded"></div>
+                        <div class="bg-gray-300 h-12 w-3/4 rounded"></div>
+                    </div>
+                </div>
+            </div>
+            
             <!-- Empty state for mobile list -->
-            <div v-if="calendarDays.filter(d => d.isCurrentMonth && d.missions.length > 0).length === 0" 
+            <div v-else-if="calendarDays.filter(d => d.isCurrentMonth && d.missions.length > 0).length === 0" 
                  class="text-center py-8">
                 <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />

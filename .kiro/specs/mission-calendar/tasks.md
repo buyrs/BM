@@ -80,7 +80,7 @@
     -   Add accessibility features including screen reader support
     -   _Requirements: 6.1, 6.2, 6.3, 6.4, 6.5_
 
--   [-] 10. Implement error handling and loading states
+-   [x] 10. Implement error handling and loading states
 
     -   Add comprehensive error handling for all API operations
     -   Create loading skeletons for calendar data fetching
@@ -89,7 +89,7 @@
     -   Create empty state displays when no missions exist
     -   _Requirements: 1.1, 3.5, 4.5, 7.5_
 
--   [ ] 11. Add calendar integration with existing systems
+-   [-] 11. Add calendar integration with existing systems
 
     -   Integrate calendar with existing notification system for mission updates
     -   Connect calendar to current role-based access control system

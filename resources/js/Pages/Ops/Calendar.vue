@@ -1,27 +1,33 @@
 <template>
     <DashboardOps>
-        <div class="calendar-container touch-enabled" ref="calendarContainer">
-            <!-- Mobile Header -->
-            <div class="calendar-header">
-                <div class="flex items-center justify-between">
-                    <div>
-                        <h1 class="text-2xl md:text-3xl font-bold text-gray-900">Mission Calendar</h1>
-                        <p class="text-gray-600 text-sm md:text-base">View and manage all missions in calendar format</p>
+        <ErrorBoundary
+            ref="errorBoundary"
+            :show-details="false"
+            @retry="handleGlobalRetry"
+            @reset="handleGlobalReset"
+        >
+            <div class="calendar-container touch-enabled" ref="calendarContainer">
+                <!-- Mobile Header -->
+                <div class="calendar-header">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <h1 class="text-2xl md:text-3xl font-bold text-gray-900">Mission Calendar</h1>
+                            <p class="text-gray-600 text-sm md:text-base">View and manage all missions in calendar format</p>
+                        </div>
+                        
+                        <!-- Mobile Menu Toggle -->
+                        <button
+                            @click="toggleMobileMenu"
+                            class="md:hidden p-2 rounded-md hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            :aria-expanded="showMobileMenu"
+                            aria-label="Toggle mobile menu"
+                        >
+                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
+                            </svg>
+                        </button>
                     </div>
-                    
-                    <!-- Mobile Menu Toggle -->
-                    <button
-                        @click="toggleMobileMenu"
-                        class="md:hidden p-2 rounded-md hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        :aria-expanded="showMobileMenu"
-                        aria-label="Toggle mobile menu"
-                    >
-                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
-                        </svg>
-                    </button>
                 </div>
-            </div>
 
             <!-- Mobile Menu Overlay -->
             <div
@@ -154,8 +160,14 @@
                 </button>
             </div>
 
-            <!-- Loading State -->
-            <div v-if="loading" class="flex justify-center items-center py-12">
+            <!-- Loading States -->
+            <div v-if="initialLoading">
+                <LoadingSkeleton type="navigation" />
+                <LoadingSkeleton type="filters" />
+                <LoadingSkeleton type="grid" />
+            </div>
+            
+            <div v-else-if="loading && !hasData" class="flex justify-center items-center py-12">
                 <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
                 <span class="ml-2 text-gray-600">Loading missions...</span>
             </div>
@@ -235,7 +247,7 @@
 
                 <!-- Calendar Grid -->
                 <CalendarGrid
-                    v-if="!loading"
+                    v-if="!initialLoading && !criticalError"
                     :missions="filteredMissions"
                     :current-date="currentDate"
                     :view-mode="viewMode"
@@ -246,6 +258,26 @@
                     @mission-click="handleMissionClick"
                     @date-click="showCreateMission"
                     @mission-select="handleMissionSelect"
+                />
+                
+                <!-- Empty State -->
+                <EmptyState
+                    v-else-if="!initialLoading && !loading && !criticalError && filteredMissions.length === 0"
+                    :type="getEmptyStateType()"
+                    @primary-action="handleEmptyStateAction"
+                    @secondary-action="handleEmptyStateSecondaryAction"
+                />
+                
+                <!-- Critical Error State -->
+                <EmptyState
+                    v-else-if="criticalError"
+                    type="loading-failed"
+                    :title="criticalError.title"
+                    :description="criticalError.message"
+                    primary-action="Try Again"
+                    secondary-action="Refresh Page"
+                    @primary-action="handleCriticalErrorRetry"
+                    @secondary-action="handlePageRefresh"
                 />
             </div>
 
@@ -309,7 +341,11 @@
                 @close="closeBulkModal"
                 @completed="handleBulkOperationCompleted"
             />
-        </div>
+            </div>
+            
+            <!-- Toast Notifications -->
+            <ToastContainer />
+        </ErrorBoundary>
     </DashboardOps>
 </template>
 
@@ -325,6 +361,12 @@ import CreateMissionModal from '@/Components/Calendar/CreateMissionModal.vue'
 import EditMissionModal from '@/Components/Calendar/EditMissionModal.vue'
 import AssignMissionModal from '@/Components/Calendar/AssignMissionModal.vue'
 import BulkOperationsModal from '@/Components/Calendar/BulkOperationsModal.vue'
+import ErrorBoundary from '@/Components/Calendar/ErrorBoundary.vue'
+import LoadingSkeleton from '@/Components/Calendar/LoadingSkeleton.vue'
+import EmptyState from '@/Components/Calendar/EmptyState.vue'
+import ToastContainer from '@/Components/Calendar/ToastContainer.vue'
+import calendarErrorService from '@/Services/CalendarErrorService.js'
+import toastService from '@/Services/ToastService.js'
 
 // Props
 const props = defineProps({
@@ -367,7 +409,10 @@ const initialState = initializeCalendarState()
 const currentDate = ref(new Date(initialState.currentDate))
 const viewMode = ref(initialState.viewMode)
 const loading = ref(false)
+const initialLoading = ref(true)
 const filtersLoading = ref(false)
+const criticalError = ref(null)
+const hasData = ref(false)
 const showDetailsModal = ref(false)
 const showCreateModal = ref(false)
 const showEditModal = ref(false)
@@ -392,6 +437,7 @@ const calendarContainer = ref(null)
 const swipeContainer = ref(null)
 const leftIndicator = ref(null)
 const rightIndicator = ref(null)
+const errorBoundary = ref(null)
 
 // Mission cache for efficient loading
 const missionCache = reactive(new Map())
@@ -498,6 +544,107 @@ const filteredMissions = computed(() => {
 
     return filtered
 })
+
+// Error handling methods
+const handleGlobalRetry = () => {
+    criticalError.value = null
+    loadMissionsIfNeeded()
+}
+
+const handleGlobalReset = () => {
+    criticalError.value = null
+    // Reset to initial state
+    const state = initializeCalendarState()
+    currentDate.value = new Date(state.currentDate)
+    viewMode.value = state.viewMode
+    Object.assign(filters, state.filters)
+    missionCache.clear()
+    loadMissionsIfNeeded()
+}
+
+const handleCriticalError = (error, operation) => {
+    console.error(`Critical calendar error in ${operation}:`, error)
+    
+    const errorInfo = calendarErrorService.categorizeError(error)
+    criticalError.value = {
+        title: `${operation} Failed`,
+        message: errorInfo.userMessage,
+        canRetry: errorInfo.canRetry,
+        originalError: error
+    }
+    
+    initialLoading.value = false
+    loading.value = false
+}
+
+const handleCriticalErrorRetry = () => {
+    criticalError.value = null
+    loadMissionsIfNeeded()
+}
+
+const handlePageRefresh = () => {
+    window.location.reload()
+}
+
+const getEmptyStateType = () => {
+    // Check if filters are applied
+    const hasFilters = Object.values(filters).some(value => 
+        value !== '' && value !== null && value !== undefined
+    )
+    
+    if (hasFilters) {
+        return 'no-results'
+    }
+    
+    return 'no-missions'
+}
+
+const handleEmptyStateAction = () => {
+    const emptyType = getEmptyStateType()
+    
+    if (emptyType === 'no-results') {
+        handleClearFilters()
+    } else {
+        // Show create mission modal for today
+        showCreateMission(new Date())
+    }
+}
+
+const handleEmptyStateSecondaryAction = () => {
+    const emptyType = getEmptyStateType()
+    
+    if (emptyType === 'no-results') {
+        // Reset search
+        filters.search = ''
+        handleFilterChange(filters)
+    }
+}
+
+// Wrapped API methods with error handling
+const safeApiCall = async (operation, apiCall, options = {}) => {
+    try {
+        const result = await calendarErrorService.wrapApiCall(operation, apiCall, {
+            context: 'calendar',
+            showNotification: true,
+            ...options
+        })()
+        
+        if (result.error) {
+            throw new Error(result.userMessage)
+        }
+        
+        return result
+    } catch (error) {
+        if (options.critical) {
+            handleCriticalError(error, operation)
+        } else {
+            toastService.error(error.message || 'An error occurred', {
+                title: `${operation} Failed`
+            })
+        }
+        throw error
+    }
+}
 
 // Methods
 const handleDateChange = (newDate) => {
@@ -705,6 +852,7 @@ const handleMissionCreate = (newMission) => {
     // Reload missions after creation
     loadMissions()
     closeCreateModal()
+    toastService.success('Mission created successfully')
 }
 
 const handleMissionAssign = (mission) => {
@@ -715,51 +863,72 @@ const handleMissionAssign = (mission) => {
 
 const handleMissionStatusChange = async ({ mission, status }) => {
     try {
-        const response = await fetch(route('ops.calendar.missions.update-status', mission.id), {
-            method: 'PATCH',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
-            },
-            body: JSON.stringify({ status })
+        await safeApiCall('Update Mission Status', async () => {
+            const response = await fetch(route('ops.calendar.missions.update-status', mission.id), {
+                method: 'PATCH',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+                },
+                body: JSON.stringify({ status })
+            })
+
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}: ${response.statusText}`)
+            }
+
+            const data = await response.json()
+
+            if (!data.success) {
+                throw new Error(data.message || 'Failed to update mission status')
+            }
+
+            return data
         })
 
-        const data = await response.json()
-
-        if (data.success) {
-            loadMissions()
-            closeDetailsModal()
-        } else {
-            console.error('Failed to update mission status:', data.message)
-        }
+        loadMissions()
+        closeDetailsModal()
+        toastService.success('Mission status updated successfully')
     } catch (error) {
+        // Error already handled by safeApiCall
         console.error('Error updating mission status:', error)
     }
 }
 
-const handleMissionDuplicate = (mission) => {
-    // Handle mission duplication - create a new mission with similar data
-    const duplicateData = {
-        start_date: new Date(mission.scheduled_at).toISOString().split('T')[0],
-        end_date: mission.bail_mobilite?.end_date || new Date(mission.scheduled_at).toISOString().split('T')[0],
-        address: mission.address,
-        tenant_name: mission.tenant_name,
-        tenant_phone: mission.tenant_phone,
-        tenant_email: mission.tenant_email,
-        notes: mission.notes + ' (Duplicated)',
-        entry_scheduled_time: mission.scheduled_time,
-        exit_scheduled_time: mission.scheduled_time,
-    }
-    
-    router.post(route('ops.calendar.missions.create'), duplicateData, {
-        onSuccess: () => {
-            loadMissions()
-            closeDetailsModal()
-        },
-        onError: (errors) => {
-            console.error('Failed to duplicate mission:', errors)
+const handleMissionDuplicate = async (mission) => {
+    try {
+        const duplicateData = {
+            start_date: new Date(mission.scheduled_at).toISOString().split('T')[0],
+            end_date: mission.bail_mobilite?.end_date || new Date(mission.scheduled_at).toISOString().split('T')[0],
+            address: mission.address,
+            tenant_name: mission.tenant_name,
+            tenant_phone: mission.tenant_phone,
+            tenant_email: mission.tenant_email,
+            notes: mission.notes + ' (Duplicated)',
+            entry_scheduled_time: mission.scheduled_time,
+            exit_scheduled_time: mission.scheduled_time,
         }
-    })
+        
+        await safeApiCall('Duplicate Mission', async () => {
+            return new Promise((resolve, reject) => {
+                router.post(route('ops.calendar.missions.create'), duplicateData, {
+                    onSuccess: (page) => {
+                        resolve(page)
+                    },
+                    onError: (errors) => {
+                        reject(new Error(errors.message || 'Failed to duplicate mission'))
+                    }
+                })
+            })
+        })
+        
+        loadMissions()
+        closeDetailsModal()
+        toastService.success('Mission duplicated successfully')
+    } catch (error) {
+        // Error already handled by safeApiCall
+        console.error('Error duplicating mission:', error)
+    }
 }
 
 const handleViewBailMobilite = (bailMobilite) => {
@@ -822,22 +991,32 @@ const clearSelection = () => {
 
 const handleMissionDelete = async (mission) => {
     try {
-        const response = await fetch(route('ops.calendar.missions.delete', mission.id), {
-            method: 'DELETE',
-            headers: {
-                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+        await safeApiCall('Delete Mission', async () => {
+            const response = await fetch(route('ops.calendar.missions.delete', mission.id), {
+                method: 'DELETE',
+                headers: {
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+                }
+            })
+
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}: ${response.statusText}`)
             }
+
+            const data = await response.json()
+
+            if (!data.success) {
+                throw new Error(data.message || 'Failed to delete mission')
+            }
+
+            return data
         })
 
-        const data = await response.json()
-
-        if (data.success) {
-            loadMissions()
-            closeDetailsModal()
-        } else {
-            console.error('Failed to delete mission:', data.message)
-        }
+        loadMissions()
+        closeDetailsModal()
+        toastService.success('Mission deleted successfully')
     } catch (error) {
+        // Error already handled by safeApiCall
         console.error('Error deleting mission:', error)
     }
 }
@@ -976,7 +1155,7 @@ const loadMissionsIfNeeded = () => {
     }
 }
 
-const loadMissions = (startDate = null, endDate = null, cacheKey = null) => {
+const loadMissions = async (startDate = null, endDate = null, cacheKey = null) => {
     if (!startDate || !endDate) {
         const range = getDateRangeForView(currentDate.value, viewMode.value)
         startDate = range.startDate
@@ -1003,35 +1182,53 @@ const loadMissions = (startDate = null, endDate = null, cacheKey = null) => {
         }
     })
 
-    router.get(route('ops.calendar.missions'), params, {
-        preserveState: true,
-        preserveScroll: true,
-        onSuccess: (page) => {
-            // Cache the loaded missions
-            if (page.props.missions) {
-                missionCache.set(cacheKey, {
-                    missions: page.props.missions,
-                    timestamp: Date.now(),
-                    startDate: startDate.toISOString().split('T')[0],
-                    endDate: endDate.toISOString().split('T')[0]
+    try {
+        await safeApiCall('Load Missions', async () => {
+            return new Promise((resolve, reject) => {
+                router.get(route('ops.calendar.missions'), params, {
+                    preserveState: true,
+                    preserveScroll: true,
+                    onSuccess: (page) => {
+                        try {
+                            // Cache the loaded missions
+                            if (page.props.missions) {
+                                missionCache.set(cacheKey, {
+                                    missions: page.props.missions,
+                                    timestamp: Date.now(),
+                                    startDate: startDate.toISOString().split('T')[0],
+                                    endDate: endDate.toISOString().split('T')[0]
+                                })
+                                
+                                // Clean old cache entries (keep last 10)
+                                if (missionCache.size > 10) {
+                                    const oldestKey = Array.from(missionCache.keys())[0]
+                                    missionCache.delete(oldestKey)
+                                }
+                                
+                                hasData.value = true
+                            }
+                            
+                            lastLoadedRange.value = { startDate, endDate, cacheKey }
+                            resolve(page)
+                        } catch (error) {
+                            reject(error)
+                        }
+                    },
+                    onError: (errors) => {
+                        reject(new Error(errors.message || 'Failed to load missions'))
+                    }
                 })
-                
-                // Clean old cache entries (keep last 10)
-                if (missionCache.size > 10) {
-                    const oldestKey = Array.from(missionCache.keys())[0]
-                    missionCache.delete(oldestKey)
-                }
-            }
-            
-            lastLoadedRange.value = { startDate, endDate, cacheKey }
-            loading.value = false
-            filtersLoading.value = false
-        },
-        onError: () => {
-            loading.value = false
-            filtersLoading.value = false
-        }
-    })
+            })
+        }, { critical: initialLoading.value })
+        
+        criticalError.value = null
+    } catch (error) {
+        console.error('Failed to load missions:', error)
+    } finally {
+        loading.value = false
+        filtersLoading.value = false
+        initialLoading.value = false
+    }
 }
 
 // Utility functions for date handling
@@ -1086,35 +1283,48 @@ const handlePopState = () => {
 }
 
 // Load initial data
-onMounted(() => {
-    // Set up browser navigation handling
-    window.addEventListener('popstate', handlePopState)
-    
-    // Set up mobile detection
-    checkMobileDevice()
-    window.addEventListener('resize', checkMobileDevice)
-    
-    // Set up mobile menu close on outside click
-    document.addEventListener('click', (event) => {
-        if (showMobileMenu.value && !event.target.closest('.mobile-menu')) {
-            closeMobileMenu()
-        }
-    })
-    
-    // Load missions if not already provided or if state changed
-    if (!props.missions.length || 
-        currentDate.value.toISOString().split('T')[0] !== new Date().toISOString().split('T')[0]) {
-        loadMissionsIfNeeded()
-    } else {
-        // Cache the initial missions
-        const { startDate, endDate } = getDateRangeForView(currentDate.value, viewMode.value)
-        const cacheKey = getCacheKey(startDate, endDate, filters)
-        missionCache.set(cacheKey, {
-            missions: props.missions,
-            timestamp: Date.now(),
-            startDate: startDate.toISOString().split('T')[0],
-            endDate: endDate.toISOString().split('T')[0]
+onMounted(async () => {
+    try {
+        // Set up browser navigation handling
+        window.addEventListener('popstate', handlePopState)
+        
+        // Set up mobile detection
+        checkMobileDevice()
+        window.addEventListener('resize', checkMobileDevice)
+        
+        // Set up mobile menu close on outside click
+        document.addEventListener('click', (event) => {
+            if (showMobileMenu.value && !event.target.closest('.mobile-menu')) {
+                closeMobileMenu()
+            }
         })
+        
+        // Set up error service callbacks
+        calendarErrorService.onError('Load Missions', () => {
+            loadMissionsIfNeeded()
+        })
+        
+        // Load missions if not already provided or if state changed
+        if (!props.missions.length || 
+            currentDate.value.toISOString().split('T')[0] !== new Date().toISOString().split('T')[0]) {
+            await loadMissionsIfNeeded()
+        } else {
+            // Cache the initial missions
+            const { startDate, endDate } = getDateRangeForView(currentDate.value, viewMode.value)
+            const cacheKey = getCacheKey(startDate, endDate, filters)
+            missionCache.set(cacheKey, {
+                missions: props.missions,
+                timestamp: Date.now(),
+                startDate: startDate.toISOString().split('T')[0],
+                endDate: endDate.toISOString().split('T')[0]
+            })
+            
+            hasData.value = props.missions.length > 0
+            initialLoading.value = false
+        }
+    } catch (error) {
+        console.error('Error during calendar initialization:', error)
+        handleCriticalError(error, 'Calendar Initialization')
     }
 })
 

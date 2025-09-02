@@ -17,14 +17,15 @@ class CalendarService
      */
     public function getMissionsForDateRange(Carbon $startDate, Carbon $endDate, array $filters = []): Collection
     {
-        $query = Mission::with([
-            'agent:id,name,email',
-            'bailMobilite:id,tenant_name,address,status,start_date,end_date,duration_days',
-            'checklist:id,mission_id,status',
-            'opsAssignedBy:id,name'
-        ])
-        ->whereNotNull('bail_mobilite_id') // Only BM missions for calendar
-        ->whereBetween('scheduled_at', [$startDate, $endDate]);
+        try {
+            $query = Mission::with([
+                'agent:id,name,email',
+                'bailMobilite:id,tenant_name,address,status,start_date,end_date,duration_days',
+                'checklist:id,mission_id,status',
+                'opsAssignedBy:id,name'
+            ])
+            ->whereNotNull('bail_mobilite_id') // Only BM missions for calendar
+            ->whereBetween('scheduled_at', [$startDate, $endDate]);
 
         // Apply status filter
         if (!empty($filters['status'])) {
@@ -102,9 +103,21 @@ class CalendarService
             });
         }
 
-        return $query->orderBy('scheduled_at')
-                    ->orderBy('scheduled_time')
-                    ->get();
+            return $query->orderBy('scheduled_at')
+                        ->orderBy('scheduled_time')
+                        ->get();
+
+        } catch (\Exception $e) {
+            \Log::error('CalendarService getMissionsForDateRange error: ' . $e->getMessage(), [
+                'start_date' => $startDate->format('Y-m-d'),
+                'end_date' => $endDate->format('Y-m-d'),
+                'filters' => $filters,
+                'trace' => $e->getTraceAsString()
+            ]);
+
+            // Return empty collection on error to prevent breaking the calendar
+            return collect();
+        }
     }
 
     /**
@@ -112,7 +125,8 @@ class CalendarService
      */
     public function formatMissionsForCalendar(Collection|SupportCollection $missions): array
     {
-        return $missions->map(function (Mission $mission) {
+        try {
+            return $missions->map(function (Mission $mission) {
             // Only detect conflicts if we have the required data
             $conflicts = [];
             if ($mission->scheduled_at && $mission->scheduled_time && $mission->agent_id) {
@@ -159,7 +173,17 @@ class CalendarService
                     'name' => $mission->opsAssignedBy->name,
                 ] : null,
             ];
-        })->toArray();
+            })->toArray();
+
+        } catch (\Exception $e) {
+            \Log::error('CalendarService formatMissionsForCalendar error: ' . $e->getMessage(), [
+                'missions_count' => $missions->count(),
+                'trace' => $e->getTraceAsString()
+            ]);
+
+            // Return empty array on error to prevent breaking the calendar
+            return [];
+        }
     }
 
     /**

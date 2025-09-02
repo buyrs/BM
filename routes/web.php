@@ -28,6 +28,9 @@ Route::prefix('install')->group(function () {
     Route::post('/install', [InstallerController::class, 'install'])->name('installer.install');
 });
 
+// Health check endpoint
+Route::get('/api/health', [App\Http\Controllers\CalendarController::class, 'health'])->name('health');
+
 Route::get('/', function () {
     return Inertia::render('Welcome', [
         'canLogin' => Route::has('login'),

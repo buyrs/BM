@@ -94,35 +94,57 @@ class CalendarController extends Controller
      */
     public function getMissions(Request $request): JsonResponse
     {
-        $validated = $request->validate([
-            'start_date' => 'required|date',
-            'end_date' => 'required|date|after_or_equal:start_date',
-            'status' => 'nullable|string|in:unassigned,assigned,in_progress,completed,cancelled',
-            'checker_id' => 'nullable|integer|exists:users,id',
-            'mission_type' => 'nullable|string|in:entry,exit',
-            'date_range' => 'nullable|string|in:today,tomorrow,this_week,next_week,this_month,overdue',
-            'search' => 'nullable|string|max:255',
-        ]);
+        try {
+            $validated = $request->validate([
+                'start_date' => 'required|date',
+                'end_date' => 'required|date|after_or_equal:start_date',
+                'status' => 'nullable|string|in:unassigned,assigned,in_progress,completed,cancelled',
+                'checker_id' => 'nullable|integer|exists:users,id',
+                'mission_type' => 'nullable|string|in:entry,exit',
+                'date_range' => 'nullable|string|in:today,tomorrow,this_week,next_week,this_month,overdue',
+                'search' => 'nullable|string|max:255',
+            ]);
 
-        $startDate = Carbon::parse($validated['start_date']);
-        $endDate = Carbon::parse($validated['end_date']);
-        $filters = $request->only(['status', 'checker_id', 'mission_type', 'date_range', 'search']);
+            $startDate = Carbon::parse($validated['start_date']);
+            $endDate = Carbon::parse($validated['end_date']);
+            $filters = $request->only(['status', 'checker_id', 'mission_type', 'date_range', 'search']);
 
-        $missions = $this->calendarService->getMissionsForDateRange($startDate, $endDate, $filters);
-        $formattedMissions = $this->calendarService->formatMissionsForCalendar($missions);
+            $missions = $this->calendarService->getMissionsForDateRange($startDate, $endDate, $filters);
+            $formattedMissions = $this->calendarService->formatMissionsForCalendar($missions);
 
-        return response()->json([
-            'missions' => $formattedMissions,
-            'total' => $missions->count(),
-            'date_range' => [
-                'start' => $startDate->format('Y-m-d'),
-                'end' => $endDate->format('Y-m-d'),
-            ],
-            'applied_filters' => array_filter($filters, function($value) {
-                return $value !== null && $value !== '';
-            }),
-            'cache_key' => md5($startDate->format('Y-m-d') . '_' . $endDate->format('Y-m-d') . '_' . serialize($filters)),
-        ]);
+            return response()->json([
+                'success' => true,
+                'missions' => $formattedMissions,
+                'total' => $missions->count(),
+                'date_range' => [
+                    'start' => $startDate->format('Y-m-d'),
+                    'end' => $endDate->format('Y-m-d'),
+                ],
+                'applied_filters' => array_filter($filters, function($value) {
+                    return $value !== null && $value !== '';
+                }),
+                'cache_key' => md5($startDate->format('Y-m-d') . '_' . $endDate->format('Y-m-d') . '_' . serialize($filters)),
+            ]);
+
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Invalid request parameters',
+                'errors' => $e->errors(),
+            ], 422);
+
+        } catch (\Exception $e) {
+            \Log::error('Calendar getMissions error: ' . $e->getMessage(), [
+                'request' => $request->all(),
+                'trace' => $e->getTraceAsString()
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to load missions',
+                'error' => app()->environment('local') ? $e->getMessage() : 'Internal server error',
+            ], 500);
+        }
     }
 
     /**
@@ -513,6 +535,31 @@ class CalendarController extends Controller
                 'success' => false,
                 'message' => 'Bulk operation failed: ' . $e->getMessage(),
             ], 422);
+        }
+    }
+
+    /**
+     * Health check endpoint for connectivity testing.
+     */
+    public function health(): JsonResponse
+    {
+        try {
+            // Simple database connectivity test
+            \DB::connection()->getPdo();
+            
+            return response()->json([
+                'status' => 'ok',
+                'timestamp' => now()->toISOString(),
+                'service' => 'calendar'
+            ]);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Service unavailable',
+                'timestamp' => now()->toISOString(),
+                'service' => 'calendar'
+            ], 503);
         }
     }
 
