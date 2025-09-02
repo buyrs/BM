@@ -1,67 +1,288 @@
 <template>
-    <Head title="Analytics" />
+    <Head title="Analytics & Reporting" />
     <DashboardAdmin>
         <template #header>
-            <h2 class="font-semibold text-xl text-gray-800 leading-tight">Analytics</h2>
+            <div class="mb-8">
+                <h1 class="text-3xl font-bold text-primary">Analytics & Reporting</h1>
+                <p class="text-secondary mt-1">Gain insights into your Bail Mobilité operations.</p>
+            </div>
         </template>
-        <div class="py-12">
-            <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
-                <div class="bg-white shadow rounded-lg p-6 mb-8">
-                    <div class="flex flex-wrap gap-4 mb-4 items-end">
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-1">Start Date</label>
-                            <input type="date" v-model="filters.start" class="border rounded px-2 py-1" />
+        
+        <div class="p-6 lg:p-8">
+            <!-- Key Metrics Cards -->
+            <div class="mb-8">
+                <div class="grid grid-cols-1 gap-6 sm:grid-cols-2 xl:grid-cols-4">
+                    <div class="metric-card rounded-lg bg-card p-6 shadow-sm border border-custom relative overflow-hidden">
+                        <div class="absolute top-0 right-0 w-20 h-20 bg-gradient-to-br from-green-400/20 to-green-600/20 rounded-full -mr-10 -mt-10"></div>
+                        <div class="relative">
+                            <div class="flex items-center justify-between mb-2">
+                                <p class="text-sm font-medium text-secondary">Mission Completion Rate</p>
+                                <div class="p-2 rounded-full bg-green-100 dark:bg-green-900/50">
+                                    <svg class="w-4 h-4 text-green-600 dark:text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                                    </svg>
+                                </div>
+                            </div>
+                            <p class="text-3xl font-bold text-primary mt-1">{{ metrics.completionRate }}%</p>
+                            <div class="flex items-center gap-1 text-sm mt-2">
+                                <span :class="metrics.completionTrend >= 0 ? 'text-green-500' : 'text-red-500'" class="flex items-center">
+                                    <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                        <path v-if="metrics.completionTrend >= 0" d="M12 19V5"></path>
+                                        <path v-if="metrics.completionTrend >= 0" d="M5 12l7-7 7 7"></path>
+                                        <path v-else d="M12 5v14"></path>
+                                        <path v-else d="M19 12l-7 7-7-7"></path>
+                                    </svg>
+                                    {{ Math.abs(metrics.completionTrend) }}%
+                                </span>
+                                <span class="text-secondary">vs last 30 days</span>
+                            </div>
+                            <div class="mt-3 w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
+                                <div 
+                                    class="bg-green-500 h-2 rounded-full transition-all duration-1000 ease-out" 
+                                    :style="{ width: metrics.completionRate + '%' }"
+                                ></div>
+                            </div>
                         </div>
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-1">End Date</label>
-                            <input type="date" v-model="filters.end" class="border rounded px-2 py-1" />
+                    </div>
+
+                    <div class="metric-card rounded-lg bg-card p-6 shadow-sm border border-custom relative overflow-hidden">
+                        <div class="absolute top-0 right-0 w-20 h-20 bg-gradient-to-br from-blue-400/20 to-blue-600/20 rounded-full -mr-10 -mt-10"></div>
+                        <div class="relative">
+                            <div class="flex items-center justify-between mb-2">
+                                <p class="text-sm font-medium text-secondary">Average Inspection Time</p>
+                                <div class="p-2 rounded-full bg-blue-100 dark:bg-blue-900/50">
+                                    <svg class="w-4 h-4 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                                    </svg>
+                                </div>
+                            </div>
+                            <p class="text-3xl font-bold text-primary mt-1">{{ metrics.avgInspectionTime }}</p>
+                            <div class="flex items-center gap-1 text-sm mt-2">
+                                <span :class="metrics.inspectionTrend >= 0 ? 'text-red-500' : 'text-green-500'" class="flex items-center">
+                                    <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                        <path v-if="metrics.inspectionTrend >= 0" d="M12 5v14"></path>
+                                        <path v-if="metrics.inspectionTrend >= 0" d="M19 12l-7 7-7-7"></path>
+                                        <path v-else d="M12 19V5"></path>
+                                        <path v-else d="M5 12l7-7 7 7"></path>
+                                    </svg>
+                                    {{ Math.abs(metrics.inspectionTrend) }}%
+                                </span>
+                                <span class="text-secondary">vs last 30 days</span>
+                            </div>
+                            <div class="mt-3 flex items-center space-x-2">
+                                <div class="flex-1 bg-gray-200 dark:bg-gray-700 rounded-full h-2">
+                                    <div 
+                                        class="bg-blue-500 h-2 rounded-full transition-all duration-1000 ease-out" 
+                                        :style="{ width: '75%' }"
+                                    ></div>
+                                </div>
+                                <span class="text-xs text-secondary">Target: 2h</span>
+                            </div>
                         </div>
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-1">Mission Type</label>
-                            <select v-model="filters.type" class="border rounded px-2 py-1">
-                                <option value="">All</option>
-                                <option value="checkin">Check-in</option>
-                                <option value="checkout">Check-out</option>
+                    </div>
+
+                    <div class="metric-card rounded-lg bg-card p-6 shadow-sm border border-custom relative overflow-hidden">
+                        <div class="absolute top-0 right-0 w-20 h-20 bg-gradient-to-br from-red-400/20 to-red-600/20 rounded-full -mr-10 -mt-10"></div>
+                        <div class="relative">
+                            <div class="flex items-center justify-between mb-2">
+                                <p class="text-sm font-medium text-secondary">Total Incidents</p>
+                                <div class="p-2 rounded-full bg-red-100 dark:bg-red-900/50">
+                                    <svg class="w-4 h-4 text-red-600 dark:text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z"/>
+                                    </svg>
+                                </div>
+                            </div>
+                            <p class="text-3xl font-bold text-primary mt-1">{{ metrics.totalIncidents }}</p>
+                            <div class="flex items-center gap-1 text-sm mt-2">
+                                <span :class="metrics.incidentTrend <= 0 ? 'text-green-500' : 'text-red-500'" class="flex items-center">
+                                    <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                        <path v-if="metrics.incidentTrend <= 0" d="M12 19V5"></path>
+                                        <path v-if="metrics.incidentTrend <= 0" d="M5 12l7-7 7 7"></path>
+                                        <path v-else d="M12 5v14"></path>
+                                        <path v-else d="M19 12l-7 7-7-7"></path>
+                                    </svg>
+                                    {{ Math.abs(metrics.incidentTrend) }}%
+                                </span>
+                                <span class="text-secondary">vs last 30 days</span>
+                            </div>
+                            <div class="mt-3 grid grid-cols-3 gap-2 text-xs">
+                                <div class="text-center">
+                                    <div class="text-red-500 font-semibold">{{ Math.floor(metrics.totalIncidents * 0.3) }}</div>
+                                    <div class="text-secondary">High</div>
+                                </div>
+                                <div class="text-center">
+                                    <div class="text-yellow-500 font-semibold">{{ Math.floor(metrics.totalIncidents * 0.5) }}</div>
+                                    <div class="text-secondary">Medium</div>
+                                </div>
+                                <div class="text-center">
+                                    <div class="text-green-500 font-semibold">{{ Math.floor(metrics.totalIncidents * 0.2) }}</div>
+                                    <div class="text-secondary">Low</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="metric-card rounded-lg bg-card p-6 shadow-sm border border-custom relative overflow-hidden">
+                        <div class="absolute top-0 right-0 w-20 h-20 bg-gradient-to-br from-yellow-400/20 to-yellow-600/20 rounded-full -mr-10 -mt-10"></div>
+                        <div class="relative">
+                            <div class="flex items-center justify-between mb-2">
+                                <p class="text-sm font-medium text-secondary">Avg. Checker Rating</p>
+                                <div class="p-2 rounded-full bg-yellow-100 dark:bg-yellow-900/50">
+                                    <svg class="w-4 h-4 text-yellow-600 dark:text-yellow-400" fill="currentColor" viewBox="0 0 24 24">
+                                        <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+                                    </svg>
+                                </div>
+                            </div>
+                            <p class="text-3xl font-bold text-primary mt-1">{{ metrics.avgRating }}/5</p>
+                            <div class="flex items-center gap-1 text-sm mt-2">
+                                <span :class="metrics.ratingTrend >= 0 ? 'text-green-500' : 'text-red-500'" class="flex items-center">
+                                    <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                        <path v-if="metrics.ratingTrend >= 0" d="M12 19V5"></path>
+                                        <path v-if="metrics.ratingTrend >= 0" d="M5 12l7-7 7 7"></path>
+                                        <path v-else d="M12 5v14"></path>
+                                        <path v-else d="M19 12l-7 7-7-7"></path>
+                                    </svg>
+                                    {{ Math.abs(metrics.ratingTrend) }}%
+                                </span>
+                                <span class="text-secondary">vs last 30 days</span>
+                            </div>
+                            <div class="mt-3 flex items-center space-x-1">
+                                <div v-for="i in 5" :key="i" class="flex-1">
+                                    <svg 
+                                        class="w-4 h-4 transition-colors duration-300" 
+                                        :class="i <= Math.floor(metrics.avgRating) ? 'text-yellow-400' : 'text-gray-300 dark:text-gray-600'"
+                                        fill="currentColor" 
+                                        viewBox="0 0 24 24"
+                                    >
+                                        <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+                                    </svg>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Charts Section -->
+            <div class="grid grid-cols-1 gap-6 lg:grid-cols-5 mb-8">
+                <div class="lg:col-span-3 rounded-lg bg-card p-6 shadow-sm border border-custom">
+                    <h3 class="text-lg font-semibold text-primary mb-4">Incident Trends</h3>
+                    <div class="chart-container">
+                        <canvas ref="incidentTrendsChart"></canvas>
+                    </div>
+                </div>
+                <div class="lg:col-span-2 rounded-lg bg-card p-6 shadow-sm border border-custom">
+                    <h3 class="text-lg font-semibold text-primary mb-4">Mission Status</h3>
+                    <div class="chart-container">
+                        <canvas ref="missionStatusChart"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Contract Expiration Tracking -->
+            <div class="mb-8">
+                <h2 class="text-2xl font-semibold text-primary mb-4">Contract Expiration Tracking</h2>
+                <div class="rounded-lg bg-card shadow-sm border border-custom">
+                    <div class="overflow-x-auto">
+                        <table class="min-w-full divide-y divide-[var(--border-color)]">
+                            <thead class="bg-[var(--background-color)]">
+                                <tr>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-secondary uppercase tracking-wider">Property</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-secondary uppercase tracking-wider">Tenant</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-secondary uppercase tracking-wider">Expiration Date</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-secondary uppercase tracking-wider">Status</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-secondary uppercase tracking-wider">Action</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-[var(--border-color)]">
+                                <tr v-for="contract in expiringContracts" :key="contract.id" class="hover:bg-table-hover">
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-primary">{{ contract.property }}</td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-secondary">{{ contract.tenant }}</td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-secondary">{{ formatDate(contract.expiration_date) }}</td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm">
+                                        <span :class="getStatusClass(contract.status)" class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full">
+                                            {{ contract.status }}
+                                        </span>
+                                    </td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                                        <button 
+                                            @click="sendReminder(contract.id)"
+                                            class="flex items-center gap-2 px-3 py-1.5 text-sm font-medium rounded-md text-white bg-[var(--primary-color)] hover:bg-[var(--accent-color)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-card focus:ring-[var(--primary-color)] transition-colors duration-200"
+                                        >
+                                            <span>Send Reminder</span>
+                                        </button>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Custom Reports -->
+            <div>
+                <h2 class="text-2xl font-semibold text-primary mb-4">Custom Reports</h2>
+                <div class="rounded-lg bg-card p-6 shadow-sm border border-custom">
+                    <form @submit.prevent="generateReport" class="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 items-end">
+                        <div class="sm:col-span-2 lg:col-span-1">
+                            <label class="block text-sm font-medium text-secondary mb-1" for="report-type">Report Type</label>
+                            <select 
+                                v-model="reportFilters.type" 
+                                class="form-input form-select w-full bg-card border border-custom text-primary rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[var(--primary-color)] focus:border-transparent"
+                                id="report-type"
+                            >
+                                <option value="mission-summary">Mission Summary</option>
+                                <option value="checker-performance">Checker Performance</option>
+                                <option value="incident-analysis">Incident Analysis</option>
                             </select>
                         </div>
                         <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-1">Checker</label>
-                            <select v-model="filters.checker_id" class="border rounded px-2 py-1">
-                                <option value="">All</option>
-                                <option v-for="checker in checkerOptions" :key="checker.id" :value="checker.id">
-                                    {{ checker.name }} ({{ checker.email }})
+                            <label class="block text-sm font-medium text-secondary mb-1" for="start-date">Start Date</label>
+                            <input 
+                                v-model="reportFilters.startDate"
+                                class="form-input w-full bg-card border border-custom text-primary rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[var(--primary-color)] focus:border-transparent"
+                                id="start-date"
+                                type="date"
+                            />
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-secondary mb-1" for="end-date">End Date</label>
+                            <input 
+                                v-model="reportFilters.endDate"
+                                class="form-input w-full bg-card border border-custom text-primary rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[var(--primary-color)] focus:border-transparent"
+                                id="end-date"
+                                type="date"
+                            />
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-secondary mb-1" for="property">Property</label>
+                            <select 
+                                v-model="reportFilters.property"
+                                class="form-input form-select w-full bg-card border border-custom text-primary rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[var(--primary-color)] focus:border-transparent"
+                                id="property"
+                            >
+                                <option value="">All Properties</option>
+                                <option v-for="property in propertyOptions" :key="property.id" :value="property.id">
+                                    {{ property.name }}
                                 </option>
                             </select>
                         </div>
-                        <button @click="fetchAnalytics" class="ml-2 px-4 py-2 bg-indigo-600 text-white rounded hover:bg-indigo-700">Apply</button>
-                    </div>
-                </div>
-
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
-                    <div class="bg-white shadow rounded-lg p-6">
-                        <h3 class="text-lg font-semibold mb-2">Missions Created/Completed (Last 30 Days)</h3>
-                        <canvas ref="trendChart"></canvas>
-                    </div>
-                    <div class="bg-white shadow rounded-lg p-6">
-                        <h3 class="text-lg font-semibold mb-2">Status Distribution</h3>
-                        <canvas ref="statusChart"></canvas>
-                    </div>
-                </div>
-
-                <div class="bg-white shadow rounded-lg p-6 mb-8">
-                    <h3 class="text-lg font-semibold mb-2">Checker Performance</h3>
-                    <canvas ref="checkerChart"></canvas>
-                </div>
-
-                <div class="bg-white shadow rounded-lg p-6">
-                    <h3 class="text-lg font-semibold mb-2">Assignment Efficiency</h3>
-                    <div v-if="analytics.assignmentEfficiency">
-                        <p>Average time to assign: <span class="font-bold">{{ formatMinutes(analytics.assignmentEfficiency.avg_minutes_to_assign) }}</span></p>
-                        <p>Average time to complete: <span class="font-bold">{{ formatMinutes(analytics.assignmentEfficiency.avg_minutes_to_complete) }}</span></p>
-                    </div>
-                    <div v-else>
-                        <p>No data available.</p>
-                    </div>
+                        <div class="flex gap-4">
+                            <button 
+                                @click="exportReport"
+                                type="button"
+                                class="w-full px-4 py-2 text-sm font-medium rounded-md text-primary bg-card border border-custom hover:bg-[var(--background-color)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-card focus:ring-[var(--primary-color)] transition-colors duration-200"
+                            >
+                                Export
+                            </button>
+                            <button 
+                                type="submit"
+                                class="w-full px-4 py-2 text-sm font-medium rounded-md text-white bg-[var(--primary-color)] hover:bg-[var(--accent-color)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-card focus:ring-[var(--primary-color)] transition-colors duration-200"
+                            >
+                                Generate
+                            </button>
+                        </div>
+                    </form>
                 </div>
             </div>
         </div>
@@ -69,105 +290,239 @@
 </template>
 
 <script setup>
-import { ref, onMounted, watch } from 'vue';
+import { ref, onMounted, computed, watch } from 'vue';
 import { Head } from '@inertiajs/vue3';
 import DashboardAdmin from '@/Layouts/DashboardAdmin.vue';
 import Chart from 'chart.js/auto';
 import axios from 'axios';
+import { useTheme } from '@/Composables/useTheme';
 
+const { isDark } = useTheme();
+
+// Data refs
 const analytics = ref({});
 const checkerOptions = ref([]);
-const filters = ref({
-    start: '',
-    end: '',
-    type: '',
-    checker_id: ''
+const propertyOptions = ref([]);
+const expiringContracts = ref([
+    {
+        id: 1,
+        property: '123 Rue de Paris, 75001 Paris',
+        tenant: 'Jean Dupont',
+        expiration_date: '2024-08-15',
+        status: 'Expiring Soon'
+    },
+    {
+        id: 2,
+        property: '45 Avenue des Champs-Élysées, 75008 Paris',
+        tenant: 'Marie Dubois',
+        expiration_date: '2024-09-01',
+        status: 'Upcoming'
+    }
+]);
+
+// Chart refs
+const incidentTrendsChart = ref(null);
+const missionStatusChart = ref(null);
+let incidentTrendsInstance, missionStatusInstance;
+
+// Report filters
+const reportFilters = ref({
+    type: 'mission-summary',
+    startDate: '',
+    endDate: '',
+    property: ''
 });
 
-const trendChart = ref(null);
-const statusChart = ref(null);
-const checkerChart = ref(null);
-let trendInstance, statusInstance, checkerInstance;
+// Computed metrics
+const metrics = computed(() => ({
+    completionRate: analytics.value.completionRate || 95,
+    completionTrend: analytics.value.completionTrend || 5,
+    avgInspectionTime: analytics.value.avgInspectionTime || '2.5 hrs',
+    inspectionTrend: analytics.value.inspectionTrend || -10,
+    totalIncidents: analytics.value.totalIncidents || 15,
+    incidentTrend: analytics.value.incidentTrend || -20,
+    avgRating: analytics.value.avgRating || 4.8,
+    ratingTrend: analytics.value.ratingTrend || 2
+}));
 
-function formatMinutes(minutes) {
-    if (!minutes) return 'N/A';
-    const m = Math.round(minutes);
-    if (m < 60) return `${m} min`;
-    return `${Math.floor(m/60)}h ${m%60}m`;
+// Chart data
+const missionStatusData = {
+    labels: ['Completed', 'Pending', 'Failed'],
+    datasets: [{
+        label: 'Missions',
+        data: [190, 8, 2],
+        backgroundColor: [
+            'rgba(42, 157, 143, 0.7)',
+            'rgba(233, 196, 106, 0.7)',
+            'rgba(231, 111, 81, 0.7)'
+        ],
+        borderColor: [
+            '#2a9d8f',
+            '#e9c46a',
+            '#e76f51'
+        ],
+        borderWidth: 1
+    }]
+};
+
+const incidentTrendsData = {
+    labels: ['Week 1', 'Week 2', 'Week 3', 'Week 4'],
+    datasets: [{
+        label: 'Type A',
+        data: [2, 4, 3, 5],
+        borderColor: '#137fec',
+        backgroundColor: 'rgba(19, 127, 236, 0.1)',
+        tension: 0.4,
+        fill: true
+    }, {
+        label: 'Type B',
+        data: [1, 2, 1, 3],
+        borderColor: '#2a9d8f',
+        backgroundColor: 'rgba(42, 157, 143, 0.1)',
+        tension: 0.4,
+        fill: true
+    }]
+};
+
+// Helper functions
+function formatDate(dateString) {
+    return new Date(dateString).toLocaleDateString('fr-FR');
 }
 
-async function fetchAnalytics() {
-    const params = { ...filters.value };
-    try {
-        const { data } = await axios.get(route('admin.analytics.data'), { params });
-        analytics.value = data;
-        renderCharts();
-    } catch (e) {
-        // handle error
+function getStatusClass(status) {
+    const baseClasses = 'px-2 inline-flex text-xs leading-5 font-semibold rounded-full';
+    switch (status) {
+        case 'Expiring Soon':
+            return `${baseClasses} bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-100`;
+        case 'Upcoming':
+            return `${baseClasses} bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-100`;
+        default:
+            return `${baseClasses} bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-100`;
     }
 }
 
-function renderCharts() {
-    // Trend Chart
-    if (trendInstance) trendInstance.destroy();
-    const created = analytics.value.missionsCreated || [];
-    const completed = analytics.value.missionsCompleted || [];
-    const labels = [...new Set([...created.map(d => d.date), ...completed.map(d => d.date)])].sort();
-    const createdMap = Object.fromEntries(created.map(d => [d.date, d.count]));
-    const completedMap = Object.fromEntries(completed.map(d => [d.date, d.count]));
-    trendInstance = new Chart(trendChart.value, {
-        type: 'line',
-        data: {
-            labels,
-            datasets: [
-                { label: 'Created', data: labels.map(l => createdMap[l] || 0), borderColor: '#6366f1', backgroundColor: '#6366f1', fill: false },
-                { label: 'Completed', data: labels.map(l => completedMap[l] || 0), borderColor: '#10b981', backgroundColor: '#10b981', fill: false }
-            ]
+function getChartOptions(isDarkMode) {
+    const textColor = isDarkMode ? '#a0a0a0' : '#64748b';
+    const gridColor = isDarkMode ? '#444444' : '#e2e8f0';
+    
+    return {
+        missionStatusConfig: {
+            type: 'doughnut',
+            data: missionStatusData,
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'right',
+                        labels: {
+                            color: textColor
+                        }
+                    }
+                }
+            }
         },
-        options: { responsive: true, plugins: { legend: { position: 'top' } } }
-    });
-
-    // Status Chart
-    if (statusInstance) statusInstance.destroy();
-    const statuses = analytics.value.statusDistribution || [];
-    statusInstance = new Chart(statusChart.value, {
-        type: 'pie',
-        data: {
-            labels: statuses.map(s => s.status),
-            datasets: [{ data: statuses.map(s => s.count), backgroundColor: ['#6366f1','#10b981','#f59e42','#ef4444','#a1a1aa'] }]
-        },
-        options: { responsive: true }
-    });
-
-    // Checker Performance
-    if (checkerInstance) checkerInstance.destroy();
-    const checkers = analytics.value.checkerPerformance || [];
-    checkerInstance = new Chart(checkerChart.value, {
-        type: 'bar',
-        data: {
-            labels: checkers.map(c => c.name || c.email),
-            datasets: [
-                { label: 'Completed', data: checkers.map(c => c.completed), backgroundColor: '#6366f1' },
-                { label: 'Refusals', data: checkers.map(c => c.refusals), backgroundColor: '#f59e42' },
-                { label: 'Downgraded', data: checkers.map(c => c.downgraded ? 1 : 0), backgroundColor: '#ef4444' }
-            ]
-        },
-        options: { responsive: true, plugins: { legend: { position: 'top' } } }
-    });
+        incidentTrendsConfig: {
+            type: 'line',
+            data: incidentTrendsData,
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        grid: {
+                            color: gridColor
+                        },
+                        ticks: {
+                            color: textColor
+                        }
+                    },
+                    x: {
+                        grid: {
+                            display: false
+                        },
+                        ticks: {
+                            color: textColor
+                        }
+                    }
+                },
+                plugins: {
+                    legend: {
+                        labels: {
+                            color: textColor
+                        }
+                    }
+                }
+            }
+        }
+    };
 }
 
-async function fetchCheckers() {
-    // Fetch all checkers for filter dropdown
+function renderCharts(isDarkMode) {
+    if (missionStatusInstance) missionStatusInstance.destroy();
+    if (incidentTrendsInstance) incidentTrendsInstance.destroy();
+    
+    const options = getChartOptions(isDarkMode);
+    
+    if (missionStatusChart.value) {
+        missionStatusInstance = new Chart(missionStatusChart.value, options.missionStatusConfig);
+    }
+    
+    if (incidentTrendsChart.value) {
+        incidentTrendsInstance = new Chart(incidentTrendsChart.value, options.incidentTrendsConfig);
+    }
+}
+
+async function fetchAnalytics() {
     try {
-        const { data } = await axios.get('/admin/checkers');
-        checkerOptions.value = data.checkers || [];
-    } catch (e) {}
+        const { data } = await axios.get(route('admin.analytics.data'));
+        analytics.value = data;
+    } catch (e) {
+        console.error('Error fetching analytics:', e);
+    }
+}
+
+async function fetchProperties() {
+    try {
+        const { data } = await axios.get('/admin/properties');
+        propertyOptions.value = data.properties || [];
+    } catch (e) {
+        console.error('Error fetching properties:', e);
+    }
+}
+
+async function sendReminder(contractId) {
+    try {
+        await axios.post(`/admin/contracts/${contractId}/reminder`);
+        // Show success message
+    } catch (e) {
+        console.error('Error sending reminder:', e);
+    }
+}
+
+function generateReport() {
+    console.log('Generating report with filters:', reportFilters.value);
+    // Implement report generation logic
+}
+
+function exportReport() {
+    console.log('Exporting report with filters:', reportFilters.value);
+    // Implement export logic
 }
 
 onMounted(() => {
-    fetchCheckers();
     fetchAnalytics();
+    fetchProperties();
+    
+    // Initial chart render
+    setTimeout(() => {
+        renderCharts(isDark.value);
+    }, 100);
 });
 
-watch(filters, fetchAnalytics);
+// Watch for theme changes and re-render charts
+watch(isDark, (newValue) => {
+    renderCharts(newValue);
+});
 </script> 
