@@ -2,8 +2,6 @@
 @tailwind components;
 @tailwind utilities;
 
-@import './calendar.css';
-
 /* Theme Variables */
 :root {
     --primary-color-light: #137fec;

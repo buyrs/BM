@@ -167,17 +167,43 @@ class DashboardController extends Controller
         $totalMissions = Mission::count();
         $assignedMissions = Mission::where('status', 'assigned')->count();
         $completedMissions = Mission::where('status', 'completed')->count();
+        $inProgressMissions = Mission::where('status', 'in_progress')->count();
+        $unassignedMissions = Mission::where('status', 'unassigned')->count();
 
         $recentMissions = Mission::with('agent')
             ->latest()
-            ->limit(5)
-            ->get();
+            ->limit(10)
+            ->get()
+            ->map(function ($mission) {
+                return [
+                    'id' => $mission->id,
+                    'address' => $mission->address ?? 'N/A',
+                    'status' => $mission->status,
+                    'created_at' => $mission->created_at,
+                    'scheduled_at' => $mission->scheduled_at,
+                    'agent' => $mission->agent ? [
+                        'id' => $mission->agent->id,
+                        'name' => $mission->agent->name,
+                    ] : null,
+                ];
+            });
+
+        $activeCheckers = User::role('checker')->count();
+        $onlineCheckers = User::role('checker')
+            ->where('updated_at', '>=', now()->subMinutes(15))
+            ->count();
 
         return Inertia::render('Admin/Dashboard', [
             'stats' => [
                 'totalMissions' => $totalMissions,
                 'assignedMissions' => $assignedMissions,
                 'completedMissions' => $completedMissions,
+                'inProgressMissions' => $inProgressMissions,
+                'unassignedMissions' => $unassignedMissions,
+                'activeCheckers' => $activeCheckers,
+                'onlineCheckers' => $onlineCheckers,
+                'missionTrend' => 12, // This would be calculated from historical data
+                'incidentTrend' => -8, // This would be calculated from historical data
             ],
             'recentMissions' => $recentMissions,
         ]);
