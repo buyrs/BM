@@ -11,9 +11,10 @@ class FreshCredentialsSeeder extends Seeder
     public function run(): void
     {
         // Create super admin user
-        $superAdmin = User::create([
-            'name' => 'Super Admin',
+        $superAdmin = User::updateOrCreate([
             'email' => 'admin@bm.com',
+        ], [
+            'name' => 'Super Admin',
             'password' => Hash::make('admin123'),
             'email_verified_at' => now(),
         ]);
@@ -39,9 +40,10 @@ class FreshCredentialsSeeder extends Seeder
         ];
 
         foreach ($checkers as $checker) {
-            $user = User::create([
-                'name' => $checker['name'],
+            $user = User::updateOrCreate([
                 'email' => $checker['email'],
+            ], [
+                'name' => $checker['name'],
                 'password' => Hash::make($checker['password']),
                 'email_verified_at' => now(),
             ]);

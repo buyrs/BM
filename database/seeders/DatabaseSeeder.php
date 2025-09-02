@@ -21,18 +21,20 @@ class DatabaseSeeder extends Seeder
         $this->call(FreshCredentialsSeeder::class);
 
         // Create super admin user
-        $superAdmin = User::create([
-            'name' => 'Super Admin',
+        $superAdmin = User::firstOrCreate([
             'email' => 'admin@example.com',
+        ], [
+            'name' => 'Super Admin',
             'password' => Hash::make('password'),
             'email_verified_at' => now(),
         ]);
         $superAdmin->assignRole('super-admin');
 
         // Create test agent
-        $agent = User::create([
-            'name' => 'Test Agent',
+        $agent = User::firstOrCreate([
             'email' => 'agent@example.com',
+        ], [
+            'name' => 'Test Agent',
             'password' => Hash::make('password'),
             'email_verified_at' => now(),
         ]);
