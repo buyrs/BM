@@ -16,43 +16,13 @@
             />
 
             <!-- Calendar Filters -->
-            <div class="calendar-filters mb-6">
-                <div class="flex flex-wrap gap-4">
-                    <select
-                        v-model="filters.status"
-                        class="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    >
-                        <option value="">All Statuses</option>
-                        <option value="unassigned">Unassigned</option>
-                        <option value="assigned">Assigned</option>
-                        <option value="in_progress">In Progress</option>
-                        <option value="completed">Completed</option>
-                    </select>
-
-                    <select
-                        v-model="filters.mission_type"
-                        class="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    >
-                        <option value="">All Types</option>
-                        <option value="entry">Entry</option>
-                        <option value="exit">Exit</option>
-                    </select>
-
-                    <input
-                        v-model="filters.search"
-                        type="text"
-                        placeholder="Search by tenant or address..."
-                        class="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 flex-1 min-w-64"
-                    />
-
-                    <button
-                        @click="clearFilters"
-                        class="px-4 py-2 text-gray-600 hover:text-gray-800 border border-gray-300 rounded-md hover:bg-gray-50"
-                    >
-                        Clear Filters
-                    </button>
-                </div>
-            </div>
+            <CalendarFilters
+                :filters="filters"
+                :checkers="checkers"
+                :loading="filtersLoading"
+                @filter-change="handleFilterChange"
+                @clear-filters="handleClearFilters"
+            />
 
             <!-- Loading State -->
             <div v-if="loading" class="flex justify-center items-center py-12">
@@ -77,12 +47,17 @@
                 :show="showDetailsModal"
                 @close="closeDetailsModal"
                 @update="handleMissionUpdate"
+                @assign="handleMissionAssign"
+                @status-change="handleMissionStatusChange"
+                @duplicate="handleMissionDuplicate"
+                @view-bail-mobilite="handleViewBailMobilite"
             />
 
             <!-- Create Mission Modal -->
             <CreateMissionModal
                 :show="showCreateModal"
                 :selected-date="selectedDate"
+                :checkers="checkers"
                 @close="closeCreateModal"
                 @create="handleMissionCreate"
             />
@@ -95,6 +70,7 @@ import { ref, reactive, computed, onMounted, watch } from 'vue'
 import { router } from '@inertiajs/vue3'
 import DashboardOps from '@/Layouts/DashboardOps.vue'
 import CalendarNavigation from '@/Components/Calendar/CalendarNavigation.vue'
+import CalendarFilters from '@/Components/Calendar/CalendarFilters.vue'
 import CalendarGrid from '@/Components/Calendar/CalendarGrid.vue'
 import MissionDetailsModal from '@/Components/Calendar/MissionDetailsModal.vue'
 import CreateMissionModal from '@/Components/Calendar/CreateMissionModal.vue'
@@ -108,6 +84,10 @@ const props = defineProps({
     checkers: {
         type: Array,
         default: () => []
+    },
+    initialFilters: {
+        type: Object,
+        default: () => ({})
     }
 })
 
@@ -115,40 +95,92 @@ const props = defineProps({
 const currentDate = ref(new Date())
 const viewMode = ref('month')
 const loading = ref(false)
+const filtersLoading = ref(false)
 const showDetailsModal = ref(false)
 const showCreateModal = ref(false)
 const selectedMission = ref(null)
 const selectedDate = ref(null)
 
+// Initialize filters from URL parameters or props
+const initializeFilters = () => {
+    const urlParams = new URLSearchParams(window.location.search)
+    return {
+        status: urlParams.get('status') || props.initialFilters.status || '',
+        mission_type: urlParams.get('mission_type') || props.initialFilters.mission_type || '',
+        checker_id: urlParams.get('checker_id') ? parseInt(urlParams.get('checker_id')) : (props.initialFilters.checker_id || null),
+        date_range: urlParams.get('date_range') || props.initialFilters.date_range || '',
+        search: urlParams.get('search') || props.initialFilters.search || ''
+    }
+}
+
 // Filters
-const filters = reactive({
-    status: '',
-    mission_type: '',
-    checker_id: null,
-    search: ''
-})
+const filters = reactive(initializeFilters())
 
 // Computed properties
 const filteredMissions = computed(() => {
     let filtered = props.missions
 
+    // Status filter
     if (filters.status) {
         filtered = filtered.filter(mission => mission.status === filters.status)
     }
 
+    // Mission type filter
     if (filters.mission_type) {
         filtered = filtered.filter(mission => mission.type === filters.mission_type)
     }
 
+    // Checker filter
     if (filters.checker_id) {
         filtered = filtered.filter(mission => mission.agent?.id === filters.checker_id)
     }
 
+    // Date range filter
+    if (filters.date_range) {
+        const now = new Date()
+        const today = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+        
+        filtered = filtered.filter(mission => {
+            const missionDate = new Date(mission.scheduled_at)
+            const missionDay = new Date(missionDate.getFullYear(), missionDate.getMonth(), missionDate.getDate())
+            
+            switch (filters.date_range) {
+                case 'today':
+                    return missionDay.getTime() === today.getTime()
+                case 'tomorrow':
+                    const tomorrow = new Date(today)
+                    tomorrow.setDate(tomorrow.getDate() + 1)
+                    return missionDay.getTime() === tomorrow.getTime()
+                case 'this_week':
+                    const startOfWeek = new Date(today)
+                    startOfWeek.setDate(today.getDate() - today.getDay())
+                    const endOfWeek = new Date(startOfWeek)
+                    endOfWeek.setDate(startOfWeek.getDate() + 6)
+                    return missionDay >= startOfWeek && missionDay <= endOfWeek
+                case 'next_week':
+                    const nextWeekStart = new Date(today)
+                    nextWeekStart.setDate(today.getDate() + (7 - today.getDay()))
+                    const nextWeekEnd = new Date(nextWeekStart)
+                    nextWeekEnd.setDate(nextWeekStart.getDate() + 6)
+                    return missionDay >= nextWeekStart && missionDay <= nextWeekEnd
+                case 'this_month':
+                    return missionDate.getMonth() === now.getMonth() && missionDate.getFullYear() === now.getFullYear()
+                case 'overdue':
+                    return missionDay < today && mission.status !== 'completed' && mission.status !== 'cancelled'
+                default:
+                    return true
+            }
+        })
+    }
+
+    // Search filter
     if (filters.search) {
         const searchTerm = filters.search.toLowerCase()
         filtered = filtered.filter(mission => 
             mission.tenant_name?.toLowerCase().includes(searchTerm) ||
-            mission.address?.toLowerCase().includes(searchTerm)
+            mission.address?.toLowerCase().includes(searchTerm) ||
+            mission.id?.toString().includes(searchTerm) ||
+            mission.agent?.name?.toLowerCase().includes(searchTerm)
         )
     }
 
@@ -198,15 +230,117 @@ const handleMissionCreate = (newMission) => {
     closeCreateModal()
 }
 
-const clearFilters = () => {
-    filters.status = ''
-    filters.mission_type = ''
-    filters.checker_id = null
-    filters.search = ''
+const handleMissionAssign = (mission) => {
+    // Handle mission assignment - use assign-to-checker route for ops users
+    router.post(route('missions.assign-to-checker', mission.id), {}, {
+        onSuccess: () => {
+            loadMissions()
+            closeDetailsModal()
+        }
+    })
+}
+
+const handleMissionStatusChange = ({ mission, status }) => {
+    // Handle mission status change
+    router.patch(route('missions.update-status', mission.id), {
+        status: status
+    }, {
+        onSuccess: () => {
+            loadMissions()
+            closeDetailsModal()
+        },
+        onError: (errors) => {
+            console.error('Failed to update mission status:', errors)
+        }
+    })
+}
+
+const handleMissionDuplicate = (mission) => {
+    // Handle mission duplication - create a new mission with similar data
+    const duplicateData = {
+        start_date: new Date(mission.scheduled_at).toISOString().split('T')[0],
+        end_date: mission.bail_mobilite?.end_date || new Date(mission.scheduled_at).toISOString().split('T')[0],
+        address: mission.address,
+        tenant_name: mission.tenant_name,
+        tenant_phone: mission.tenant_phone,
+        tenant_email: mission.tenant_email,
+        notes: mission.notes + ' (Duplicated)',
+        entry_scheduled_time: mission.scheduled_time,
+        exit_scheduled_time: mission.scheduled_time,
+    }
+    
+    router.post(route('ops.calendar.missions.create'), duplicateData, {
+        onSuccess: () => {
+            loadMissions()
+            closeDetailsModal()
+        },
+        onError: (errors) => {
+            console.error('Failed to duplicate mission:', errors)
+        }
+    })
+}
+
+const handleViewBailMobilite = (bailMobilite) => {
+    // Navigate to bail mobilite details
+    router.visit(route('ops.bail-mobilites.show', bailMobilite.id))
+}
+
+// Filter management methods
+const updateURLParams = (newFilters) => {
+    const url = new URL(window.location)
+    const params = url.searchParams
+
+    // Clear existing filter params
+    params.delete('status')
+    params.delete('mission_type')
+    params.delete('checker_id')
+    params.delete('date_range')
+    params.delete('search')
+
+    // Add new filter params
+    Object.entries(newFilters).forEach(([key, value]) => {
+        if (value !== '' && value !== null && value !== undefined) {
+            params.set(key, value)
+        }
+    })
+
+    // Update URL without page reload
+    window.history.replaceState({}, '', url.toString())
+}
+
+const handleFilterChange = (newFilters) => {
+    // Update local filters
+    Object.assign(filters, newFilters)
+    
+    // Update URL parameters
+    updateURLParams(newFilters)
+    
+    // Load missions with new filters
+    loadMissions()
+}
+
+const handleClearFilters = () => {
+    const clearedFilters = {
+        status: '',
+        mission_type: '',
+        checker_id: null,
+        date_range: '',
+        search: ''
+    }
+    
+    // Update local filters
+    Object.assign(filters, clearedFilters)
+    
+    // Update URL parameters
+    updateURLParams(clearedFilters)
+    
+    // Load missions without filters
+    loadMissions()
 }
 
 const loadMissions = () => {
     loading.value = true
+    filtersLoading.value = true
     
     const params = {
         date: currentDate.value.toISOString().split('T')[0],
@@ -214,22 +348,37 @@ const loadMissions = () => {
         ...filters
     }
 
-    router.get(route('calendar.missions'), params, {
+    // Remove empty/null values from params
+    Object.keys(params).forEach(key => {
+        if (params[key] === '' || params[key] === null || params[key] === undefined) {
+            delete params[key]
+        }
+    })
+
+    router.get(route('ops.calendar.missions'), params, {
         preserveState: true,
         preserveScroll: true,
         onSuccess: () => {
             loading.value = false
+            filtersLoading.value = false
         },
         onError: () => {
             loading.value = false
+            filtersLoading.value = false
         }
     })
 }
 
-// Watch for filter changes
-watch(filters, () => {
-    loadMissions()
-}, { deep: true })
+// Debounced filter change handler for search
+let filterTimeout = null
+const debouncedFilterChange = (newFilters) => {
+    clearTimeout(filterTimeout)
+    filtersLoading.value = true
+    
+    filterTimeout = setTimeout(() => {
+        handleFilterChange(newFilters)
+    }, 300) // 300ms debounce for search
+}
 
 // Load initial data
 onMounted(() => {
@@ -246,20 +395,5 @@ onMounted(() => {
 
 .calendar-header {
     @apply mb-6;
-}
-
-.calendar-filters {
-    @apply bg-white p-4 rounded-lg shadow-sm border border-gray-200;
-}
-
-@media (max-width: 768px) {
-    .calendar-filters .flex {
-        @apply flex-col;
-    }
-    
-    .calendar-filters select,
-    .calendar-filters input {
-        @apply w-full;
-    }
 }
 </style>

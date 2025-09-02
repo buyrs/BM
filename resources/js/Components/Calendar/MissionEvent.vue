@@ -6,8 +6,8 @@
             compact ? 'p-1 rounded text-xs' : 'p-2 rounded-md text-sm'
         ]"
         @click="handleClick"
-        @mouseenter="showTooltip = true"
-        @mouseleave="showTooltip = false"
+        @mouseenter="handleMouseEnter"
+        @mouseleave="handleMouseLeave"
     >
         <!-- Mission Content -->
         <div class="flex items-center justify-between">
@@ -62,23 +62,55 @@
             </div>
         </div>
 
-        <!-- Tooltip -->
-        <div
-            v-if="showTooltip && !compact"
-            class="absolute z-50 bg-gray-900 text-white text-xs rounded-md px-2 py-1 mt-1 shadow-lg pointer-events-none"
-            style="transform: translateY(100%)"
-        >
-            <div class="font-medium">{{ mission.tenant_name }}</div>
-            <div>{{ mission.address }}</div>
-            <div>{{ missionTypeLabel }} - {{ formattedStatus }}</div>
-            <div v-if="mission.agent">Assigned to: {{ mission.agent.name }}</div>
-            <div v-if="mission.scheduled_time">Time: {{ formattedTime }}</div>
-        </div>
+        <!-- Enhanced Tooltip -->
+        <Teleport to="body">
+            <div
+                v-if="showTooltip && !compact"
+                ref="tooltip"
+                class="absolute z-50 bg-gray-900 text-white text-xs rounded-md px-3 py-2 shadow-lg pointer-events-none max-w-xs"
+                :style="tooltipStyle"
+            >
+                <div class="space-y-1">
+                    <div class="font-medium text-white">{{ mission.tenant_name || 'No tenant name' }}</div>
+                    <div class="text-gray-300">{{ mission.address || 'No address' }}</div>
+                    <div class="flex items-center space-x-2">
+                        <span :class="[
+                            'px-2 py-0.5 rounded text-xs font-medium',
+                            mission.type === 'entry' ? 'bg-blue-600 text-blue-100' : 'bg-orange-600 text-orange-100'
+                        ]">
+                            {{ missionTypeLabel }}
+                        </span>
+                        <span :class="[
+                            'px-2 py-0.5 rounded text-xs font-medium',
+                            getTooltipStatusClasses(mission.status)
+                        ]">
+                            {{ formattedStatus }}
+                        </span>
+                    </div>
+                    <div v-if="mission.agent" class="text-gray-300">
+                        <span class="text-gray-400">Assigned to:</span> {{ mission.agent.name }}
+                    </div>
+                    <div v-if="mission.scheduled_time" class="text-gray-300">
+                        <span class="text-gray-400">Time:</span> {{ formattedTime }}
+                    </div>
+                    <div v-if="mission.bail_mobilite" class="text-gray-300 text-xs">
+                        <span class="text-gray-400">BM Duration:</span> {{ mission.bail_mobilite.duration_days }} days
+                    </div>
+                    <div v-if="mission.conflicts && mission.conflicts.length > 0" class="text-red-300 text-xs">
+                        <span class="text-red-400">⚠️ Conflicts:</span> {{ mission.conflicts.length }}
+                    </div>
+                </div>
+                <!-- Tooltip Arrow -->
+                <div class="absolute top-full left-1/2 transform -translate-x-1/2">
+                    <div class="border-4 border-transparent border-t-gray-900"></div>
+                </div>
+            </div>
+        </Teleport>
     </div>
 </template>
 
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, nextTick } from 'vue'
 
 // Props
 const props = defineProps({
@@ -97,6 +129,8 @@ const emit = defineEmits(['click'])
 
 // Reactive state
 const showTooltip = ref(false)
+const tooltip = ref(null)
+const tooltipStyle = ref({})
 
 // Computed properties
 const missionTypeLabel = computed(() => {
@@ -172,6 +206,56 @@ const statusIndicatorClasses = computed(() => {
 })
 
 // Methods
+const getTooltipStatusClasses = (status) => {
+    const statusClasses = {
+        'unassigned': 'bg-gray-600 text-gray-100',
+        'assigned': 'bg-blue-600 text-blue-100',
+        'in_progress': 'bg-green-600 text-green-100',
+        'completed': 'bg-green-700 text-green-100',
+        'cancelled': 'bg-red-600 text-red-100'
+    }
+    
+    return statusClasses[status] || statusClasses.unassigned
+}
+
+const updateTooltipPosition = async (event) => {
+    if (!showTooltip.value) return
+    
+    await nextTick()
+    
+    if (tooltip.value) {
+        const rect = event.target.getBoundingClientRect()
+        const tooltipRect = tooltip.value.getBoundingClientRect()
+        
+        let left = rect.left + (rect.width / 2) - (tooltipRect.width / 2)
+        let top = rect.bottom + 8
+        
+        // Adjust if tooltip goes off screen
+        if (left < 8) left = 8
+        if (left + tooltipRect.width > window.innerWidth - 8) {
+            left = window.innerWidth - tooltipRect.width - 8
+        }
+        
+        if (top + tooltipRect.height > window.innerHeight - 8) {
+            top = rect.top - tooltipRect.height - 8
+        }
+        
+        tooltipStyle.value = {
+            left: `${left}px`,
+            top: `${top}px`
+        }
+    }
+}
+
+const handleMouseEnter = (event) => {
+    showTooltip.value = true
+    updateTooltipPosition(event)
+}
+
+const handleMouseLeave = () => {
+    showTooltip.value = false
+}
+
 const handleClick = (event) => {
     event.stopPropagation()
     emit('click', props.mission)

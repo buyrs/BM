@@ -51,8 +51,8 @@
                 </div>
 
                 <div class="flex justify-end mb-8">
-                    <Link :href="route('admin.settings')">
-                        <PrimaryButton>Settings</PrimaryButton>
+                    <Link :href="route('admin.analytics.data')">
+                        <PrimaryButton>Analytics</PrimaryButton>
                     </Link>
                 </div>
 

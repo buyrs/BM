@@ -26,7 +26,7 @@
     -   Add responsive design and basic styling for calendar components
     -   _Requirements: 1.1, 1.3, 4.1, 6.1_
 
--   [ ] 4. Implement mission display and interaction
+-   [x] 4. Implement mission display and interaction
 
     -   Add click handlers for mission events to show detailed information
     -   Create MissionDetailsModal.vue component with expandable mission information
@@ -35,7 +35,7 @@
     -   Handle multiple missions per day with proper visual stacking
     -   _Requirements: 5.1, 5.2, 5.3, 5.6_
 
--   [ ] 5. Create mission creation functionality
+-   [x] 5. Create mission creation functionality
 
     -   Build CreateMissionModal.vue component with BM mission creation form
     -   Implement date pre-population when clicking empty calendar dates
@@ -44,7 +44,7 @@
     -   Integrate with existing checker assignment functionality
     -   _Requirements: 3.1, 3.2, 3.3, 3.4, 3.5_
 
--   [ ] 6. Add calendar filtering and search
+-   [x] 6. Add calendar filtering and search
 
     -   Implement CalendarFilters.vue component with status and checker filters
     -   Add text search functionality for tenant names and addresses
@@ -53,7 +53,7 @@
     -   Add loading states during filter application
     -   _Requirements: 7.1, 7.2, 7.3, 7.4, 7.5_
 
--   [ ] 7. Implement calendar navigation and view modes
+-   [-] 7. Implement calendar navigation and view modes
 
     -   Add month/year navigation with proper date boundary handling
     -   Implement calendar view switching between different time periods

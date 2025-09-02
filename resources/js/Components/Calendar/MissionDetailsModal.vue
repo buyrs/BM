@@ -37,6 +37,16 @@
                 <!-- Mission Information -->
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
+                        <label class="block text-sm font-medium text-gray-700">Mission ID</label>
+                        <p class="mt-1 text-sm text-gray-900 font-mono">#{{ mission.id }}</p>
+                    </div>
+                    
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">Created</label>
+                        <p class="mt-1 text-sm text-gray-900">{{ formatDate(mission.created_at) }}</p>
+                    </div>
+                    
+                    <div>
                         <label class="block text-sm font-medium text-gray-700">Tenant Name</label>
                         <p class="mt-1 text-sm text-gray-900">{{ mission.tenant_name || 'Not specified' }}</p>
                     </div>
@@ -58,7 +68,17 @@
                     
                     <div>
                         <label class="block text-sm font-medium text-gray-700">Assigned Checker</label>
-                        <p class="mt-1 text-sm text-gray-900">{{ mission.agent?.name || 'Unassigned' }}</p>
+                        <div class="mt-1 flex items-center space-x-2">
+                            <p class="text-sm text-gray-900">{{ mission.agent?.name || 'Unassigned' }}</p>
+                            <span v-if="!mission.agent" class="px-2 py-1 bg-yellow-100 text-yellow-800 text-xs rounded-full">
+                                Needs Assignment
+                            </span>
+                        </div>
+                    </div>
+                    
+                    <div v-if="mission.notes">
+                        <label class="block text-sm font-medium text-gray-700">Notes</label>
+                        <p class="mt-1 text-sm text-gray-900">{{ mission.notes }}</p>
                     </div>
                 </div>
 
@@ -109,21 +129,77 @@
                     </div>
                 </div>
 
+                <!-- Quick Actions -->
+                <div v-if="mission.can_edit || mission.can_assign" class="border-t pt-4">
+                    <h4 class="text-md font-medium text-gray-900 mb-3">Quick Actions</h4>
+                    <div class="flex flex-wrap gap-2">
+                        <button
+                            v-if="mission.status === 'unassigned' && mission.can_assign"
+                            @click="handleAssign"
+                            class="px-3 py-2 text-sm font-medium text-blue-700 bg-blue-100 border border-blue-300 rounded-md hover:bg-blue-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                        >
+                            Assign Checker
+                        </button>
+                        
+                        <button
+                            v-if="mission.status === 'assigned' && mission.can_edit"
+                            @click="handleStart"
+                            class="px-3 py-2 text-sm font-medium text-green-700 bg-green-100 border border-green-300 rounded-md hover:bg-green-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
+                        >
+                            Start Mission
+                        </button>
+                        
+                        <button
+                            v-if="mission.status === 'in_progress' && mission.can_edit"
+                            @click="handleComplete"
+                            class="px-3 py-2 text-sm font-medium text-green-700 bg-green-100 border border-green-300 rounded-md hover:bg-green-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
+                        >
+                            Complete Mission
+                        </button>
+                        
+                        <button
+                            v-if="mission.status !== 'cancelled' && mission.can_edit"
+                            @click="handleCancel"
+                            class="px-3 py-2 text-sm font-medium text-red-700 bg-red-100 border border-red-300 rounded-md hover:bg-red-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
+                        >
+                            Cancel Mission
+                        </button>
+                        
+                        <button
+                            v-if="mission.bail_mobilite"
+                            @click="handleViewBailMobilite"
+                            class="px-3 py-2 text-sm font-medium text-purple-700 bg-purple-100 border border-purple-300 rounded-md hover:bg-purple-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500"
+                        >
+                            View Bail Mobilité
+                        </button>
+                    </div>
+                </div>
+
                 <!-- Action Buttons -->
-                <div class="flex justify-end space-x-3 pt-4 border-t">
+                <div class="flex justify-between pt-4 border-t">
+                    <div class="flex space-x-3">
+                        <button
+                            v-if="mission.can_edit"
+                            @click="handleEdit"
+                            class="px-4 py-2 text-sm font-medium text-white bg-blue-600 border border-transparent rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                        >
+                            Edit Mission
+                        </button>
+                        
+                        <button
+                            v-if="mission.can_edit"
+                            @click="handleDuplicate"
+                            class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                        >
+                            Duplicate
+                        </button>
+                    </div>
+                    
                     <button
                         @click="$emit('close')"
                         class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
                     >
                         Close
-                    </button>
-                    
-                    <button
-                        v-if="mission.can_edit"
-                        @click="handleEdit"
-                        class="px-4 py-2 text-sm font-medium text-white bg-blue-600 border border-transparent rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-                    >
-                        Edit Mission
                     </button>
                 </div>
             </div>
@@ -147,7 +223,7 @@ const props = defineProps({
 })
 
 // Emits
-const emit = defineEmits(['close', 'update'])
+const emit = defineEmits(['close', 'update', 'assign', 'status-change', 'duplicate', 'view-bail-mobilite'])
 
 // Methods
 const formatDate = (dateString) => {
@@ -197,5 +273,31 @@ const getStatusClasses = (status) => {
 const handleEdit = () => {
     // Emit update event to parent
     emit('update', props.mission)
+}
+
+const handleAssign = () => {
+    emit('assign', props.mission)
+}
+
+const handleStart = () => {
+    emit('status-change', { mission: props.mission, status: 'in_progress' })
+}
+
+const handleComplete = () => {
+    emit('status-change', { mission: props.mission, status: 'completed' })
+}
+
+const handleCancel = () => {
+    if (confirm('Are you sure you want to cancel this mission?')) {
+        emit('status-change', { mission: props.mission, status: 'cancelled' })
+    }
+}
+
+const handleDuplicate = () => {
+    emit('duplicate', props.mission)
+}
+
+const handleViewBailMobilite = () => {
+    emit('view-bail-mobilite', props.mission.bail_mobilite)
 }
 </script>

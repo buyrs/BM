@@ -34,8 +34,11 @@ class CalendarController extends Controller
         $startDate = Carbon::parse($currentDate)->startOfMonth();
         $endDate = Carbon::parse($currentDate)->endOfMonth();
 
-        // Get missions for the current month
-        $missions = $this->calendarService->getMissionsForDateRange($startDate, $endDate);
+        // Get filters from request
+        $filters = $request->only(['status', 'checker_id', 'mission_type', 'date_range', 'search']);
+
+        // Get missions for the current month with filters
+        $missions = $this->calendarService->getMissionsForDateRange($startDate, $endDate, $filters);
         $formattedMissions = $this->calendarService->formatMissionsForCalendar($missions);
 
         // Get available checkers for assignment
@@ -45,9 +48,10 @@ class CalendarController extends Controller
             ->get();
 
         return Inertia::render('Ops/Calendar', [
-            'initialMissions' => $formattedMissions,
+            'missions' => $formattedMissions,
             'currentDate' => $currentDate,
             'checkers' => $checkers,
+            'initialFilters' => $filters,
         ]);
     }
 
@@ -59,17 +63,16 @@ class CalendarController extends Controller
         $validated = $request->validate([
             'start_date' => 'required|date',
             'end_date' => 'required|date|after_or_equal:start_date',
-            'status' => 'nullable|array',
-            'status.*' => 'in:unassigned,assigned,in_progress,completed,cancelled',
+            'status' => 'nullable|string|in:unassigned,assigned,in_progress,completed,cancelled',
             'checker_id' => 'nullable|integer|exists:users,id',
-            'mission_type' => 'nullable|array',
-            'mission_type.*' => 'in:entry,exit',
+            'mission_type' => 'nullable|string|in:entry,exit',
+            'date_range' => 'nullable|string|in:today,tomorrow,this_week,next_week,this_month,overdue',
             'search' => 'nullable|string|max:255',
         ]);
 
         $startDate = Carbon::parse($validated['start_date']);
         $endDate = Carbon::parse($validated['end_date']);
-        $filters = $request->only(['status', 'checker_id', 'mission_type', 'search']);
+        $filters = $request->only(['status', 'checker_id', 'mission_type', 'date_range', 'search']);
 
         $missions = $this->calendarService->getMissionsForDateRange($startDate, $endDate, $filters);
         $formattedMissions = $this->calendarService->formatMissionsForCalendar($missions);
@@ -81,6 +84,9 @@ class CalendarController extends Controller
                 'start' => $startDate->format('Y-m-d'),
                 'end' => $endDate->format('Y-m-d'),
             ],
+            'applied_filters' => array_filter($filters, function($value) {
+                return $value !== null && $value !== '';
+            }),
         ]);
     }
 
@@ -140,8 +146,13 @@ class CalendarController extends Controller
     /**
      * Update mission details from calendar.
      */
-    public function updateMission(Request $request, Mission $mission): JsonResponse
+    public function updateMission(Request $request, $mission): JsonResponse
     {
+        // Handle both route model binding and manual ID passing
+        if (!$mission instanceof Mission) {
+            $mission = Mission::findOrFail($mission);
+        }
+        
         $validated = $request->validate([
             'scheduled_at' => 'nullable|date',
             'scheduled_time' => 'nullable|date_format:H:i',
@@ -155,13 +166,15 @@ class CalendarController extends Controller
         }
 
         try {
+            
             // If agent is assigned, add status to validated data
             if (isset($validated['agent_id']) && $validated['agent_id']) {
                 $validated['status'] = 'assigned';
             }
             
             // Update mission with all validated data at once
-            $mission->update($validated);
+            $updateResult = $mission->update($validated);
+            \Log::info('CalendarController updateMission - Update result:', ['result' => $updateResult]);
 
             // Reload the mission with relationships
             $mission->refresh();

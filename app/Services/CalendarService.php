@@ -28,7 +28,11 @@ class CalendarService
 
         // Apply status filter
         if (!empty($filters['status'])) {
-            $query->whereIn('status', $filters['status']);
+            if (is_array($filters['status'])) {
+                $query->whereIn('status', $filters['status']);
+            } else {
+                $query->where('status', $filters['status']);
+            }
         }
 
         // Apply checker filter
@@ -38,7 +42,46 @@ class CalendarService
 
         // Apply mission type filter
         if (!empty($filters['mission_type'])) {
-            $query->whereIn('mission_type', $filters['mission_type']);
+            if (is_array($filters['mission_type'])) {
+                $query->whereIn('mission_type', $filters['mission_type']);
+            } else {
+                $query->where('mission_type', $filters['mission_type']);
+            }
+        }
+
+        // Apply date range filter (this modifies the date range constraints)
+        if (!empty($filters['date_range'])) {
+            $now = Carbon::now();
+            $today = $now->copy()->startOfDay();
+            
+            switch ($filters['date_range']) {
+                case 'today':
+                    $query->whereDate('scheduled_at', $today);
+                    break;
+                case 'tomorrow':
+                    $tomorrow = $today->copy()->addDay();
+                    $query->whereDate('scheduled_at', $tomorrow);
+                    break;
+                case 'this_week':
+                    $startOfWeek = $today->copy()->startOfWeek();
+                    $endOfWeek = $today->copy()->endOfWeek();
+                    $query->whereBetween('scheduled_at', [$startOfWeek, $endOfWeek]);
+                    break;
+                case 'next_week':
+                    $nextWeekStart = $today->copy()->addWeek()->startOfWeek();
+                    $nextWeekEnd = $today->copy()->addWeek()->endOfWeek();
+                    $query->whereBetween('scheduled_at', [$nextWeekStart, $nextWeekEnd]);
+                    break;
+                case 'this_month':
+                    $startOfMonth = $today->copy()->startOfMonth();
+                    $endOfMonth = $today->copy()->endOfMonth();
+                    $query->whereBetween('scheduled_at', [$startOfMonth, $endOfMonth]);
+                    break;
+                case 'overdue':
+                    $query->where('scheduled_at', '<', $today)
+                          ->whereNotIn('status', ['completed', 'cancelled']);
+                    break;
+            }
         }
 
         // Apply search filter
@@ -48,8 +91,13 @@ class CalendarService
                 $q->where('tenant_name', 'like', "%{$searchTerm}%")
                   ->orWhere('address', 'like', "%{$searchTerm}%")
                   ->orWhere('tenant_email', 'like', "%{$searchTerm}%")
+                  ->orWhere('id', 'like', "%{$searchTerm}%")
                   ->orWhereHas('agent', function ($subQ) use ($searchTerm) {
                       $subQ->where('name', 'like', "%{$searchTerm}%");
+                  })
+                  ->orWhereHas('bailMobilite', function ($subQ) use ($searchTerm) {
+                      $subQ->where('tenant_name', 'like', "%{$searchTerm}%")
+                           ->orWhere('address', 'like', "%{$searchTerm}%");
                   });
             });
         }
@@ -285,6 +333,11 @@ class CalendarService
     {
         $user = Auth::user();
         
+        // If no user is authenticated (e.g., in tests), return false
+        if (!$user) {
+            return false;
+        }
+        
         // Ops and Admin can edit missions they assigned or if they have the role
         if ($user->hasRole(['ops', 'admin'])) {
             return true;
@@ -299,6 +352,11 @@ class CalendarService
     private function canAssignMission(Mission $mission): bool
     {
         $user = Auth::user();
+        
+        // If no user is authenticated (e.g., in tests), return false
+        if (!$user) {
+            return false;
+        }
         
         // Only Ops and Admin can assign missions
         if ($user->hasRole(['ops', 'admin'])) {

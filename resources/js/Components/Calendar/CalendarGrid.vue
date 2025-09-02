@@ -48,21 +48,52 @@
 
                     <!-- Mission Events -->
                     <div class="space-y-1">
+                        <!-- Priority missions (first 2) -->
                         <MissionEvent
-                            v-for="(mission, missionIndex) in day.missions.slice(0, 3)"
+                            v-for="(mission, missionIndex) in day.missions.slice(0, 2)"
                             :key="mission.id"
                             :mission="mission"
                             :compact="true"
                             @click="handleMissionClick(mission, $event)"
                         />
                         
-                        <!-- More missions indicator -->
+                        <!-- Stacked missions indicator -->
                         <div
-                            v-if="day.missions.length > 3"
-                            class="text-xs text-gray-500 cursor-pointer hover:text-gray-700"
-                            @click="handleDateClick(day.date)"
+                            v-if="day.missions.length > 2"
+                            class="relative"
                         >
-                            +{{ day.missions.length - 3 }} more
+                            <!-- Third mission (partially visible) -->
+                            <div
+                                v-if="day.missions.length > 2"
+                                class="relative z-10 transform translate-y-0.5"
+                            >
+                                <MissionEvent
+                                    :key="day.missions[2].id"
+                                    :mission="day.missions[2]"
+                                    :compact="true"
+                                    @click="handleMissionClick(day.missions[2], $event)"
+                                />
+                            </div>
+                            
+                            <!-- Stack indicator for additional missions -->
+                            <div
+                                v-if="day.missions.length > 3"
+                                class="absolute inset-0 z-0 bg-gray-200 rounded transform translate-y-1 opacity-50"
+                            ></div>
+                            <div
+                                v-if="day.missions.length > 4"
+                                class="absolute inset-0 z-0 bg-gray-300 rounded transform translate-y-2 opacity-30"
+                            ></div>
+                            
+                            <!-- More missions indicator -->
+                            <div
+                                v-if="day.missions.length > 3"
+                                class="absolute bottom-0 right-0 z-20 bg-blue-600 text-white text-xs rounded-full px-2 py-1 cursor-pointer hover:bg-blue-700 transform translate-y-1"
+                                @click="handleDateClick(day.date)"
+                                :title="`${day.missions.length - 3} more missions`"
+                            >
+                                +{{ day.missions.length - 3 }}
+                            </div>
                         </div>
                     </div>
                 </div>

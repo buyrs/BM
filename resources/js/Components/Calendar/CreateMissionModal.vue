@@ -133,6 +133,13 @@
                     </div>
                 </div>
 
+                <!-- Date Validation Error -->
+                <div v-if="dateValidationError" class="bg-red-50 border border-red-200 rounded-md p-3">
+                    <p class="text-sm text-red-600">
+                        {{ dateValidationError }}
+                    </p>
+                </div>
+
                 <!-- Mission Scheduling -->
                 <div class="border-t pt-4">
                     <h4 class="text-md font-medium text-gray-900 mb-3">Mission Scheduling</h4>
@@ -245,8 +252,8 @@
                     
                     <button
                         type="submit"
-                        class="px-4 py-2 text-sm font-medium text-white bg-blue-600 border border-transparent rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
-                        :disabled="processing"
+                        class="px-4 py-2 text-sm font-medium text-white bg-blue-600 border border-transparent rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                        :disabled="processing || !isFormValid || dateValidationError"
                     >
                         <span v-if="processing">Creating...</span>
                         <span v-else>Create Mission</span>
@@ -311,20 +318,60 @@ const formattedSelectedDate = computed(() => {
     })
 })
 
+const isFormValid = computed(() => {
+    return form.tenant_name.trim() !== '' &&
+           form.address.trim() !== '' &&
+           form.start_date !== '' &&
+           form.end_date !== '' &&
+           new Date(form.end_date) > new Date(form.start_date)
+})
+
+const dateValidationError = computed(() => {
+    if (!form.start_date || !form.end_date) return null
+    
+    const startDate = new Date(form.start_date)
+    const endDate = new Date(form.end_date)
+    const today = new Date()
+    today.setHours(0, 0, 0, 0)
+    
+    if (startDate < today) {
+        return 'Start date cannot be in the past'
+    }
+    
+    if (endDate <= startDate) {
+        return 'End date must be after start date'
+    }
+    
+    const diffTime = Math.abs(endDate - startDate)
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
+    
+    if (diffDays > 365) {
+        return 'Bail Mobilité period cannot exceed 365 days'
+    }
+    
+    return null
+})
+
 // Methods
 const handleSubmit = () => {
     processing.value = true
     errors.value = {}
 
-    router.post(route('calendar.missions.store'), form, {
-        onSuccess: (response) => {
+    router.post(route('ops.calendar.missions.create'), form, {
+        onSuccess: (page) => {
             processing.value = false
-            emit('create', response.data)
+            // The response data should be in page.props or the response itself
+            const responseData = page.props?.flash || page
+            emit('create', responseData)
             resetForm()
+            emit('close')
         },
         onError: (responseErrors) => {
             processing.value = false
             errors.value = responseErrors
+        },
+        onFinish: () => {
+            processing.value = false
         }
     })
 }

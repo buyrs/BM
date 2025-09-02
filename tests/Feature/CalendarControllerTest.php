@@ -130,7 +130,7 @@ class CalendarControllerTest extends TestCase
         $response = $this->withoutMiddleware()->actingAs($this->opsUser)->get(route('ops.calendar.missions') . '?' . http_build_query([
             'start_date' => $startDate->format('Y-m-d'),
             'end_date' => $endDate->format('Y-m-d'),
-            'status' => ['assigned'],
+            'status' => 'assigned',
         ]));
         
         $response->assertStatus(200);
@@ -247,6 +247,7 @@ class CalendarControllerTest extends TestCase
             'bail_mobilite_id' => $bailMobilite->id,
             'status' => 'unassigned',
             'agent_id' => null,
+            'mission_type' => 'entry',
         ]);
         
         $updateData = [

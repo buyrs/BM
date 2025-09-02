@@ -146,20 +146,25 @@ class CalendarServiceTest extends TestCase
         $startDate = Carbon::now()->startOfMonth();
         $endDate = Carbon::now()->endOfMonth();
         
-        $bailMobilite = BailMobilite::factory()->create([
+        $bailMobilite1 = BailMobilite::factory()->create([
             'tenant_name' => 'John Doe',
             'address' => '123 Main Street',
         ]);
         
+        $bailMobilite2 = BailMobilite::factory()->create([
+            'tenant_name' => 'Jane Smith',
+            'address' => '456 Oak Avenue',
+        ]);
+        
         $matchingMission = Mission::factory()->create([
-            'bail_mobilite_id' => $bailMobilite->id,
+            'bail_mobilite_id' => $bailMobilite1->id,
             'scheduled_at' => $startDate->copy()->addDays(5),
             'tenant_name' => 'John Doe',
             'address' => '123 Main Street',
         ]);
         
         $nonMatchingMission = Mission::factory()->create([
-            'bail_mobilite_id' => $bailMobilite->id,
+            'bail_mobilite_id' => $bailMobilite2->id,
             'scheduled_at' => $startDate->copy()->addDays(6),
             'tenant_name' => 'Jane Smith',
             'address' => '456 Oak Avenue',
@@ -174,6 +179,71 @@ class CalendarServiceTest extends TestCase
         $this->assertCount(1, $missions);
         $this->assertTrue($missions->contains('id', $matchingMission->id));
         $this->assertFalse($missions->contains('id', $nonMatchingMission->id));
+    }
+
+    public function test_get_missions_for_date_range_applies_date_range_filter_today()
+    {
+        $today = Carbon::now()->startOfDay();
+        $tomorrow = $today->copy()->addDay();
+        
+        $bailMobilite = BailMobilite::factory()->create();
+        
+        $todayMission = Mission::factory()->create([
+            'bail_mobilite_id' => $bailMobilite->id,
+            'scheduled_at' => $today,
+        ]);
+        
+        $tomorrowMission = Mission::factory()->create([
+            'bail_mobilite_id' => $bailMobilite->id,
+            'scheduled_at' => $tomorrow,
+        ]);
+        
+        $missions = $this->calendarService->getMissionsForDateRange(
+            $today->copy()->startOfMonth(),
+            $today->copy()->endOfMonth(),
+            ['date_range' => 'today']
+        );
+        
+        $this->assertCount(1, $missions);
+        $this->assertTrue($missions->contains('id', $todayMission->id));
+        $this->assertFalse($missions->contains('id', $tomorrowMission->id));
+    }
+
+    public function test_get_missions_for_date_range_applies_date_range_filter_overdue()
+    {
+        $yesterday = Carbon::now()->subDay();
+        $today = Carbon::now();
+        
+        $bailMobilite = BailMobilite::factory()->create();
+        
+        $overdueMission = Mission::factory()->create([
+            'bail_mobilite_id' => $bailMobilite->id,
+            'scheduled_at' => $yesterday,
+            'status' => 'assigned', // Not completed
+        ]);
+        
+        $completedOverdueMission = Mission::factory()->create([
+            'bail_mobilite_id' => $bailMobilite->id,
+            'scheduled_at' => $yesterday,
+            'status' => 'completed', // Should not be included
+        ]);
+        
+        $todayMission = Mission::factory()->create([
+            'bail_mobilite_id' => $bailMobilite->id,
+            'scheduled_at' => $today,
+            'status' => 'assigned',
+        ]);
+        
+        $missions = $this->calendarService->getMissionsForDateRange(
+            $yesterday->copy()->startOfMonth(),
+            $today->copy()->endOfMonth(),
+            ['date_range' => 'overdue']
+        );
+        
+        $this->assertCount(1, $missions);
+        $this->assertTrue($missions->contains('id', $overdueMission->id));
+        $this->assertFalse($missions->contains('id', $completedOverdueMission->id));
+        $this->assertFalse($missions->contains('id', $todayMission->id));
     }
 
     public function test_format_missions_for_calendar_returns_correct_structure()
