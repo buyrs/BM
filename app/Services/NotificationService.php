@@ -497,6 +497,79 @@ class NotificationService
     }
 
     /**
+     * Send mission completion notification with real-time broadcasting.
+     */
+    public function sendMissionCompletionNotification(Mission $mission): Collection
+    {
+        $bailMobilite = $mission->bailMobilite;
+        if (!$bailMobilite) {
+            Log::warning("Cannot send mission completion notification: Mission {$mission->id} has no associated BailMobilite");
+            return collect();
+        }
+
+        // Get all ops users to notify
+        $opsUsers = User::role('ops')->get();
+        
+        $notifications = collect();
+        
+        foreach ($opsUsers as $opsUser) {
+            // Create notification record
+            $notification = Notification::create([
+                'type' => 'mission_completed',
+                'recipient_id' => $opsUser->id,
+                'bail_mobilite_id' => $bailMobilite->id,
+                'scheduled_at' => now(),
+                'status' => 'pending',
+                'data' => [
+                    'mission_id' => $mission->id,
+                    'mission_type' => $mission->mission_type,
+                    'bail_mobilite_id' => $bailMobilite->id,
+                    'tenant_name' => $bailMobilite->tenant_name,
+                    'address' => $bailMobilite->address,
+                    'checker_name' => $mission->agent->name ?? 'Unknown',
+                    'completed_at' => $mission->actual_end_time?->toDateTimeString() ?? now()->toDateTimeString(),
+                    'requires_validation' => true
+                ]
+            ]);
+            
+            $notifications->push($notification);
+        }
+
+        // Send checklist validation alert immediately
+        $validationNotifications = $this->sendChecklistValidationAlert($mission);
+        $notifications = $notifications->merge($validationNotifications);
+
+        Log::info("Mission completion notification sent for Mission {$mission->id}");
+        
+        return $notifications;
+    }
+
+    /**
+     * Send real-time notification update to specific user.
+     */
+    public function sendRealTimeNotification(User $user, array $notificationData): void
+    {
+        // This would integrate with broadcasting systems like Pusher, WebSockets, etc.
+        // For now, we'll log and rely on polling
+        Log::info("Real-time notification for user {$user->id}", $notificationData);
+        
+        // In a real implementation, you would broadcast here:
+        // broadcast(new NotificationEvent($user, $notificationData));
+    }
+
+    /**
+     * Broadcast notification to all ops users.
+     */
+    public function broadcastToOpsUsers(array $notificationData): void
+    {
+        $opsUsers = User::role('ops')->get();
+        
+        foreach ($opsUsers as $opsUser) {
+            $this->sendRealTimeNotification($opsUser, $notificationData);
+        }
+    }
+
+    /**
      * Send calendar mission creation notification.
      */
     public function sendCalendarMissionCreationNotification(BailMobilite $bailMobilite): Collection

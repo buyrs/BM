@@ -129,6 +129,14 @@ class Mission extends Model
     }
 
     /**
+     * Get the notifications associated with this mission.
+     */
+    public function notifications()
+    {
+        return $this->hasMany(Notification::class, 'mission_id');
+    }
+
+    /**
      * Get the bail mobilité where this is the entry mission.
      */
     public function bailMobiliteAsEntry(): HasOne

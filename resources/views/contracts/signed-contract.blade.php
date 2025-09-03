@@ -203,10 +203,52 @@
         </div>
     </div>
 
+    <!-- Security and Legal Information -->
+    <div class="page-break"></div>
+    <div class="section">
+        <div class="section-title">Informations de Sécurité et de Vérification</div>
+        <div class="info-grid">
+            <div class="info-row">
+                <div class="info-label">ID de Signature :</div>
+                <div class="info-value">{{ $signature->id }}</div>
+            </div>
+            <div class="info-row">
+                <div class="info-label">Intégrité Vérifiée :</div>
+                <div class="info-value">{{ $security_info['integrity_verified'] ? 'Oui' : 'Non' }}</div>
+            </div>
+            <div class="info-row">
+                <div class="info-label">Généré le :</div>
+                <div class="info-value">{{ $security_info['generated_at']->format('d/m/Y à H:i:s') }}</div>
+            </div>
+            <div class="info-row">
+                <div class="info-label">Adresse IP de signature :</div>
+                <div class="info-value">{{ $security_info['ip_address'] }}</div>
+            </div>
+        </div>
+        
+        <div style="margin-top: 20px; padding: 10px; border: 1px solid #ccc; background-color: #f0f8ff;">
+            <strong>Notice Légale :</strong> Ce document a été signé électroniquement conformément aux dispositions légales en vigueur. 
+            Les signatures électroniques ont la même valeur juridique que les signatures manuscrites. 
+            L'intégrité de ce document peut être vérifiée en utilisant l'ID de signature ci-dessus.
+        </div>
+        
+        <div style="margin-top: 15px; padding: 10px; border: 1px solid #ddd; background-color: #f9f9f9; font-size: 10px;">
+            <strong>Informations Techniques :</strong><br>
+            - Type de signature : Signature électronique avancée<br>
+            - Méthode de capture : Tablette tactile/écran tactile<br>
+            - Horodatage : Serveur sécurisé avec synchronisation NTP<br>
+            - Stockage : Chiffrement AES-256<br>
+            - Vérification : Hash SHA-256 pour l'intégrité
+        </div>
+    </div>
+
     <div class="footer">
-        <p>Document généré électroniquement le {{ now()->format('d/m/Y à H:i') }}</p>
+        <p>Document généré électroniquement le {{ $security_info['generated_at']->format('d/m/Y à H:i:s') }}</p>
         <p>Ce document constitue un contrat légalement contraignant entre les parties signataires.</p>
-        <p>Référence technique: {{ $signature->id }} | Type: {{ $signature->signature_type }}</p>
+        <p>Référence technique: {{ $signature->id }} | Type: {{ $signature->signature_type }} | Version: 2.0</p>
+        <p style="font-size: 9px; margin-top: 10px;">
+            Pour vérifier l'authenticité de ce document, contactez l'administrateur avec l'ID de signature.
+        </p>
     </div>
 </body>
 </html>

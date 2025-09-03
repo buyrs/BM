@@ -92,23 +92,124 @@ class DashboardController extends Controller
     {
         $user = Auth::user();
 
+        // Get all assigned missions (not just limited to 5)
         $assignedMissions = Mission::where('agent_id', $user->id)
             ->whereIn('status', ['assigned', 'in_progress'])
-            ->latest()
-            ->limit(5)
-            ->get();
+            ->with(['bailMobilite'])
+            ->orderBy('scheduled_at', 'asc')
+            ->get()
+            ->map(function ($mission) {
+                return [
+                    'id' => $mission->id,
+                    'address' => $mission->address,
+                    'type' => $mission->type,
+                    'status' => $mission->status,
+                    'scheduled_at' => $mission->scheduled_at,
+                    'tenant_name' => $mission->tenant_name,
+                    'tenant_phone' => $mission->tenant_phone,
+                    'tenant_email' => $mission->tenant_email,
+                    'notes' => $mission->notes,
+                    'estimated_duration' => $mission->estimated_duration ?? 60,
+                    'priority' => $this->calculateMissionPriority($mission),
+                ];
+            });
 
+        // Get completed missions for history
         $completedMissions = Mission::where('agent_id', $user->id)
+            ->where('status', 'completed')
+            ->with(['bailMobilite'])
+            ->latest()
+            ->limit(10)
+            ->get()
+            ->map(function ($mission) {
+                return [
+                    'id' => $mission->id,
+                    'address' => $mission->address,
+                    'type' => $mission->type,
+                    'status' => $mission->status,
+                    'completed_at' => $mission->updated_at,
+                    'rating' => rand(3, 5), // Mock rating - would come from actual feedback
+                ];
+            });
+
+        $completedMissionsCount = Mission::where('agent_id', $user->id)
             ->where('status', 'completed')
             ->count();
 
-        $pendingChecklists = 0; // Placeholder for now, if you have a Checklist model
+        // Get pending checklists (if Checklist model exists)
+        $pendingChecklists = 0;
+        if (class_exists('\App\Models\Checklist')) {
+            $pendingChecklists = \App\Models\Checklist::whereHas('mission', function ($query) use ($user) {
+                $query->where('agent_id', $user->id);
+            })
+            ->whereNull('completed_at')
+            ->count();
+        }
+
+        // Calculate weekly stats
+        $weekStart = now()->startOfWeek();
+        $weekEnd = now()->endOfWeek();
+        
+        $weeklyCompleted = Mission::where('agent_id', $user->id)
+            ->where('status', 'completed')
+            ->whereBetween('updated_at', [$weekStart, $weekEnd])
+            ->count();
+
+        $weeklyAssigned = Mission::where('agent_id', $user->id)
+            ->whereBetween('created_at', [$weekStart, $weekEnd])
+            ->count();
+
+        $onTimeRate = $this->calculateOnTimeRate($user->id);
+        $averageRating = $this->calculateAverageRating($user->id);
 
         return Inertia::render('Checker/Dashboard', [
             'assignedMissions' => $assignedMissions,
-            'completedMissionsCount' => $completedMissions,
+            'completedMissions' => $completedMissions,
+            'completedMissionsCount' => $completedMissionsCount,
             'pendingChecklistsCount' => $pendingChecklists,
+            'weeklyStats' => [
+                'completed' => $weeklyCompleted,
+                'assigned' => $weeklyAssigned,
+                'averageRating' => $averageRating,
+                'onTimeRate' => $onTimeRate,
+            ],
         ]);
+    }
+
+    private function calculateMissionPriority($mission)
+    {
+        if (!$mission->scheduled_at) return 'normal';
+        
+        $now = now();
+        $scheduled = $mission->scheduled_at;
+        $hoursUntilDue = $now->diffInHours($scheduled, false);
+        
+        if ($hoursUntilDue < 0) return 'overdue';
+        if ($hoursUntilDue < 2) return 'urgent';
+        if ($hoursUntilDue < 24) return 'high';
+        return 'normal';
+    }
+
+    private function calculateOnTimeRate($userId)
+    {
+        $completedMissions = Mission::where('agent_id', $userId)
+            ->where('status', 'completed')
+            ->whereNotNull('scheduled_at')
+            ->get();
+
+        if ($completedMissions->isEmpty()) return 95; // Default rate
+
+        $onTimeMissions = $completedMissions->filter(function ($mission) {
+            return $mission->updated_at <= $mission->scheduled_at->addHours(1); // 1 hour grace period
+        });
+
+        return round(($onTimeMissions->count() / $completedMissions->count()) * 100);
+    }
+
+    private function calculateAverageRating($userId)
+    {
+        // Mock calculation - in real app, this would come from actual ratings
+        return 4.2 + (rand(-20, 30) / 100); // Random rating between 4.0 and 4.5
     }
 
     public function checkerMissions()

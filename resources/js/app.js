@@ -8,6 +8,7 @@ import { ZiggyVue } from 'ziggy-js';
 import { Ziggy } from './ziggy';
 import errorHandler from './utils/errorHandler';
 import GlobalLoadingIndicator from './Components/GlobalLoadingIndicator.vue';
+import GlobalToastContainer from './Components/GlobalToastContainer.vue';
 
 const appName = window.document.getElementsByTagName('title')[0]?.innerText || 'Laravel';
 
@@ -18,7 +19,8 @@ createInertiaApp({
         const app = createApp({ 
             render: () => h('div', [
                 h(App, props),
-                h(GlobalLoadingIndicator)
+                h(GlobalLoadingIndicator),
+                h(GlobalToastContainer)
             ])
         })
             .use(plugin)

@@ -136,8 +136,12 @@ class ErrorHandler {
      * Show user-friendly error message
      */
     showUserFriendlyMessage(message, type = 'error') {
-        // Create toast notification
-        this.showToast(message, type);
+        // Use toast service if available, otherwise fallback to custom toast
+        if (typeof window !== 'undefined' && window.toast) {
+            window.toast[type](message);
+        } else {
+            this.showToast(message, type);
+        }
     }
 
     /**

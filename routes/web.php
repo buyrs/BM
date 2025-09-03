@@ -79,6 +79,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('/assigned', [MissionController::class, 'getAssignedMissions'])->name('missions.assigned');
         Route::get('/completed', [MissionController::class, 'getCompletedMissions'])->name('missions.completed');
         
+        // API route for offline caching
+        Route::get('/api/critical', [MissionController::class, 'getCriticalMissions'])->name('missions.api.critical');
+        
         Route::middleware(['role:super-admin'])->group(function () {
             Route::get('/create', [MissionController::class, 'create'])->name('missions.create');
             Route::post('/', [MissionController::class, 'store'])->name('missions.store');
@@ -90,6 +93,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
         Route::get('/{mission}', [MissionController::class, 'show'])->name('missions.show');
         Route::patch('/{mission}/status', [MissionController::class, 'updateStatus'])->name('missions.update-status');
+        Route::patch('/{mission}/start', [MissionController::class, 'startMission'])->name('missions.start');
         Route::patch('/{mission}/refuse', [MissionController::class, 'refuseMission'])->name('missions.refuse');
         
         // Bail Mobilité specific mission routes
@@ -212,6 +216,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::post('contract-templates/{contractTemplate}/sign', [\App\Http\Controllers\ContractTemplateController::class, 'signTemplate'])->name('contract-templates.sign');
         Route::patch('contract-templates/{contractTemplate}/toggle-active', [\App\Http\Controllers\ContractTemplateController::class, 'toggleActive'])->name('contract-templates.toggle-active');
         Route::get('contract-templates/{contractTemplate}/preview', [\App\Http\Controllers\ContractTemplateController::class, 'preview'])->name('contract-templates.preview');
+        Route::get('contract-templates/{contractTemplate}/validate', [\App\Http\Controllers\ContractTemplateController::class, 'validateTemplate'])->name('contract-templates.validate');
+        Route::get('contract-templates/placeholders', [\App\Http\Controllers\ContractTemplateController::class, 'getPlaceholders'])->name('contract-templates.placeholders');
         Route::post('contract-templates/{contractTemplate}/create-version', [\App\Http\Controllers\ContractTemplateController::class, 'createVersion'])->name('contract-templates.create-version');
     });
 });

@@ -18,6 +18,8 @@ class Kernel extends ConsoleKernel
         $schedule->command('checkers:reset-downgrades')->cron('0 0 */20 * *');
         // Process scheduled notifications every 15 minutes
         $schedule->command('notifications:process-scheduled')->everyFifteenMinutes();
+        // Process notification reminders every 15 minutes
+        $schedule->command('notifications:process-reminders')->everyFifteenMinutes();
         // Run incident detection every 30 minutes
         $schedule->command('incidents:detect')->everyThirtyMinutes();
     }

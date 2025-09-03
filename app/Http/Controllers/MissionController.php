@@ -255,6 +255,43 @@ class MissionController extends Controller
         ]);
     }
 
+    /**
+     * Get critical missions for offline caching
+     */
+    public function getCriticalMissions()
+    {
+        $user = Auth::user();
+        
+        if (!$user->hasRole('checker')) {
+            return response()->json(['error' => 'Unauthorized'], 403);
+        }
+
+        $now = Carbon::now();
+        $tomorrow = $now->copy()->addDay();
+        
+        // Get today's and tomorrow's missions, plus any urgent ones
+        $missions = Mission::where('agent_id', $user->id)
+            ->where(function ($query) use ($now, $tomorrow) {
+                $query->whereBetween('scheduled_at', [$now->startOfDay(), $tomorrow->endOfDay()])
+                      ->orWhere(function ($subQuery) use ($now) {
+                          $subQuery->where('scheduled_at', '<=', $now->addHours(2))
+                                   ->where('status', '!=', 'completed');
+                      });
+            })
+            ->with([
+                'bailMobilite',
+                'checklists.items',
+                'checklists.photos'
+            ])
+            ->orderBy('scheduled_at')
+            ->get();
+
+        return response()->json([
+            'missions' => $missions,
+            'cached_at' => $now->toISOString()
+        ]);
+    }
+
     public function updateStatus(Request $request, Mission $mission)
     {
         $validated = $request->validate([

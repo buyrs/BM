@@ -458,17 +458,44 @@ class IncidentDetectionService
         // Group incidents by severity
         $criticalIncidents = array_filter($incidents, fn($incident) => $incident['severity'] === 'critical');
         $highIncidents = array_filter($incidents, fn($incident) => $incident['severity'] === 'high');
+        $mediumIncidents = array_filter($incidents, fn($incident) => $incident['severity'] === 'medium');
 
         // Send immediate alerts for critical incidents
         if (!empty($criticalIncidents)) {
             $criticalMessages = collect($criticalIncidents)->pluck('message')->implode('; ');
             $this->notificationService->sendIncidentAlert($bailMobilite, "CRITIQUE: " . $criticalMessages);
+            
+            // Broadcast real-time alert for critical incidents
+            $this->notificationService->broadcastToOpsUsers([
+                'type' => 'critical_incident',
+                'bail_mobilite_id' => $bailMobilite->id,
+                'tenant_name' => $bailMobilite->tenant_name,
+                'message' => $criticalMessages,
+                'severity' => 'critical',
+                'requires_immediate_action' => true
+            ]);
         }
 
         // Send alerts for high severity incidents
         if (!empty($highIncidents)) {
             $highMessages = collect($highIncidents)->pluck('message')->implode('; ');
             $this->notificationService->sendIncidentAlert($bailMobilite, "URGENT: " . $highMessages);
+            
+            // Broadcast real-time alert for high severity incidents
+            $this->notificationService->broadcastToOpsUsers([
+                'type' => 'high_incident',
+                'bail_mobilite_id' => $bailMobilite->id,
+                'tenant_name' => $bailMobilite->tenant_name,
+                'message' => $highMessages,
+                'severity' => 'high',
+                'requires_action' => true
+            ]);
+        }
+
+        // Send notifications for medium severity incidents (less urgent)
+        if (!empty($mediumIncidents)) {
+            $mediumMessages = collect($mediumIncidents)->pluck('message')->implode('; ');
+            $this->notificationService->sendIncidentAlert($bailMobilite, "ATTENTION: " . $mediumMessages);
         }
     }
 

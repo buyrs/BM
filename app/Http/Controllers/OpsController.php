@@ -151,14 +151,47 @@ class OpsController extends Controller
     /**
      * Get pending notifications for the current user (API endpoint).
      */
-    public function getPendingNotifications()
+    public function getPendingNotifications(Request $request)
     {
         $user = Auth::user();
-        $notifications = $this->notificationService->getPendingNotificationsForUser($user);
+        $since = $request->get('since');
+        
+        $query = Notification::forRecipient($user->id)
+            ->pending()
+            ->with(['bailMobilite'])
+            ->orderBy('created_at', 'desc');
+        
+        // If 'since' parameter is provided, only get notifications created after that time
+        if ($since) {
+            $query->where('created_at', '>', $since);
+        }
+        
+        $notifications = $query->get();
+        
+        // Add computed properties for frontend
+        $notifications = $notifications->map(function ($notification) {
+            return [
+                'id' => $notification->id,
+                'type' => $notification->type,
+                'message' => $notification->getMessage(),
+                'data' => $notification->data,
+                'status' => $notification->status,
+                'created_at' => $notification->created_at->toISOString(),
+                'bail_mobilite' => $notification->bailMobilite ? [
+                    'id' => $notification->bailMobilite->id,
+                    'tenant_name' => $notification->bailMobilite->tenant_name,
+                    'address' => $notification->bailMobilite->address,
+                    'status' => $notification->bailMobilite->status,
+                ] : null,
+                'priority' => $this->getNotificationPriority($notification->type),
+                'requires_action' => $this->notificationRequiresAction($notification->type),
+            ];
+        });
 
         return response()->json([
             'notifications' => $notifications,
             'count' => $notifications->count(),
+            'timestamp' => now()->toISOString(),
         ]);
     }
 
@@ -166,6 +199,199 @@ class OpsController extends Controller
      * Handle quick actions from notifications.
      */
     public function handleNotificationAction(Request $request, Notification $notification)
+    {
+        // Ensure the notification belongs to the current user
+        if ($notification->recipient_id !== Auth::id()) {
+            abort(403, 'Unauthorized');
+        }
+
+        $action = $request->get('action');
+        $result = ['success' => false, 'message' => 'Action non reconnue'];
+
+        try {
+            switch ($action) {
+                case 'assign_exit':
+                    $result = $this->handleAssignExitAction($notification);
+                    break;
+                    
+                case 'validate_checklist':
+                    $result = $this->handleValidateChecklistAction($notification);
+                    break;
+                    
+                case 'handle_incident':
+                    $result = $this->handleIncidentAction($notification);
+                    break;
+                    
+                case 'view_bail_mobilite':
+                    $result = $this->handleViewBailMobiliteAction($notification);
+                    break;
+                    
+                case 'view_mission':
+                    $result = $this->handleViewMissionAction($notification);
+                    break;
+                    
+                default:
+                    $result = ['success' => false, 'message' => 'Action non supportée'];
+            }
+            
+            // Mark notification as handled if action was successful
+            if ($result['success'] && !isset($result['keep_notification'])) {
+                $this->notificationService->markNotificationAsHandled($notification);
+                $result['remove_from_list'] = true;
+            }
+            
+        } catch (\Exception $e) {
+            Log::error("Failed to handle notification action", [
+                'notification_id' => $notification->id,
+                'action' => $action,
+                'error' => $e->getMessage()
+            ]);
+            
+            $result = [
+                'success' => false,
+                'message' => 'Erreur lors de l\'exécution de l\'action'
+            ];
+        }
+
+        return response()->json($result);
+    }
+
+    /**
+     * Handle assign exit action.
+     */
+    protected function handleAssignExitAction(Notification $notification): array
+    {
+        $bailMobilite = $notification->bailMobilite;
+        if (!$bailMobilite) {
+            return ['success' => false, 'message' => 'Bail Mobilité non trouvé'];
+        }
+
+        // Redirect to bail mobilité page to assign exit mission
+        return [
+            'success' => true,
+            'message' => 'Redirection vers l\'assignation de sortie',
+            'redirect_url' => route('ops.bail-mobilites.show', $bailMobilite->id) . '?action=assign_exit',
+            'keep_notification' => true
+        ];
+    }
+
+    /**
+     * Handle validate checklist action.
+     */
+    protected function handleValidateChecklistAction(Notification $notification): array
+    {
+        $missionId = $notification->data['mission_id'] ?? null;
+        if (!$missionId) {
+            return ['success' => false, 'message' => 'Mission non trouvée'];
+        }
+
+        $mission = Mission::find($missionId);
+        if (!$mission || !$mission->checklist) {
+            return ['success' => false, 'message' => 'Checklist non trouvée'];
+        }
+
+        // Redirect to checklist validation page
+        return [
+            'success' => true,
+            'message' => 'Redirection vers la validation de checklist',
+            'redirect_url' => route('checklists.review', $mission->checklist->id),
+            'keep_notification' => true
+        ];
+    }
+
+    /**
+     * Handle incident action.
+     */
+    protected function handleIncidentAction(Notification $notification): array
+    {
+        $bailMobilite = $notification->bailMobilite;
+        if (!$bailMobilite) {
+            return ['success' => false, 'message' => 'Bail Mobilité non trouvé'];
+        }
+
+        // Redirect to bail mobilité page with incident tab
+        return [
+            'success' => true,
+            'message' => 'Redirection vers la gestion d\'incident',
+            'redirect_url' => route('ops.bail-mobilites.show', $bailMobilite->id) . '?tab=incidents',
+            'keep_notification' => true
+        ];
+    }
+
+    /**
+     * Handle view bail mobilité action.
+     */
+    protected function handleViewBailMobiliteAction(Notification $notification): array
+    {
+        $bailMobilite = $notification->bailMobilite;
+        if (!$bailMobilite) {
+            return ['success' => false, 'message' => 'Bail Mobilité non trouvé'];
+        }
+
+        return [
+            'success' => true,
+            'message' => 'Redirection vers le Bail Mobilité',
+            'redirect_url' => route('ops.bail-mobilites.show', $bailMobilite->id),
+            'keep_notification' => true
+        ];
+    }
+
+    /**
+     * Handle view mission action.
+     */
+    protected function handleViewMissionAction(Notification $notification): array
+    {
+        $missionId = $notification->data['mission_id'] ?? null;
+        if (!$missionId) {
+            return ['success' => false, 'message' => 'Mission non trouvée'];
+        }
+
+        $mission = Mission::find($missionId);
+        if (!$mission) {
+            return ['success' => false, 'message' => 'Mission non trouvée'];
+        }
+
+        return [
+            'success' => true,
+            'message' => 'Redirection vers la mission',
+            'redirect_url' => route('ops.missions.show', $mission->id),
+            'keep_notification' => true
+        ];
+    }
+
+    /**
+     * Get notification priority level.
+     */
+    protected function getNotificationPriority(string $type): string
+    {
+        $priorities = [
+            'incident_alert' => 'critical',
+            'exit_reminder' => 'high',
+            'checklist_validation' => 'medium',
+            'mission_completed' => 'medium',
+            'mission_assigned' => 'low',
+            'calendar_update' => 'low'
+        ];
+        
+        return $priorities[$type] ?? 'low';
+    }
+
+    /**
+     * Check if notification requires immediate action.
+     */
+    protected function notificationRequiresAction(string $type): bool
+    {
+        $actionRequired = [
+            'incident_alert' => true,
+            'exit_reminder' => true,
+            'checklist_validation' => true,
+            'mission_completed' => true,
+            'mission_assigned' => false,
+            'calendar_update' => false
+        ];
+        
+        return $actionRequired[$type] ?? false;
+    }
     {
         // Ensure the notification belongs to the current user
         if ($notification->recipient_id !== Auth::id()) {

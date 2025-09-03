@@ -71,35 +71,18 @@
             </div>
 
             <div class="px-6 py-4">
-                <!-- Signature Pad -->
-                <div class="mb-4">
-                    <label class="block text-sm font-medium text-gray-700 mb-2">
-                        Signature électronique
-                    </label>
-                    <div class="border-2 border-gray-300 rounded-md bg-white">
-                        <canvas
-                            ref="signatureCanvas"
-                            class="w-full h-48 cursor-crosshair"
-                            @mousedown="startDrawing"
-                            @mousemove="draw"
-                            @mouseup="stopDrawing"
-                            @touchstart="startDrawing"
-                            @touchmove="draw"
-                            @touchend="stopDrawing"
-                        ></canvas>
-                    </div>
-                </div>
+                <!-- Enhanced Signature Pad -->
+                <SignaturePad
+                    v-model="signatureData"
+                    title="Signature électronique"
+                    instructions="Veuillez signer ci-dessous pour confirmer votre accord avec les termes du contrat."
+                    :show-preview="true"
+                    :pen-width="3"
+                    @validation-change="handleSignatureValidation"
+                />
 
                 <!-- Signature Actions -->
-                <div class="flex justify-between items-center">
-                    <button
-                        type="button"
-                        @click="clearSignature"
-                        class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
-                    >
-                        Effacer
-                    </button>
-                    
+                <div class="flex justify-between items-center mt-6">
                     <div class="flex space-x-3">
                         <button
                             type="button"
@@ -111,7 +94,7 @@
                         <button
                             type="button"
                             @click="saveSignature"
-                            :disabled="!hasSignature || loading"
+                            :disabled="!isSignatureValid || loading"
                             class="px-4 py-2 text-sm font-medium text-white bg-indigo-600 border border-transparent rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                             <span v-if="loading">Enregistrement...</span>
@@ -120,19 +103,22 @@
                     </div>
                 </div>
 
-                <!-- Signature Confirmation -->
-                <div v-if="hasSignature" class="mt-4 p-4 bg-green-50 border border-green-200 rounded-md">
+                <!-- Signature Status -->
+                <div v-if="signatureValidation.message" class="mt-4 p-4 rounded-md" :class="signatureValidation.isValid ? 'bg-green-50 border border-green-200' : 'bg-yellow-50 border border-yellow-200'">
                     <div class="flex">
                         <div class="flex-shrink-0">
-                            <svg class="h-5 w-5 text-green-400" viewBox="0 0 20 20" fill="currentColor">
+                            <svg v-if="signatureValidation.isValid" class="h-5 w-5 text-green-400" viewBox="0 0 20 20" fill="currentColor">
                                 <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
+                            </svg>
+                            <svg v-else class="h-5 w-5 text-yellow-400" viewBox="0 0 20 20" fill="currentColor">
+                                <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd" />
                             </svg>
                         </div>
                         <div class="ml-3">
-                            <p class="text-sm font-medium text-green-800">
-                                Signature prête à être enregistrée
+                            <p class="text-sm font-medium" :class="signatureValidation.isValid ? 'text-green-800' : 'text-yellow-800'">
+                                {{ signatureValidation.message }}
                             </p>
-                            <p class="mt-1 text-sm text-green-700">
+                            <p v-if="signatureValidation.isValid" class="mt-1 text-sm text-green-700">
                                 Cliquez sur "Signer le Contrat" pour finaliser la signature.
                             </p>
                         </div>
@@ -160,9 +146,10 @@
 </template>
 
 <script setup>
-import { ref, onMounted, computed } from 'vue'
+import { ref, computed } from 'vue'
 import { format } from 'date-fns'
 import { fr } from 'date-fns/locale'
+import SignaturePad from './SignaturePad.vue'
 
 const props = defineProps({
     bailMobilite: {
@@ -186,78 +173,27 @@ const props = defineProps({
 
 const emit = defineEmits(['sign', 'cancel'])
 
-const signatureCanvas = ref(null)
-const isDrawing = ref(false)
-const hasSignature = ref(false)
-let ctx = null
+const signatureData = ref('')
+const signatureValidation = ref({ isValid: false, message: '' })
 
-onMounted(() => {
-    const canvas = signatureCanvas.value
-    ctx = canvas.getContext('2d')
-    
-    // Set canvas size
-    const rect = canvas.getBoundingClientRect()
-    canvas.width = rect.width
-    canvas.height = rect.height
-    
-    // Set drawing properties
-    ctx.strokeStyle = '#000000'
-    ctx.lineWidth = 2
-    ctx.lineCap = 'round'
-    ctx.lineJoin = 'round'
-})
+const isSignatureValid = computed(() => signatureValidation.value.isValid)
 
-const startDrawing = (event) => {
-    event.preventDefault()
-    isDrawing.value = true
-    
-    const rect = signatureCanvas.value.getBoundingClientRect()
-    const x = (event.clientX || event.touches[0].clientX) - rect.left
-    const y = (event.clientY || event.touches[0].clientY) - rect.top
-    
-    ctx.beginPath()
-    ctx.moveTo(x, y)
-}
-
-const draw = (event) => {
-    if (!isDrawing.value) return
-    
-    event.preventDefault()
-    const rect = signatureCanvas.value.getBoundingClientRect()
-    const x = (event.clientX || event.touches[0].clientX) - rect.left
-    const y = (event.clientY || event.touches[0].clientY) - rect.top
-    
-    ctx.lineTo(x, y)
-    ctx.stroke()
-    
-    hasSignature.value = true
-}
-
-const stopDrawing = (event) => {
-    event.preventDefault()
-    isDrawing.value = false
-}
-
-const clearSignature = () => {
-    const canvas = signatureCanvas.value
-    ctx.clearRect(0, 0, canvas.width, canvas.height)
-    hasSignature.value = false
+const handleSignatureValidation = ({ isValid, message }) => {
+    signatureValidation.value = { isValid, message }
 }
 
 const saveSignature = () => {
-    if (!hasSignature.value) return
-    
-    const canvas = signatureCanvas.value
-    const signatureData = canvas.toDataURL('image/png')
+    if (!isSignatureValid.value) return
     
     emit('sign', {
-        signatureData,
+        signatureData: signatureData.value,
         signatureType: props.signatureType,
         metadata: {
             timestamp: new Date().toISOString(),
-            canvasSize: {
-                width: canvas.width,
-                height: canvas.height
+            userAgent: navigator.userAgent,
+            screen: {
+                width: screen.width,
+                height: screen.height
             }
         }
     })
@@ -279,9 +215,5 @@ const formatDateTime = (date) => {
 
 .prose {
     max-width: none;
-}
-
-canvas {
-    touch-action: none;
 }
 </style>

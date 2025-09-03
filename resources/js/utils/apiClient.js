@@ -75,7 +75,31 @@ class ApiClient {
                     this.handleAuthError();
                 } else if (error.response?.status === 419) {
                     // CSRF token mismatch - refresh page
-                    window.location.reload();
+                    if (window.toast) {
+                        window.toast.warning('Session expired. Refreshing page...', { duration: 2000 });
+                    }
+                    setTimeout(() => window.location.reload(), 2000);
+                } else if (error.response?.status === 403) {
+                    if (window.toast) {
+                        window.toast.error('You don\'t have permission to perform this action.');
+                    }
+                } else if (error.response?.status === 404) {
+                    if (window.toast) {
+                        window.toast.error('The requested resource was not found.');
+                    }
+                } else if (error.response?.status === 422) {
+                    // Validation errors - handle specially
+                    const validationErrors = error.response?.data?.errors;
+                    if (validationErrors && window.toast) {
+                        window.toast.showValidationError(validationErrors);
+                    }
+                } else if (error.response?.status >= 500) {
+                    if (window.toast) {
+                        window.toast.showServerError('Operation', () => {
+                            // Retry the original request
+                            return this.client(originalRequest);
+                        });
+                    }
                 } else {
                     errorHandler.handleApiError(error, originalRequest.url);
                 }
@@ -94,7 +118,12 @@ class ApiClient {
     }
 
     handleAuthError() {
-        errorHandler.handleAuthError();
+        if (window.toast) {
+            window.toast.warning('Your session has expired. Redirecting to login...', { duration: 3000 });
+        }
+        setTimeout(() => {
+            window.location.href = '/login';
+        }, 3000);
     }
 
     setLoadingState(loading) {

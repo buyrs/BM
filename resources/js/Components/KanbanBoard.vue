@@ -1,6 +1,6 @@
 <template>
-    <div class="kanban-board">
-        <div class="grid grid-cols-1 lg:grid-cols-4 gap-6 min-h-screen">
+    <div class="kanban-board mobile-scroll">
+        <div class="kanban-container" :class="{ 'mobile-view': isMobile }">
             <!-- Assigned Column -->
             <KanbanColumn
                 title="Assigné"
@@ -77,9 +77,10 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import KanbanColumn from './KanbanColumn.vue'
 import BulkOperationsModal from './BulkOperationsModal.vue'
+import { useTouchInteractions } from '@/Composables/useTouchInteractions.js'
 
 const props = defineProps({
     items: {
@@ -101,6 +102,22 @@ const emit = defineEmits(['drop', 'itemClick', 'bulkAction'])
 
 const selectedItems = ref([])
 const showBulkModal = ref(false)
+const isMobile = ref(false)
+const kanbanContainer = ref(null)
+
+// Mobile responsiveness
+const checkMobile = () => {
+  isMobile.value = window.innerWidth < 1024
+}
+
+onMounted(() => {
+  checkMobile()
+  window.addEventListener('resize', checkMobile)
+})
+
+onUnmounted(() => {
+  window.removeEventListener('resize', checkMobile)
+})
 
 const handleDrop = async (event) => {
     const { item, fromStatus, toStatus } = event
@@ -152,6 +169,30 @@ defineExpose({
     @apply w-full;
 }
 
+.kanban-container {
+    @apply grid grid-cols-1 lg:grid-cols-4 gap-6 min-h-screen;
+}
+
+.kanban-container.mobile-view {
+    @apply grid-cols-1 gap-4;
+    /* Enable horizontal scrolling on mobile for columns */
+    display: flex;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scroll-snap-type: x mandatory;
+    padding-bottom: 1rem;
+}
+
+.kanban-container.mobile-view > * {
+    flex: 0 0 280px;
+    scroll-snap-align: start;
+    margin-right: 1rem;
+}
+
+.kanban-container.mobile-view > *:last-child {
+    margin-right: 0;
+}
+
 /* Smooth transitions for drag and drop */
 .kanban-item-move {
     transition: transform 0.3s ease;
@@ -166,5 +207,46 @@ defineExpose({
 .kanban-item-leave-to {
     opacity: 0;
     transform: translateY(-10px);
+}
+
+/* Mobile-specific optimizations */
+@media (max-width: 1023px) {
+    .kanban-board {
+        @apply px-4;
+    }
+    
+    .kanban-container {
+        @apply gap-4;
+    }
+}
+
+/* Touch-friendly scrollbar for mobile */
+@media (max-width: 640px) {
+    .kanban-container.mobile-view::-webkit-scrollbar {
+        height: 4px;
+    }
+    
+    .kanban-container.mobile-view::-webkit-scrollbar-track {
+        background: #f1f5f9;
+        border-radius: 2px;
+    }
+    
+    .kanban-container.mobile-view::-webkit-scrollbar-thumb {
+        background: #cbd5e1;
+        border-radius: 2px;
+    }
+    
+    .kanban-container.mobile-view::-webkit-scrollbar-thumb:hover {
+        background: #94a3b8;
+    }
+}
+
+/* Reduced motion for performance */
+@media (prefers-reduced-motion: reduce) {
+    .kanban-item-move,
+    .kanban-item-enter-active,
+    .kanban-item-leave-active {
+        transition: none;
+    }
 }
 </style>

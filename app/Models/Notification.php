@@ -15,12 +15,14 @@ class Notification extends Model
     const TYPE_CHECKLIST_VALIDATION = 'checklist_validation';
     const TYPE_INCIDENT_ALERT = 'incident_alert';
     const TYPE_MISSION_ASSIGNED = 'mission_assigned';
+    const TYPE_MISSION_COMPLETED = 'mission_completed';
     const TYPE_CALENDAR_UPDATE = 'calendar_update';
 
     protected $fillable = [
         'type',
         'recipient_id',
         'bail_mobilite_id',
+        'mission_id',
         'scheduled_at',
         'sent_at',
         'status',
@@ -47,6 +49,14 @@ class Notification extends Model
     public function bailMobilite(): BelongsTo
     {
         return $this->belongsTo(BailMobilite::class);
+    }
+
+    /**
+     * Get the mission associated with this notification.
+     */
+    public function mission(): BelongsTo
+    {
+        return $this->belongsTo(Mission::class);
     }
 
     /**
@@ -196,6 +206,9 @@ class Notification extends Model
                 return "Incident détecté pour {$this->bailMobilite->tenant_name}";
             case self::TYPE_MISSION_ASSIGNED:
                 return "Nouvelle mission assignée";
+            case self::TYPE_MISSION_COMPLETED:
+                $checkerName = $this->data['checker_name'] ?? 'Checker';
+                return "Mission terminée par {$checkerName} - {$this->bailMobilite->tenant_name}";
             case self::TYPE_CALENDAR_UPDATE:
                 $updateType = $this->data['update_type'] ?? 'update';
                 $tenantName = $this->data['tenant_name'] ?? 'Unknown';

@@ -9,6 +9,8 @@
                     size === 'sm' ? 'h-6 w-6' : size === 'lg' ? 'h-16 w-16' : 'h-12 w-12',
                     `border-${color}`
                 ]"
+                role="status"
+                :aria-label="message || 'Loading'"
             ></div>
             
             <!-- Loading Message -->

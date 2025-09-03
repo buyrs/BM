@@ -67,34 +67,55 @@
                                 <InputError class="mt-2" :message="form.errors.type" />
                             </div>
 
-                            <!-- Contract Content -->
+                            <!-- Contract Content with Rich Text Editor -->
                             <div class="mb-6">
                                 <InputLabel for="content" value="Contract Content" />
-                                <div class="mt-1">
-                                    <textarea
-                                        id="content"
-                                        v-model="form.content"
-                                        rows="15"
-                                        class="block w-full bg-white border-gray-200 rounded-md shadow-sm p-md focus:ring-2 focus:ring-primary focus:border-transparent"
-                                        placeholder="Enter the legal content of the contract..."
-                                        required
-                                        :disabled="template.admin_signed_at"
-                                    ></textarea>
-                                </div>
-                                <InputError class="mt-2" :message="form.errors.content" />
+                                <RichTextEditor
+                                    v-model="form.content"
+                                    label=""
+                                    placeholder="Enter the legal content of the contract..."
+                                    help="Use the toolbar to format text and insert placeholders for dynamic content."
+                                    :error="form.errors.content"
+                                    :disabled="template.admin_signed_at"
+                                    class="mt-1"
+                                />
                                 
                                 <!-- Placeholder Help -->
-                                <div class="mt-2 text-sm text-text-secondary">
-                                    <p class="font-medium">Available placeholders:</p>
-                                    <div class="grid grid-cols-2 gap-2 mt-1">
-                                        <span class="font-mono text-xs bg-gray-50 px-2 py-1 rounded">{{tenant_name}}</span>
-                                        <span class="font-mono text-xs bg-gray-50 px-2 py-1 rounded">{{tenant_email}}</span>
-                                        <span class="font-mono text-xs bg-gray-50 px-2 py-1 rounded">{{tenant_phone}}</span>
-                                        <span class="font-mono text-xs bg-gray-50 px-2 py-1 rounded">{{address}}</span>
-                                        <span class="font-mono text-xs bg-gray-50 px-2 py-1 rounded">{{start_date}}</span>
-                                        <span class="font-mono text-xs bg-gray-50 px-2 py-1 rounded">{{end_date}}</span>
-                                        <span class="font-mono text-xs bg-gray-50 px-2 py-1 rounded">{{admin_name}}</span>
-                                        <span class="font-mono text-xs bg-gray-50 px-2 py-1 rounded">{{admin_signature_date}}</span>
+                                <div class="mt-3 p-4 bg-blue-50 rounded-md">
+                                    <h4 class="text-sm font-medium text-blue-900 mb-2">Available Placeholders:</h4>
+                                    <div class="grid grid-cols-2 md:grid-cols-4 gap-2">
+                                        <div class="text-xs">
+                                            <code class="bg-white px-2 py-1 rounded border">{{tenant_name}}</code>
+                                            <div class="text-blue-700 mt-1">Tenant Name</div>
+                                        </div>
+                                        <div class="text-xs">
+                                            <code class="bg-white px-2 py-1 rounded border">{{tenant_email}}</code>
+                                            <div class="text-blue-700 mt-1">Tenant Email</div>
+                                        </div>
+                                        <div class="text-xs">
+                                            <code class="bg-white px-2 py-1 rounded border">{{tenant_phone}}</code>
+                                            <div class="text-blue-700 mt-1">Tenant Phone</div>
+                                        </div>
+                                        <div class="text-xs">
+                                            <code class="bg-white px-2 py-1 rounded border">{{address}}</code>
+                                            <div class="text-blue-700 mt-1">Property Address</div>
+                                        </div>
+                                        <div class="text-xs">
+                                            <code class="bg-white px-2 py-1 rounded border">{{start_date}}</code>
+                                            <div class="text-blue-700 mt-1">Start Date</div>
+                                        </div>
+                                        <div class="text-xs">
+                                            <code class="bg-white px-2 py-1 rounded border">{{end_date}}</code>
+                                            <div class="text-blue-700 mt-1">End Date</div>
+                                        </div>
+                                        <div class="text-xs">
+                                            <code class="bg-white px-2 py-1 rounded border">{{admin_name}}</code>
+                                            <div class="text-blue-700 mt-1">Admin Name</div>
+                                        </div>
+                                        <div class="text-xs">
+                                            <code class="bg-white px-2 py-1 rounded border">{{admin_signature_date}}</code>
+                                            <div class="text-blue-700 mt-1">Admin Signature Date</div>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
@@ -136,6 +157,7 @@ import InputLabel from '@/Components/InputLabel.vue'
 import PrimaryButton from '@/Components/PrimaryButton.vue'
 import SecondaryButton from '@/Components/SecondaryButton.vue'
 import TextInput from '@/Components/TextInput.vue'
+import RichTextEditor from '@/Components/RichTextEditor.vue'
 
 const props = defineProps({
     template: {

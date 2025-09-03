@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\ContractTemplate;
 use App\Http\Requests\ContractTemplateRequest;
 use App\Http\Requests\SignatureRequest;
+use App\Services\ContractGenerationService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Validation\Rule;
@@ -14,10 +15,13 @@ use Carbon\Carbon;
 
 class ContractTemplateController extends Controller
 {
-    public function __construct()
+    protected $contractGenerationService;
+
+    public function __construct(ContractGenerationService $contractGenerationService)
     {
         // Only admins can manage contract templates
         $this->middleware('role:admin');
+        $this->contractGenerationService = $contractGenerationService;
     }
 
     /**
@@ -26,6 +30,7 @@ class ContractTemplateController extends Controller
     public function index()
     {
         $templates = ContractTemplate::with('creator')
+            ->withCount('signatures as usage_count')
             ->latest()
             ->paginate(10);
 
@@ -180,7 +185,7 @@ class ContractTemplateController extends Controller
                 'Non signé',
         ];
 
-        // Replace placeholders in content
+        // Replace placeholders in content (handle both HTML and plain text)
         $previewContent = $this->replacePlaceholders($contractTemplate->content, $sampleData);
 
         return response()->json([
@@ -188,6 +193,7 @@ class ContractTemplateController extends Controller
             'sample_data' => $sampleData,
             'has_admin_signature' => $contractTemplate->isSignedByAdmin(),
             'admin_signature' => $contractTemplate->admin_signature,
+            'is_html' => $this->isHtmlContent($contractTemplate->content),
         ]);
     }
 
@@ -226,6 +232,14 @@ class ContractTemplateController extends Controller
     }
 
     /**
+     * Check if content contains HTML tags.
+     */
+    private function isHtmlContent(string $content): bool
+    {
+        return $content !== strip_tags($content);
+    }
+
+    /**
      * Get contract templates for API usage (for Ops users).
      */
     public function getActiveTemplates(Request $request)
@@ -242,6 +256,30 @@ class ContractTemplateController extends Controller
 
         return response()->json([
             'templates' => $templates
+        ]);
+    }
+
+    /**
+     * Get available placeholders for contract templates.
+     */
+    public function getPlaceholders()
+    {
+        return response()->json([
+            'placeholders' => $this->contractGenerationService->getAvailablePlaceholders()
+        ]);
+    }
+
+    /**
+     * Validate a contract template.
+     */
+    public function validateTemplate(ContractTemplate $contractTemplate)
+    {
+        $errors = $this->contractGenerationService->validateTemplate($contractTemplate);
+
+        return response()->json([
+            'valid' => empty($errors),
+            'errors' => $errors,
+            'template' => $contractTemplate
         ]);
     }
 }
