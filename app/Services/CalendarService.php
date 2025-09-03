@@ -252,7 +252,7 @@ class CalendarService
      */
     public function getAvailableTimeSlots(Carbon $date, ?int $checkerId = null): array
     {
-        // Define standard time slots (9 AM to 6 PM, every hour)
+        // Define standard time slots (9 AM to 6 PM, every hour and half hour)
         $standardSlots = [];
         for ($hour = 9; $hour <= 18; $hour++) {
             $standardSlots[] = sprintf('%02d:00', $hour);
@@ -263,11 +263,13 @@ class CalendarService
 
         // If no checker specified, return all standard slots
         if (!$checkerId) {
-            return array_map(function ($slot) {
+            return array_map(function ($slot) use ($date) {
                 return [
                     'time' => $slot,
                     'available' => true,
                     'conflicts' => [],
+                    'is_weekend' => $date->isWeekend(),
+                    'is_business_hours' => $this->isBusinessHours($slot),
                 ];
             }, $standardSlots);
         }
@@ -276,20 +278,60 @@ class CalendarService
         $existingMissions = Mission::where('agent_id', $checkerId)
             ->whereDate('scheduled_at', $date)
             ->whereNotNull('scheduled_time')
-            ->pluck('scheduled_time')
-            ->map(function ($time) {
-                return Carbon::parse($time)->format('H:i');
-            })
-            ->toArray();
+            ->with(['bailMobilite:id,tenant_name,address'])
+            ->get()
+            ->keyBy(function ($mission) {
+                return Carbon::parse($mission->scheduled_time)->format('H:i');
+            });
 
         // Mark slots as available or not
-        return array_map(function ($slot) use ($existingMissions) {
+        return array_map(function ($slot) use ($existingMissions, $date) {
+            $conflicts = [];
+            $available = true;
+
+            // Check for existing mission at this time
+            if (isset($existingMissions[$slot])) {
+                $mission = $existingMissions[$slot];
+                $conflicts[] = sprintf(
+                    'Mission for %s at %s',
+                    $mission->bailMobilite->tenant_name ?? 'Unknown tenant',
+                    $mission->bailMobilite->address ?? 'Unknown address'
+                );
+                $available = false;
+            }
+
+            // Check business hours
+            if (!$this->isBusinessHours($slot)) {
+                $conflicts[] = 'Outside business hours (9 AM - 7 PM)';
+            }
+
+            // Check weekend
+            if ($date->isWeekend()) {
+                $conflicts[] = 'Weekend scheduling';
+            }
+
             return [
                 'time' => $slot,
-                'available' => !in_array($slot, $existingMissions),
-                'conflicts' => in_array($slot, $existingMissions) ? ['Time slot already booked'] : [],
+                'available' => $available && $this->isBusinessHours($slot) && !$date->isWeekend(),
+                'conflicts' => $conflicts,
+                'is_weekend' => $date->isWeekend(),
+                'is_business_hours' => $this->isBusinessHours($slot),
+                'existing_mission' => isset($existingMissions[$slot]) ? [
+                    'id' => $existingMissions[$slot]->id,
+                    'tenant_name' => $existingMissions[$slot]->bailMobilite->tenant_name ?? null,
+                    'type' => $existingMissions[$slot]->mission_type,
+                ] : null,
             ];
         }, $standardSlots);
+    }
+
+    /**
+     * Check if a time slot is within business hours.
+     */
+    private function isBusinessHours(string $time): bool
+    {
+        $hour = (int) substr($time, 0, 2);
+        return $hour >= 9 && $hour < 19; // 9 AM to 7 PM
     }
 
     /**

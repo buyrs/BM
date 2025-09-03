@@ -68,5 +68,6 @@ class Kernel extends HttpKernel
         'role' => \App\Http\Middleware\CheckRole::class,
         'ops.access' => \App\Http\Middleware\CheckOpsAccess::class,
         'permission.log' => \App\Http\Middleware\CheckPermissionWithLogging::class,
+        'audit' => \App\Http\Middleware\AuditMiddleware::class,
     ];
 }

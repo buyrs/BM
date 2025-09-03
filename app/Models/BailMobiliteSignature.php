@@ -2,13 +2,14 @@
 
 namespace App\Models;
 
+use App\Traits\HasEncryptedAttributes;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class BailMobiliteSignature extends Model
 {
-    use HasFactory;
+    use HasFactory, HasEncryptedAttributes;
 
     protected $fillable = [
         'bail_mobilite_id',
@@ -24,6 +25,19 @@ class BailMobiliteSignature extends Model
         'tenant_signed_at' => 'datetime',
         'signature_metadata' => 'array'
     ];
+
+    /**
+     * The attributes that should be encrypted
+     */
+    protected $encrypted = [
+        'tenant_signature',
+        'signature_metadata'
+    ];
+
+    /**
+     * The attributes that should be searchable while encrypted
+     */
+    protected $searchableEncrypted = [];
 
     /**
      * Get the bail mobilité that owns this signature.

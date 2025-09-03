@@ -6,10 +6,12 @@
             compact ? 'p-1 rounded text-xs' : 'p-2 rounded-md text-sm',
             selectionMode ? 'hover:ring-2 hover:ring-info-border' : '',
             selected ? 'ring-2 ring-primary bg-secondary' : '',
-            mission.type === 'entry' ? 'colorblind-pattern-entry' : 'colorblind-pattern-exit'
+            mission.type === 'entry' ? 'colorblind-pattern-entry' : 'colorblind-pattern-exit',
+            draggable ? 'draggable-mission' : ''
         ]"
         role="button"
         :tabindex="0"
+        :draggable="draggable"
         :aria-label="getMissionAriaLabel()"
         :aria-pressed="selected"
         :aria-describedby="compact ? null : `mission-tooltip-${mission.id}`"
@@ -17,6 +19,8 @@
         @keydown="handleKeydown"
         @mouseenter="handleMouseEnter"
         @mouseleave="handleMouseLeave"
+        @dragstart="handleDragStart"
+        @dragend="handleDragEnd"
     >
         <!-- Selection Checkbox -->
         <div v-if="selectionMode" class="absolute -top-1 -right-1 z-10">
@@ -149,11 +153,15 @@ const props = defineProps({
     selected: {
         type: Boolean,
         default: false
+    },
+    draggable: {
+        type: Boolean,
+        default: false
     }
 })
 
 // Emits
-const emit = defineEmits(['click'])
+const emit = defineEmits(['click', 'dragstart', 'dragend'])
 
 // Reactive state
 const showTooltip = ref(false)
@@ -297,6 +305,21 @@ const handleKeydown = (event) => {
     }
 }
 
+const handleDragStart = (event) => {
+    if (!props.draggable) {
+        event.preventDefault()
+        return
+    }
+    
+    emit('dragstart', event, props.mission)
+}
+
+const handleDragEnd = (event) => {
+    if (!props.draggable) return
+    
+    emit('dragend', event, props.mission)
+}
+
 const getMissionAriaLabel = () => {
     let label = `${missionTypeLabel.value} mission`
     
@@ -337,6 +360,15 @@ const getMissionAriaLabel = () => {
 
 .mission-event:hover {
     transform: translateY(-1px);
+}
+
+.draggable-mission {
+    cursor: move;
+}
+
+.draggable-mission:hover {
+    @apply shadow-lg;
+    transform: translateY(-2px) scale(1.02);
 }
 
 @media (max-width: 768px) {

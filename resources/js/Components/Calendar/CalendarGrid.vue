@@ -114,8 +114,15 @@
                         </span>
                     </div>
 
-                    <!-- Mission Events -->
-                    <div class="space-y-1">
+                    <!-- Mission Events with Drag and Drop -->
+                    <div 
+                        class="space-y-1 min-h-[60px]"
+                        @drop="handleDrop($event, day.date)"
+                        @dragover="handleDragOver"
+                        @dragenter="handleDragEnter"
+                        @dragleave="handleDragLeave"
+                        :class="{ 'drag-over': isDragOver && dragOverDate === day.date.toDateString() }"
+                    >
                         <!-- Priority missions (first 2) -->
                         <MissionEvent
                             v-for="(mission, missionIndex) in day.missions.slice(0, 2)"
@@ -124,7 +131,10 @@
                             :compact="true"
                             :selection-mode="selectionMode"
                             :selected="selectedMissions.some(m => m.id === mission.id)"
+                            :draggable="canDragMission(mission)"
                             @click="handleMissionClick(mission, $event)"
+                            @dragstart="handleDragStart($event, mission)"
+                            @dragend="handleDragEnd"
                         />
                         
                         <!-- Stacked missions indicator -->
@@ -143,7 +153,10 @@
                                     :compact="true"
                                     :selection-mode="selectionMode"
                                     :selected="selectedMissions.some(m => m.id === day.missions[2].id)"
+                                    :draggable="canDragMission(day.missions[2])"
                                     @click="handleMissionClick(day.missions[2], $event)"
+                                    @dragstart="handleDragStart($event, day.missions[2])"
+                                    @dragend="handleDragEnd"
                                 />
                             </div>
                             
@@ -166,6 +179,14 @@
                             >
                                 +{{ day.missions.length - 3 }}
                             </div>
+                        </div>
+                        
+                        <!-- Drop zone indicator -->
+                        <div
+                            v-if="isDragOver && dragOverDate === day.date.toDateString() && day.missions.length === 0"
+                            class="border-2 border-dashed border-blue-400 bg-blue-50 rounded p-2 text-center text-xs text-blue-600"
+                        >
+                            Drop mission here
                         </div>
                     </div>
                 </div>
@@ -206,12 +227,17 @@
                         {{ formatHour(hour) }}
                     </div>
                     
-                    <!-- Day Columns -->
+                    <!-- Day Columns with Drop Zones -->
                     <div
                         v-for="day in weekDays"
                         :key="`${day.date.toISOString()}-${hour}`"
                         class="bg-white min-h-16 p-1 border-r border-b hover:bg-gray-50 cursor-pointer"
                         @click="handleTimeSlotClick(day.date, hour)"
+                        @drop="handleTimeSlotDrop($event, day.date, hour)"
+                        @dragover="handleDragOver"
+                        @dragenter="handleDragEnter"
+                        @dragleave="handleDragLeave"
+                        :class="{ 'drag-over': isDragOver && dragOverTimeSlot === `${day.date.toDateString()}-${hour}` }"
                     >
                         <!-- Missions for this time slot -->
                         <MissionEvent
@@ -221,8 +247,19 @@
                             :compact="false"
                             :selection-mode="selectionMode"
                             :selected="selectedMissions.some(m => m.id === mission.id)"
+                            :draggable="canDragMission(mission)"
                             @click="handleMissionClick(mission, $event)"
+                            @dragstart="handleDragStart($event, mission)"
+                            @dragend="handleDragEnd"
                         />
+                        
+                        <!-- Drop zone indicator for empty time slots -->
+                        <div
+                            v-if="isDragOver && dragOverTimeSlot === `${day.date.toDateString()}-${hour}` && getMissionsForTimeSlot(day.missions, hour).length === 0"
+                            class="border-2 border-dashed border-blue-400 bg-blue-50 rounded p-1 text-center text-xs text-blue-600"
+                        >
+                            Drop here
+                        </div>
                     </div>
                 </div>
             </div>
@@ -253,10 +290,15 @@
                             {{ formatHour(hour) }}
                         </div>
                         
-                        <!-- Mission Slot -->
+                        <!-- Mission Slot with Drop Zone -->
                         <div
-                            class="flex-1 p-4 cursor-pointer"
+                            class="flex-1 p-4 cursor-pointer min-h-[60px]"
                             @click="handleTimeSlotClick(currentDate, hour)"
+                            @drop="handleTimeSlotDrop($event, currentDate, hour)"
+                            @dragover="handleDragOver"
+                            @dragenter="handleDragEnter"
+                            @dragleave="handleDragLeave"
+                            :class="{ 'drag-over': isDragOver && dragOverTimeSlot === `${currentDate.toDateString()}-${hour}` }"
                         >
                             <div class="space-y-2">
                                 <MissionEvent
@@ -266,8 +308,19 @@
                                     :compact="false"
                                     :selection-mode="selectionMode"
                                     :selected="selectedMissions.some(m => m.id === mission.id)"
+                                    :draggable="canDragMission(mission)"
                                     @click="handleMissionClick(mission, $event)"
+                                    @dragstart="handleDragStart($event, mission)"
+                                    @dragend="handleDragEnd"
                                 />
+                                
+                                <!-- Drop zone indicator for empty time slots -->
+                                <div
+                                    v-if="isDragOver && dragOverTimeSlot === `${currentDate.toDateString()}-${hour}` && getMissionsForTimeSlot(dayMissions, hour).length === 0"
+                                    class="border-2 border-dashed border-blue-400 bg-blue-50 rounded p-2 text-center text-xs text-blue-600"
+                                >
+                                    Drop mission at {{ formatHour(hour) }}
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -337,13 +390,20 @@ const props = defineProps({
 })
 
 // Emits
-const emit = defineEmits(['mission-click', 'date-click', 'mission-select', 'bulk-select'])
+const emit = defineEmits(['mission-click', 'date-click', 'mission-select', 'bulk-select', 'mission-reschedule', 'conflict-detected'])
 
 // Template refs
 const calendarGrid = ref(null)
 
 // Selected date for keyboard navigation
 const selectedDateIndex = ref(0)
+
+// Drag and drop state
+const isDragOver = ref(false)
+const dragOverDate = ref(null)
+const dragOverTimeSlot = ref(null)
+const draggedMission = ref(null)
+const dragStartPosition = ref(null)
 
 // Constants
 const daysOfWeek = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
@@ -557,6 +617,182 @@ const highlightSelectedDate = () => {
     })
 }
 
+// Drag and Drop Methods
+const canDragMission = (mission) => {
+    // Only allow dragging if mission is not completed or cancelled
+    return mission.status !== 'completed' && mission.status !== 'cancelled'
+}
+
+const handleDragStart = (event, mission) => {
+    if (!canDragMission(mission)) {
+        event.preventDefault()
+        return
+    }
+    
+    draggedMission.value = mission
+    dragStartPosition.value = {
+        date: mission.scheduled_at,
+        time: mission.scheduled_time
+    }
+    
+    // Set drag data
+    event.dataTransfer.setData('text/plain', JSON.stringify({
+        missionId: mission.id,
+        type: 'mission'
+    }))
+    
+    event.dataTransfer.effectAllowed = 'move'
+    
+    // Add visual feedback
+    event.target.style.opacity = '0.5'
+}
+
+const handleDragEnd = (event) => {
+    // Reset visual feedback
+    event.target.style.opacity = '1'
+    
+    // Reset drag state
+    isDragOver.value = false
+    dragOverDate.value = null
+    dragOverTimeSlot.value = null
+    draggedMission.value = null
+    dragStartPosition.value = null
+}
+
+const handleDragOver = (event) => {
+    event.preventDefault()
+    event.dataTransfer.dropEffect = 'move'
+}
+
+const handleDragEnter = (event) => {
+    event.preventDefault()
+    isDragOver.value = true
+}
+
+const handleDragLeave = (event) => {
+    // Only hide drag indicator if we're actually leaving the drop zone
+    if (!event.currentTarget.contains(event.relatedTarget)) {
+        isDragOver.value = false
+        dragOverDate.value = null
+        dragOverTimeSlot.value = null
+    }
+}
+
+const handleDrop = (event, date) => {
+    event.preventDefault()
+    
+    try {
+        const dragData = JSON.parse(event.dataTransfer.getData('text/plain'))
+        
+        if (dragData.type === 'mission' && draggedMission.value) {
+            const mission = draggedMission.value
+            const newDate = date.toISOString().split('T')[0]
+            
+            // Check if the date actually changed
+            if (mission.scheduled_at === newDate) {
+                return
+            }
+            
+            // Emit reschedule event
+            emit('mission-reschedule', {
+                mission,
+                newDate,
+                oldDate: mission.scheduled_at,
+                newTime: mission.scheduled_time // Keep same time
+            })
+        }
+    } catch (error) {
+        console.error('Error handling drop:', error)
+    } finally {
+        // Reset drag state
+        isDragOver.value = false
+        dragOverDate.value = null
+        dragOverTimeSlot.value = null
+    }
+}
+
+const handleTimeSlotDrop = (event, date, hour) => {
+    event.preventDefault()
+    event.stopPropagation()
+    
+    try {
+        const dragData = JSON.parse(event.dataTransfer.getData('text/plain'))
+        
+        if (dragData.type === 'mission' && draggedMission.value) {
+            const mission = draggedMission.value
+            const newDate = date.toISOString().split('T')[0]
+            const newTime = `${hour.toString().padStart(2, '0')}:00`
+            
+            // Check if anything actually changed
+            if (mission.scheduled_at === newDate && mission.scheduled_time === newTime) {
+                return
+            }
+            
+            // Check for conflicts before rescheduling
+            checkTimeSlotConflicts(date, hour, mission).then(conflicts => {
+                if (conflicts.length > 0) {
+                    emit('conflict-detected', {
+                        mission,
+                        newDate,
+                        newTime,
+                        conflicts
+                    })
+                } else {
+                    // Emit reschedule event
+                    emit('mission-reschedule', {
+                        mission,
+                        newDate,
+                        newTime,
+                        oldDate: mission.scheduled_at,
+                        oldTime: mission.scheduled_time
+                    })
+                }
+            })
+        }
+    } catch (error) {
+        console.error('Error handling time slot drop:', error)
+    } finally {
+        // Reset drag state
+        isDragOver.value = false
+        dragOverDate.value = null
+        dragOverTimeSlot.value = null
+    }
+}
+
+const checkTimeSlotConflicts = async (date, hour, mission) => {
+    const conflicts = []
+    const newTime = `${hour.toString().padStart(2, '0')}:00`
+    
+    // Check for other missions at the same time
+    const conflictingMissions = props.missions.filter(m => {
+        if (m.id === mission.id) return false
+        if (!m.scheduled_at || !m.scheduled_time) return false
+        
+        const missionDate = new Date(m.scheduled_at).toDateString()
+        const targetDate = date.toDateString()
+        const missionTime = m.scheduled_time.substring(0, 5)
+        const targetTime = newTime.substring(0, 5)
+        
+        return missionDate === targetDate && missionTime === targetTime && m.agent?.id === mission.agent?.id
+    })
+    
+    if (conflictingMissions.length > 0) {
+        conflicts.push(`Checker already has ${conflictingMissions.length} mission(s) at this time`)
+    }
+    
+    // Check business hours
+    if (hour < 9 || hour >= 19) {
+        conflicts.push('Outside business hours (9 AM - 7 PM)')
+    }
+    
+    // Check if it's a weekend
+    if (date.getDay() === 0 || date.getDay() === 6) {
+        conflicts.push('Weekend scheduling')
+    }
+    
+    return conflicts
+}
+
 // Lifecycle hooks
 onMounted(() => {
     // Set initial selected date to today or current date
@@ -593,6 +829,48 @@ onMounted(() => {
     @apply overflow-x-auto;
 }
 
+/* Drag and Drop Styles */
+.drag-over {
+    @apply bg-blue-50 border-2 border-dashed border-blue-400;
+}
+
+.mission-event[draggable="true"] {
+    cursor: move;
+}
+
+.mission-event[draggable="true"]:hover {
+    @apply shadow-md transform scale-105;
+    transition: all 0.2s ease;
+}
+
+.mission-event.dragging {
+    @apply opacity-50;
+}
+
+/* Drop zone indicators */
+.drop-zone-indicator {
+    @apply border-2 border-dashed border-blue-400 bg-blue-50 rounded p-2 text-center text-xs text-blue-600;
+    animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+    0%, 100% {
+        opacity: 1;
+    }
+    50% {
+        opacity: 0.7;
+    }
+}
+
+/* Conflict indicators */
+.conflict-warning {
+    @apply bg-yellow-50 border-yellow-200 text-yellow-800;
+}
+
+.conflict-error {
+    @apply bg-red-50 border-red-200 text-red-800;
+}
+
 @media (max-width: 768px) {
     .month-view .min-h-32 {
         @apply min-h-24;
@@ -608,6 +886,27 @@ onMounted(() => {
     
     .day-view .w-20 {
         @apply w-16;
+    }
+    
+    /* Disable drag on mobile for better touch experience */
+    .mission-event[draggable="true"] {
+        cursor: pointer;
+    }
+    
+    .mission-event[draggable="true"]:hover {
+        transform: none;
+        @apply shadow-sm;
+    }
+}
+
+/* Touch-friendly drag indicators */
+@media (hover: none) and (pointer: coarse) {
+    .mission-event[draggable="true"] {
+        cursor: pointer;
+    }
+    
+    .drag-over {
+        @apply bg-blue-100;
     }
 }
 </style>

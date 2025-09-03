@@ -43,68 +43,115 @@
                     </div>
                     
                     <div>
-                        <label class="block text-sm font-medium text-gray-700">Created</label>
+                        <label class="block text-sm font-medium text-gray-700">Créée le</label>
                         <p class="mt-1 text-sm text-gray-900">{{ formatDate(mission.created_at) }}</p>
                     </div>
                     
                     <div>
-                        <label class="block text-sm font-medium text-gray-700">Tenant Name</label>
-                        <p class="mt-1 text-sm text-gray-900">{{ mission.tenant_name || 'Not specified' }}</p>
+                        <label class="block text-sm font-medium text-gray-700">Nom du locataire</label>
+                        <p class="mt-1 text-sm text-gray-900">{{ mission.tenant_name || 'Non spécifié' }}</p>
                     </div>
                     
                     <div>
-                        <label class="block text-sm font-medium text-gray-700">Address</label>
-                        <p class="mt-1 text-sm text-gray-900">{{ mission.address || 'Not specified' }}</p>
+                        <label class="block text-sm font-medium text-gray-700">Adresse</label>
+                        <p class="mt-1 text-sm text-gray-900">{{ mission.address || 'Non spécifiée' }}</p>
                     </div>
                     
                     <div>
-                        <label class="block text-sm font-medium text-gray-700">Scheduled Date</label>
+                        <label class="block text-sm font-medium text-gray-700">Date programmée</label>
                         <p class="mt-1 text-sm text-gray-900">{{ formatDate(mission.scheduled_at) }}</p>
                     </div>
                     
                     <div>
-                        <label class="block text-sm font-medium text-gray-700">Scheduled Time</label>
-                        <p class="mt-1 text-sm text-gray-900">{{ formatTime(mission.scheduled_time) || 'Not specified' }}</p>
+                        <label class="block text-sm font-medium text-gray-700">Heure programmée</label>
+                        <p class="mt-1 text-sm text-gray-900">{{ formatTime(mission.scheduled_time) || 'Non spécifiée' }}</p>
                     </div>
                     
                     <div>
-                        <label class="block text-sm font-medium text-gray-700">Assigned Checker</label>
+                        <label class="block text-sm font-medium text-gray-700">Checker assigné</label>
                         <div class="mt-1 flex items-center space-x-2">
-                            <p class="text-sm text-gray-900">{{ mission.agent?.name || 'Unassigned' }}</p>
+                            <p class="text-sm text-gray-900">{{ mission.agent?.name || 'Non assigné' }}</p>
                             <span v-if="!mission.agent" class="px-2 py-1 bg-yellow-100 text-yellow-800 text-xs rounded-full">
-                                Needs Assignment
+                                Assignation requise
                             </span>
                         </div>
                     </div>
                     
-                    <div v-if="mission.notes">
+                    <div v-if="mission.priority">
+                        <label class="block text-sm font-medium text-gray-700">Priorité</label>
+                        <div class="mt-1 flex items-center space-x-2">
+                            <span :class="getPriorityClass(mission.priority)" class="px-2 py-1 text-xs font-medium rounded-full">
+                                {{ getPriorityLabel(mission.priority) }}
+                            </span>
+                        </div>
+                    </div>
+                    
+                    <div v-if="mission.estimated_duration">
+                        <label class="block text-sm font-medium text-gray-700">Durée estimée</label>
+                        <p class="mt-1 text-sm text-gray-900">{{ mission.estimated_duration }} minutes</p>
+                    </div>
+                    
+                    <div v-if="mission.notes" class="md:col-span-2">
                         <label class="block text-sm font-medium text-gray-700">Notes</label>
-                        <p class="mt-1 text-sm text-gray-900">{{ mission.notes }}</p>
+                        <p class="mt-1 text-sm text-gray-900 bg-gray-50 p-3 rounded-md">{{ mission.notes }}</p>
                     </div>
                 </div>
 
                 <!-- Bail Mobilité Information -->
                 <div v-if="mission.bail_mobilite" class="border-t pt-4">
-                    <h4 class="text-md font-medium text-gray-900 mb-2">Bail Mobilité Details</h4>
+                    <h4 class="text-md font-medium text-gray-900 mb-2">Détails du Bail Mobilité</h4>
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>
-                            <label class="block text-sm font-medium text-gray-700">Start Date</label>
+                            <label class="block text-sm font-medium text-gray-700">Date de début</label>
                             <p class="mt-1 text-sm text-gray-900">{{ formatDate(mission.bail_mobilite.start_date) }}</p>
                         </div>
                         
                         <div>
-                            <label class="block text-sm font-medium text-gray-700">End Date</label>
+                            <label class="block text-sm font-medium text-gray-700">Date de fin</label>
                             <p class="mt-1 text-sm text-gray-900">{{ formatDate(mission.bail_mobilite.end_date) }}</p>
                         </div>
                         
                         <div>
-                            <label class="block text-sm font-medium text-gray-700">Duration</label>
-                            <p class="mt-1 text-sm text-gray-900">{{ mission.bail_mobilite.duration_days }} days</p>
+                            <label class="block text-sm font-medium text-gray-700">Durée</label>
+                            <p class="mt-1 text-sm text-gray-900">{{ mission.bail_mobilite.duration_days }} jours</p>
                         </div>
                         
                         <div>
-                            <label class="block text-sm font-medium text-gray-700">BM Status</label>
-                            <p class="mt-1 text-sm text-gray-900">{{ mission.bail_mobilite.status }}</p>
+                            <label class="block text-sm font-medium text-gray-700">Statut BM</label>
+                            <span :class="getBailMobiliteStatusClass(mission.bail_mobilite.status)" class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium">
+                                {{ getBailMobiliteStatusLabel(mission.bail_mobilite.status) }}
+                            </span>
+                        </div>
+                        
+                        <div v-if="mission.bail_mobilite.tenant_phone">
+                            <label class="block text-sm font-medium text-gray-700">Téléphone</label>
+                            <p class="mt-1 text-sm text-gray-900">{{ mission.bail_mobilite.tenant_phone }}</p>
+                        </div>
+                        
+                        <div v-if="mission.bail_mobilite.tenant_email">
+                            <label class="block text-sm font-medium text-gray-700">Email</label>
+                            <p class="mt-1 text-sm text-gray-900">{{ mission.bail_mobilite.tenant_email }}</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Checklist Information -->
+                <div v-if="mission.checklist" class="border-t pt-4">
+                    <h4 class="text-md font-medium text-gray-900 mb-2">Checklist</h4>
+                    <div class="bg-gray-50 p-4 rounded-md">
+                        <div class="flex items-center justify-between mb-2">
+                            <span class="text-sm font-medium text-gray-700">Statut:</span>
+                            <span :class="getChecklistStatusClass(mission.checklist.status)" class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium">
+                                {{ getChecklistStatusLabel(mission.checklist.status) }}
+                            </span>
+                        </div>
+                        <div v-if="mission.checklist.completed_at" class="flex items-center justify-between mb-2">
+                            <span class="text-sm font-medium text-gray-700">Complétée le:</span>
+                            <span class="text-sm text-gray-900">{{ formatDate(mission.checklist.completed_at) }}</span>
+                        </div>
+                        <div v-if="mission.checklist.items_count" class="flex items-center justify-between">
+                            <span class="text-sm font-medium text-gray-700">Éléments:</span>
+                            <span class="text-sm text-gray-900">{{ mission.checklist.items_count }} éléments</span>
                         </div>
                     </div>
                 </div>
@@ -282,14 +329,77 @@ const formatTime = (timeString) => {
 
 const formatStatus = (status) => {
     const statusMap = {
-        'unassigned': 'Unassigned',
-        'assigned': 'Assigned',
-        'in_progress': 'In Progress',
-        'completed': 'Completed',
-        'cancelled': 'Cancelled'
+        'unassigned': 'Non assignée',
+        'assigned': 'Assignée',
+        'in_progress': 'En cours',
+        'completed': 'Terminée',
+        'cancelled': 'Annulée',
+        'pending_validation': 'En attente de validation'
     }
     
     return statusMap[status] || status
+}
+
+const getPriorityClass = (priority) => {
+    const classes = {
+        1: 'bg-red-100 text-red-800',
+        2: 'bg-orange-100 text-orange-800',
+        3: 'bg-yellow-100 text-yellow-800',
+        4: 'bg-blue-100 text-blue-800',
+        5: 'bg-gray-100 text-gray-800'
+    }
+    return classes[priority] || 'bg-gray-100 text-gray-800'
+}
+
+const getPriorityLabel = (priority) => {
+    const labels = {
+        1: 'Urgent',
+        2: 'Élevée',
+        3: 'Normale',
+        4: 'Faible',
+        5: 'Très faible'
+    }
+    return labels[priority] || 'Normale'
+}
+
+const getBailMobiliteStatusClass = (status) => {
+    const classes = {
+        'assigned': 'bg-yellow-100 text-yellow-800',
+        'in_progress': 'bg-blue-100 text-blue-800',
+        'completed': 'bg-green-100 text-green-800',
+        'incident': 'bg-red-100 text-red-800'
+    }
+    return classes[status] || 'bg-gray-100 text-gray-800'
+}
+
+const getBailMobiliteStatusLabel = (status) => {
+    const labels = {
+        'assigned': 'Assigné',
+        'in_progress': 'En cours',
+        'completed': 'Terminé',
+        'incident': 'Incident'
+    }
+    return labels[status] || status
+}
+
+const getChecklistStatusClass = (status) => {
+    const classes = {
+        'pending': 'bg-yellow-100 text-yellow-800',
+        'completed': 'bg-blue-100 text-blue-800',
+        'validated': 'bg-green-100 text-green-800',
+        'rejected': 'bg-red-100 text-red-800'
+    }
+    return classes[status] || 'bg-gray-100 text-gray-800'
+}
+
+const getChecklistStatusLabel = (status) => {
+    const labels = {
+        'pending': 'En attente',
+        'completed': 'Complétée',
+        'validated': 'Validée',
+        'rejected': 'Rejetée'
+    }
+    return labels[status] || status
 }
 
 const getStatusClasses = (status) => {

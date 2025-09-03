@@ -130,6 +130,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('/api/kanban-data', [\App\Http\Controllers\OpsController::class, 'getKanbanData'])->name('api.kanban-data');
         Route::get('/api/bail-mobilites', [\App\Http\Controllers\OpsController::class, 'getBailMobilites'])->name('api.bail-mobilites');
         Route::get('/api/export', [\App\Http\Controllers\OpsController::class, 'exportData'])->name('api.export');
+        Route::get('/api/analytics-export', [\App\Http\Controllers\OpsController::class, 'exportAnalytics'])->name('api.analytics-export');
         Route::get('/api/ops-users', [\App\Http\Controllers\OpsController::class, 'getOpsUsers'])->name('api.ops-users');
         Route::get('/api/checkers', [\App\Http\Controllers\OpsController::class, 'getCheckers'])->name('api.checkers');
         
@@ -257,6 +258,31 @@ Route::prefix('admin')->name('admin.')->group(function () {
         Route::get('analytics/data', [\App\Http\Controllers\DashboardController::class, 'reports'])->name('analytics.data');
         Route::get('profile', [ProfileController::class, 'edit'])->name('profile.edit');
         Route::patch('profile', [ProfileController::class, 'update'])->name('profile.update');
+    });
+
+    // Export and Reporting routes
+    Route::middleware(['auth'])->group(function () {
+        Route::prefix('api/export')->name('api.export.')->group(function () {
+            Route::get('/bail-mobilites', [\App\Http\Controllers\ExportController::class, 'exportBailMobilites'])->name('bail-mobilites');
+            Route::get('/missions', [\App\Http\Controllers\ExportController::class, 'exportMissions'])->name('missions');
+            Route::get('/checklists', [\App\Http\Controllers\ExportController::class, 'exportChecklists'])->name('checklists');
+            Route::get('/incidents', [\App\Http\Controllers\ExportController::class, 'exportIncidents'])->name('incidents');
+            Route::get('/audit-trail', [\App\Http\Controllers\ExportController::class, 'exportAuditTrail'])->name('audit-trail');
+            Route::get('/analytics', [\App\Http\Controllers\ExportController::class, 'exportAnalytics'])->name('analytics');
+        });
+
+        Route::prefix('api/reports')->name('api.reports.')->group(function () {
+            Route::get('/mission/{mission}', [\App\Http\Controllers\ReportController::class, 'missionReport'])->name('mission');
+            Route::get('/checklist/{checklist}', [\App\Http\Controllers\ReportController::class, 'checklistReport'])->name('checklist');
+            Route::get('/bail-mobilite/{bailMobilite}', [\App\Http\Controllers\ReportController::class, 'bailMobiliteReport'])->name('bail-mobilite');
+            Route::get('/performance', [\App\Http\Controllers\ReportController::class, 'performanceReport'])->name('performance');
+            Route::get('/incidents', [\App\Http\Controllers\ReportController::class, 'incidentReport'])->name('incidents');
+            Route::get('/analytics', [\App\Http\Controllers\ReportController::class, 'analyticsReport'])->name('analytics');
+            Route::get('/contracts', [\App\Http\Controllers\ReportController::class, 'contractReport'])->name('contracts');
+            Route::get('/audit-trail', [\App\Http\Controllers\ReportController::class, 'auditTrailReport'])->name('audit-trail');
+        });
+
+        Route::get('/api/audit-trail', [\App\Http\Controllers\AuditController::class, 'index'])->name('api.audit-trail');
         Route::delete('profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
     });
 });

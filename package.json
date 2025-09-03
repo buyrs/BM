@@ -7,7 +7,14 @@
         "dev": "vite",
         "test": "vitest --run",
         "test:watch": "vitest",
-        "test:ui": "vitest --ui"
+        "test:ui": "vitest --ui",
+        "test:unit": "vitest --run tests/js/Components/**/*.test.js",
+        "test:integration": "vitest --run tests/js/Integration/**/*.test.js",
+        "test:e2e": "vitest --run tests/js/E2E/**/*.test.js",
+        "test:mobile": "vitest --run tests/js/Mobile/**/*.test.js",
+        "test:performance": "vitest --run tests/js/Performance/**/*.test.js",
+        "test:comprehensive": "node tests/js/test-runner.js",
+        "test:coverage": "vitest --run --coverage"
     },
     "devDependencies": {
         "@tailwindcss/forms": "^0.5.2",

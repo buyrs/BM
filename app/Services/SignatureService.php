@@ -6,6 +6,10 @@ use App\Models\BailMobilite;
 use App\Models\BailMobiliteSignature;
 use App\Models\ContractTemplate;
 use App\Models\User;
+use App\Services\SecurityService;
+use App\Services\DataEncryptionService;
+use App\Services\SecureFileStorageService;
+use App\Services\AuditService;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Log;
 use Carbon\Carbon;
@@ -171,20 +175,28 @@ class SignatureService
     }
 
     /**
-     * Encrypt signature data for secure storage
+     * Encrypt signature data for secure storage using enhanced encryption service
      */
     private function encryptSignatureData(string $signatureData): string
     {
-        return encrypt($signatureData);
+        $encryptionService = app(DataEncryptionService::class);
+        $result = $encryptionService->encryptSensitiveData($signatureData, [
+            'data_type' => 'signature',
+            'context' => 'tenant_signature'
+        ]);
+        
+        return $result['encrypted_data'];
     }
 
     /**
-     * Decrypt signature data for verification
+     * Decrypt signature data for verification using enhanced encryption service
      */
     private function decryptSignatureData(string $encryptedData): string
     {
         try {
-            return decrypt($encryptedData);
+            $encryptionService = app(DataEncryptionService::class);
+            $result = $encryptionService->decryptSensitiveData($encryptedData);
+            return $result['decrypted_data'];
         } catch (\Exception $e) {
             Log::error('Failed to decrypt signature data', [
                 'error' => $e->getMessage()
@@ -210,16 +222,15 @@ class SignatureService
     }
 
     /**
-     * Verify signature integrity
+     * Verify signature integrity using enhanced security service
      */
     public function verifySignatureIntegrity(BailMobiliteSignature $signature): bool
     {
         try {
-            $originalSignatureData = $this->decryptSignatureData($signature->tenant_signature);
-            $expectedHash = $this->generateIntegrityHash($signature, $originalSignatureData);
-            $storedHash = $signature->signature_metadata['integrity_hash'] ?? null;
-
-            return $expectedHash === $storedHash;
+            $securityService = app(SecurityService::class);
+            $verificationResult = $securityService->verifySignatureIntegrity($signature);
+            
+            return $verificationResult['is_valid'];
         } catch (\Exception $e) {
             Log::error('Signature integrity verification failed', [
                 'signature_id' => $signature->id,

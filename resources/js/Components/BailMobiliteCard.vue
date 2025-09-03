@@ -68,8 +68,12 @@
             <!-- View Details -->
             <button
                 @click="$emit('viewDetails', bailMobilite)"
-                class="flex-1 px-3 py-1.5 text-xs font-medium text-primary bg-secondary rounded hover:bg-accent hover:text-white focus:outline-none focus:ring-2 focus:ring-primary"
+                class="flex-1 px-3 py-1.5 text-xs font-medium text-primary bg-secondary rounded hover:bg-accent hover:text-white focus:outline-none focus:ring-2 focus:ring-primary transition-colors"
             >
+                <svg class="w-3 h-3 mr-1 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
+                </svg>
                 Détails
             </button>
 
@@ -77,8 +81,11 @@
             <button
                 v-if="bailMobilite.status === 'assigned' && !bailMobilite.entry_mission?.agent_id"
                 @click="$emit('assignEntry', bailMobilite)"
-                class="flex-1 px-3 py-1.5 text-xs font-medium text-success-text bg-success-bg rounded hover:bg-success-border hover:text-white focus:outline-none focus:ring-2 focus:ring-success-border"
+                class="flex-1 px-3 py-1.5 text-xs font-medium text-success-text bg-success-bg rounded hover:bg-success-border hover:text-white focus:outline-none focus:ring-2 focus:ring-success-border transition-colors"
             >
+                <svg class="w-3 h-3 mr-1 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/>
+                </svg>
                 Assigner Entrée
             </button>
 
@@ -86,8 +93,11 @@
             <button
                 v-if="bailMobilite.status === 'in_progress' && !bailMobilite.exit_mission?.agent_id"
                 @click="$emit('assignExit', bailMobilite)"
-                class="flex-1 px-3 py-1.5 text-xs font-medium text-warning-text bg-warning-bg rounded hover:bg-warning-border hover:text-white focus:outline-none focus:ring-2 focus:ring-warning-border"
+                class="flex-1 px-3 py-1.5 text-xs font-medium text-warning-text bg-warning-bg rounded hover:bg-warning-border hover:text-white focus:outline-none focus:ring-2 focus:ring-warning-border transition-colors"
             >
+                <svg class="w-3 h-3 mr-1 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/>
+                </svg>
                 Assigner Sortie
             </button>
 
@@ -95,18 +105,48 @@
             <button
                 v-if="bailMobilite.status === 'incident'"
                 @click="$emit('handleIncident', bailMobilite)"
-                class="flex-1 px-3 py-1.5 text-xs font-medium text-error-text bg-error-bg rounded hover:bg-error-border hover:text-white focus:outline-none focus:ring-2 focus:ring-error-border"
+                class="flex-1 px-3 py-1.5 text-xs font-medium text-error-text bg-error-bg rounded hover:bg-error-border hover:text-white focus:outline-none focus:ring-2 focus:ring-error-border transition-colors"
             >
+                <svg class="w-3 h-3 mr-1 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z"/>
+                </svg>
                 Gérer Incident
             </button>
+
+            <!-- Quick Status Actions -->
+            <div v-if="showQuickActions" class="w-full flex gap-1 mt-2">
+                <button
+                    v-if="canMarkInProgress"
+                    @click="$emit('updateStatus', bailMobilite, 'in_progress')"
+                    class="flex-1 px-2 py-1 text-xs font-medium text-blue-700 bg-blue-100 rounded hover:bg-blue-200 transition-colors"
+                >
+                    Démarrer
+                </button>
+                
+                <button
+                    v-if="canMarkCompleted"
+                    @click="$emit('updateStatus', bailMobilite, 'completed')"
+                    class="flex-1 px-2 py-1 text-xs font-medium text-green-700 bg-green-100 rounded hover:bg-green-200 transition-colors"
+                >
+                    Terminer
+                </button>
+                
+                <button
+                    v-if="canReportIncident"
+                    @click="$emit('reportIncident', bailMobilite)"
+                    class="flex-1 px-2 py-1 text-xs font-medium text-red-700 bg-red-100 rounded hover:bg-red-200 transition-colors"
+                >
+                    Incident
+                </button>
+            </div>
         </div>
     </div>
 </template>
 
 <script setup>
-defineEmits(['viewDetails', 'assignEntry', 'assignExit', 'handleIncident'])
+import { computed } from 'vue'
 
-defineProps({
+const props = defineProps({
     bailMobilite: {
         type: Object,
         required: true
@@ -114,7 +154,34 @@ defineProps({
     checkers: {
         type: Array,
         default: () => []
+    },
+    showQuickActions: {
+        type: Boolean,
+        default: false
     }
+})
+
+const emit = defineEmits([
+    'viewDetails', 
+    'assignEntry', 
+    'assignExit', 
+    'handleIncident',
+    'updateStatus',
+    'reportIncident'
+])
+
+const canMarkInProgress = computed(() => {
+    return props.bailMobilite.status === 'assigned' && 
+           props.bailMobilite.entry_mission?.status === 'completed'
+})
+
+const canMarkCompleted = computed(() => {
+    return props.bailMobilite.status === 'in_progress' && 
+           props.bailMobilite.exit_mission?.status === 'completed'
+})
+
+const canReportIncident = computed(() => {
+    return ['assigned', 'in_progress'].includes(props.bailMobilite.status)
 })
 
 const formatDate = (date) => {

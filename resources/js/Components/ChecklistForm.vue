@@ -120,43 +120,60 @@
         </div>
 
         <!-- Rooms -->
-        <div class="space-y-4">
-            <h5 class="font-medium text-gray-900">Rooms</h5>
+        <div class="space-y-6">
+            <h5 class="font-medium text-gray-900">Pièces</h5>
             
             <div
                 v-for="(room, roomKey) in form.rooms"
                 :key="roomKey"
-                class="border rounded-lg p-4 space-y-4"
+                class="border border-gray-200 rounded-lg p-6 space-y-4 bg-gray-50"
             >
-                <h6 class="font-medium capitalize">{{ roomKey.replace('_', ' ') }}</h6>
+                <div class="flex items-center justify-between">
+                    <h6 class="font-medium text-lg capitalize">{{ getRoomLabel(roomKey) }}</h6>
+                    <span class="text-sm text-gray-500">{{ getCompletionStatus(roomKey) }}</span>
+                </div>
                 
-                <div class="grid grid-cols-2 md:grid-cols-3 gap-4">
-                    <div v-for="(value, itemKey) in room" :key="itemKey">
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    <div v-for="(value, itemKey) in room" :key="itemKey" class="space-y-2">
                         <label class="block text-sm font-medium text-gray-700 capitalize">
-                            {{ itemKey.replace('_', ' ') }}
+                            {{ getItemLabel(itemKey) }}
+                            <span v-if="isItemRequired(itemKey)" class="text-red-500">*</span>
                         </label>
-                        <select
+                        <ConditionSelector
                             v-model="form.rooms[roomKey][itemKey]"
-                            class="mt-1 block w-full border-gray-300 rounded-md shadow-sm"
-                        >
-                            <option value="">Select condition</option>
-                            <option value="excellent">Excellent</option>
-                            <option value="good">Good</option>
-                            <option value="fair">Fair</option>
-                            <option value="poor">Poor</option>
-                            <option value="damaged">Damaged</option>
-                        </select>
+                            :item-type="itemKey"
+                            :required="isItemRequired(itemKey)"
+                            @change="validateRoom(roomKey)"
+                        />
                     </div>
+                </div>
+
+                <!-- Comments for Room -->
+                <div>
+                    <label class="block text-sm font-medium text-gray-700">
+                        Commentaires pour {{ getRoomLabel(roomKey) }}
+                    </label>
+                    <textarea
+                        v-model="form.rooms[roomKey].comments"
+                        rows="2"
+                        class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-primary focus:border-primary"
+                        placeholder="Observations particulières..."
+                    ></textarea>
                 </div>
 
                 <!-- Photo Upload for Room -->
                 <div>
-                    <label class="block text-sm font-medium text-gray-700">Photos for {{ roomKey.replace('_', ' ') }}</label>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">
+                        Photos pour {{ getRoomLabel(roomKey) }}
+                        <span v-if="isPhotoRequired(roomKey)" class="text-red-500">*</span>
+                    </label>
                     <PhotoUploader
                         :key="`${roomKey}-photos`"
                         @photos-selected="(photos) => handlePhotosSelected(roomKey, photos)"
                         :existing-photos="getExistingPhotos(roomKey)"
                         :required="isPhotoRequired(roomKey)"
+                        :max-photos="5"
+                        :category="roomKey"
                     />
                 </div>
             </div>
@@ -223,6 +240,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { router } from '@inertiajs/vue3'
 import PhotoUploader from './PhotoUploader.vue'
+import ConditionSelector from './ConditionSelector.vue'
 
 const props = defineProps({
     mission: Object,
@@ -300,6 +318,57 @@ const getExistingPhotos = (section) => {
 
 const isPhotoRequired = (section) => {
     return requiredPhotoSections.value.includes(section)
+}
+
+const getRoomLabel = (roomKey) => {
+    const labels = {
+        entrance: 'Entrée',
+        living_room: 'Salon',
+        kitchen: 'Cuisine',
+        bedroom: 'Chambre',
+        bathroom: 'Salle de bain',
+        toilet: 'Toilettes',
+        balcony: 'Balcon',
+        storage: 'Rangement'
+    }
+    return labels[roomKey] || roomKey.replace('_', ' ')
+}
+
+const getItemLabel = (itemKey) => {
+    const labels = {
+        walls: 'Murs',
+        floor: 'Sol',
+        ceiling: 'Plafond',
+        door: 'Porte',
+        windows: 'Fenêtres',
+        electrical: 'Électricité',
+        heating: 'Chauffage',
+        plumbing: 'Plomberie',
+        appliances: 'Électroménager'
+    }
+    return labels[itemKey] || itemKey.replace('_', ' ')
+}
+
+const isItemRequired = (itemKey) => {
+    const requiredItems = ['walls', 'floor', 'ceiling', 'electrical']
+    return requiredItems.includes(itemKey)
+}
+
+const getCompletionStatus = (roomKey) => {
+    const room = form.value.rooms[roomKey]
+    const totalItems = Object.keys(room).filter(key => key !== 'comments').length
+    const completedItems = Object.values(room).filter(value => value && value !== '').length
+    return `${completedItems}/${totalItems} complété`
+}
+
+const validateRoom = (roomKey) => {
+    // Trigger validation for the room
+    const room = form.value.rooms[roomKey]
+    const requiredItems = Object.keys(room).filter(key => isItemRequired(key))
+    const hasAllRequired = requiredItems.every(item => room[item])
+    
+    // You can add visual feedback here if needed
+    return hasAllRequired
 }
 
 const submitChecklist = () => {

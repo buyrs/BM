@@ -12,6 +12,7 @@ use App\Services\IncidentDetectionService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Carbon;
 use Inertia\Inertia;
 use Symfony\Component\HttpFoundation\StreamedResponse;
@@ -392,43 +393,6 @@ class OpsController extends Controller
         
         return $actionRequired[$type] ?? false;
     }
-    {
-        // Ensure the notification belongs to the current user
-        if ($notification->recipient_id !== Auth::id()) {
-            abort(403, 'Unauthorized');
-        }
-
-        $action = $request->get('action');
-
-        switch ($action) {
-            case 'view_bail_mobilite':
-                $this->notificationService->markNotificationAsHandled($notification);
-                return redirect()->route('ops.bail-mobilites.show', $notification->bail_mobilite_id);
-
-            case 'validate_checklist':
-                $missionId = $notification->data['mission_id'] ?? null;
-                if ($missionId) {
-                    $this->notificationService->markNotificationAsHandled($notification);
-                    return redirect()->route('ops.missions.validate', $missionId);
-                }
-                break;
-
-            case 'assign_exit':
-                $this->notificationService->markNotificationAsHandled($notification);
-                return redirect()->route('ops.bail-mobilites.show', $notification->bail_mobilite_id)
-                    ->with('action', 'assign_exit');
-
-            case 'handle_incident':
-                $this->notificationService->markNotificationAsHandled($notification);
-                return redirect()->route('ops.bail-mobilites.show', $notification->bail_mobilite_id)
-                    ->with('action', 'handle_incident');
-
-            default:
-                return response()->json(['error' => 'Unknown action'], 400);
-        }
-
-        return response()->json(['error' => 'Invalid action or missing data'], 400);
-    }
 
     /**
      * Get comprehensive dashboard metrics.
@@ -806,5 +770,84 @@ class OpsController extends Controller
             ->select('agents.id', 'users.name')
             ->get();
         return response()->json($checkers);
+    }
+
+    /**
+     * Export analytics data
+     */
+    public function exportAnalytics(Request $request)
+    {
+        $request->validate([
+            'format' => 'required|in:csv,json,pdf',
+            'date_from' => 'nullable|date',
+            'date_to' => 'nullable|date|after_or_equal:date_from',
+        ]);
+
+        $startDate = $request->date_from 
+            ? \Carbon\Carbon::parse($request->date_from) 
+            : \Carbon\Carbon::now()->subMonths(6);
+        
+        $endDate = $request->date_to 
+            ? \Carbon\Carbon::parse($request->date_to) 
+            : \Carbon\Carbon::now();
+
+        $exportService = app(\App\Services\ExportService::class);
+        $analyticsData = $exportService->getAnalyticsData($startDate, $endDate);
+
+        if ($request->format === 'json') {
+            return response()->json([
+                'type' => 'analytics',
+                'exported_at' => now()->toISOString(),
+                'data' => $analyticsData,
+            ]);
+        }
+
+        if ($request->format === 'pdf') {
+            $reportService = app(\App\Services\ReportService::class);
+            return $reportService->generateAnalyticsReport($startDate, $endDate);
+        }
+
+        // CSV format
+        $filename = 'analytics_' . now()->format('Y-m-d_H-i-s') . '.csv';
+
+        return response()->streamDownload(function () use ($analyticsData) {
+            $handle = fopen('php://output', 'w');
+
+            // Summary section
+            fputcsv($handle, ['Analytics Summary']);
+            fputcsv($handle, ['Period', $analyticsData['period']['start'] . ' to ' . $analyticsData['period']['end']]);
+            fputcsv($handle, []);
+
+            // Basic metrics
+            fputcsv($handle, ['Metric', 'Count']);
+            foreach ($analyticsData['summary'] as $metric => $count) {
+                fputcsv($handle, [ucfirst(str_replace('_', ' ', $metric)), $count]);
+            }
+            fputcsv($handle, []);
+
+            // Status distribution
+            fputcsv($handle, ['Status Distribution']);
+            fputcsv($handle, ['Status', 'Count']);
+            foreach ($analyticsData['status_distribution'] as $status => $count) {
+                fputcsv($handle, [ucfirst(str_replace('_', ' ', $status)), $count]);
+            }
+            fputcsv($handle, []);
+
+            // Checker performance
+            fputcsv($handle, ['Checker Performance']);
+            fputcsv($handle, ['Name', 'Missions Completed', 'Success Rate (%)', 'Avg Completion Time (h)']);
+            foreach ($analyticsData['checker_performance'] as $checker) {
+                fputcsv($handle, [
+                    $checker['name'],
+                    $checker['missions_completed'],
+                    $checker['success_rate'],
+                    $checker['avg_completion_time'],
+                ]);
+            }
+
+            fclose($handle);
+        }, $filename, [
+            'Content-Type' => 'text/csv',
+        ]);
     }
 }

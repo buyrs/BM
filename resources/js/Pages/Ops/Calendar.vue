@@ -258,6 +258,8 @@
                     @mission-click="handleMissionClick"
                     @date-click="showCreateMission"
                     @mission-select="handleMissionSelect"
+                    @mission-reschedule="handleMissionReschedule"
+                    @conflict-detected="handleConflictDetected"
                 />
                 
                 <!-- Empty State -->
@@ -341,6 +343,14 @@
                 @close="closeBulkModal"
                 @completed="handleBulkOperationCompleted"
             />
+
+            <!-- Conflict Resolution Modal -->
+            <ConflictResolutionModal
+                :show="showConflictModal"
+                :conflict-data="conflictData"
+                @close="closeConflictModal"
+                @resolve="handleConflictResolution"
+            />
             </div>
             
             <!-- Toast Notifications -->
@@ -361,6 +371,7 @@ import CreateMissionModal from '@/Components/Calendar/CreateMissionModal.vue'
 import EditMissionModal from '@/Components/Calendar/EditMissionModal.vue'
 import AssignMissionModal from '@/Components/Calendar/AssignMissionModal.vue'
 import BulkOperationsModal from '@/Components/Calendar/BulkOperationsModal.vue'
+import ConflictResolutionModal from '@/Components/Calendar/ConflictResolutionModal.vue'
 import ErrorBoundary from '@/Components/Calendar/ErrorBoundary.vue'
 import LoadingSkeleton from '@/Components/Calendar/LoadingSkeleton.vue'
 import EmptyState from '@/Components/Calendar/EmptyState.vue'
@@ -418,10 +429,12 @@ const showCreateModal = ref(false)
 const showEditModal = ref(false)
 const showAssignModal = ref(false)
 const showBulkModal = ref(false)
+const showConflictModal = ref(false)
 const selectedMission = ref(null)
 const selectedDate = ref(null)
 const selectedMissionsForBulk = ref([])
 const selectionMode = ref(false)
+const conflictData = ref(null)
 
 // Mobile-specific state
 const showMobileMenu = ref(false)
@@ -840,6 +853,88 @@ const closeAssignModal = () => {
 const closeBulkModal = () => {
     showBulkModal.value = false
     selectedMissionsForBulk.value = []
+}
+
+const closeConflictModal = () => {
+    showConflictModal.value = false
+    conflictData.value = null
+}
+
+const handleMissionReschedule = async (rescheduleData) => {
+    try {
+        await safeApiCall('Reschedule Mission', async () => {
+            const response = await fetch(route('ops.calendar.missions.update', rescheduleData.mission.id), {
+                method: 'PATCH',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+                },
+                body: JSON.stringify({
+                    scheduled_at: rescheduleData.newDate,
+                    scheduled_time: rescheduleData.newTime || rescheduleData.mission.scheduled_time
+                })
+            })
+
+            const data = await response.json()
+
+            if (data.success) {
+                // Reload missions to reflect changes
+                await loadMissions()
+                toastService.success('Mission rescheduled successfully')
+            } else {
+                throw new Error(data.message || 'Failed to reschedule mission')
+            }
+        })
+    } catch (error) {
+        console.error('Error rescheduling mission:', error)
+        toastService.error('Failed to reschedule mission')
+    }
+}
+
+const handleConflictDetected = (conflictInfo) => {
+    conflictData.value = conflictInfo
+    showConflictModal.value = true
+}
+
+const handleConflictResolution = async (resolution) => {
+    try {
+        switch (resolution.action) {
+            case 'proceed':
+                // Proceed with the original reschedule despite conflicts
+                await handleMissionReschedule({
+                    mission: resolution.conflictData.mission,
+                    newDate: resolution.conflictData.newDate,
+                    newTime: resolution.conflictData.newTime
+                })
+                toastService.warning('Mission rescheduled with conflicts', {
+                    title: 'Conflicts Remain',
+                    description: 'Please review and resolve scheduling conflicts manually.'
+                })
+                break
+                
+            case 'suggest':
+                // Use the selected alternative time slot
+                if (resolution.newTime) {
+                    await handleMissionReschedule({
+                        mission: resolution.conflictData.mission,
+                        newDate: resolution.newDate,
+                        newTime: resolution.newTime
+                    })
+                    toastService.success('Mission rescheduled to conflict-free time slot')
+                }
+                break
+                
+            case 'cancel':
+                // Do nothing, just close the modal
+                toastService.info('Mission reschedule cancelled')
+                break
+        }
+    } catch (error) {
+        console.error('Error resolving conflict:', error)
+        toastService.error('Failed to resolve scheduling conflict')
+    } finally {
+        closeConflictModal()
+    }
 }
 
 const handleMissionUpdate = (mission) => {

@@ -38,6 +38,8 @@ class PermissionSeeder extends Seeder
             
             // Export and sharing
             'export_pdf',
+            'export_data',
+            'export_audit_trail',
             'share_whatsapp',
             
             // Bail Mobilité permissions (Ops specific)
@@ -97,6 +99,8 @@ class PermissionSeeder extends Seeder
                 'delete_checklists',
                 'validate_checklists',
                 'export_pdf',
+                'export_data',
+                'export_audit_trail',
                 'share_whatsapp',
                 'create_bail_mobilite',
                 'edit_bail_mobilite',
