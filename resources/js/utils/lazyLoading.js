@@ -62,10 +62,9 @@ export const LazyDashboardComponents = {
     
     // Chart Components
     Charts: {
-        LineChart: createLazyComponent(() => import('../Components/Charts/LineChart.vue')),
-        BarChart: createLazyComponent(() => import('../Components/Charts/BarChart.vue')),
-        PieChart: createLazyComponent(() => import('../Components/Charts/PieChart.vue')),
-        DoughnutChart: createLazyComponent(() => import('../Components/Charts/DoughnutChart.vue'))
+        DonutChart: createLazyComponent(() => import('../Components/Charts/DonutChart.vue')),
+        MetricsChart: createLazyComponent(() => import('../Components/Charts/MetricsChart.vue')),
+        PerformanceChart: createLazyComponent(() => import('../Components/Charts/PerformanceChart.vue'))
     }
 };
 
