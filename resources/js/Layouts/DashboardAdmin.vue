@@ -1,7 +1,23 @@
 <template>
     <div class="flex min-h-screen bg-background">
+        <!-- Mobile Menu Overlay -->
+        <div 
+            v-if="showMobileMenu" 
+            class="fixed inset-0 z-50 lg:hidden"
+            @click="showMobileMenu = false"
+        >
+            <div class="fixed inset-0 bg-black opacity-50"></div>
+        </div>
+
         <!-- Sidebar -->
-        <aside class="w-64 bg-white shadow-md flex-shrink-0">
+        <aside 
+            :class="[
+                'w-64 bg-white shadow-md flex-shrink-0 transition-transform duration-300 ease-in-out',
+                'lg:translate-x-0',
+                showMobileMenu ? 'translate-x-0' : '-translate-x-full',
+                'lg:static fixed inset-y-0 left-0 z-50'
+            ]"
+        >
             <div class="p-6">
                 <div class="flex items-center gap-3">
                     <svg class="text-primary" fill="none" height="32" viewBox="0 0 48 48" width="32">
@@ -12,7 +28,7 @@
                 </div>
             </div>
             
-            <nav class="mt-8 px-4">
+            <nav class="mt-8 px-4 space-y-2">
                 <Link 
                     :href="route('admin.dashboard')" 
                     :class="[
@@ -21,6 +37,7 @@
                             ? 'bg-secondary text-primary'
                             : 'text-text-secondary hover:bg-secondary hover:text-primary'
                     ]"
+                    @click="showMobileMenu = false"
                 >
                     <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2H5a2 2 0 00-2-2z"/>
@@ -37,6 +54,7 @@
                             ? 'bg-secondary text-primary'
                             : 'text-text-secondary hover:bg-secondary hover:text-primary'
                     ]"
+                    @click="showMobileMenu = false"
                 >
                     <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
@@ -52,6 +70,7 @@
                             ? 'bg-secondary text-primary'
                             : 'text-text-secondary hover:bg-secondary hover:text-primary'
                     ]"
+                    @click="showMobileMenu = false"
                 >
                     <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"/>
@@ -67,6 +86,7 @@
                             ? 'bg-secondary text-primary'
                             : 'text-text-secondary hover:bg-secondary hover:text-primary'
                     ]"
+                    @click="showMobileMenu = false"
                 >
                     <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
@@ -82,6 +102,7 @@
                             ? 'bg-secondary text-primary'
                             : 'text-text-secondary hover:bg-secondary hover:text-primary'
                     ]"
+                    @click="showMobileMenu = false"
                 >
                     <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
@@ -92,16 +113,25 @@
         </aside>
 
         <!-- Main Content -->
-        <div class="flex-1 flex flex-col">
+        <div class="flex-1 flex flex-col lg:ml-0">
             <!-- Header -->
             <header class="bg-white shadow-md flex items-center justify-between p-4">
+                <!-- Mobile Menu Button -->
+                <button
+                    @click="showMobileMenu = !showMobileMenu"
+                    class="lg:hidden p-2 rounded-md text-text-secondary hover:text-primary hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-primary transition-colors duration-200"
+                >
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/>
+                    </svg>
+                </button>
                 <div class="flex-1">
                     <slot name="header" />
                 </div>
                 
-                <div class="flex items-center gap-6">
+                <div class="flex items-center gap-3 sm:gap-6">
                     <!-- Notifications -->
-                    <button class="relative text-text-secondary hover:text-primary transition-colors duration-200">
+                    <button class="relative text-text-secondary hover:text-primary transition-colors duration-200 p-2 rounded-md hover:bg-gray-100">
                         <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-5 5v-5zM4 19h6v-7a3 3 0 015.755-.96M15 17h5l-5 5v-5z"/>
                         </svg>
@@ -110,12 +140,12 @@
                     
                     <!-- User Menu -->
                     <div class="flex items-center gap-3">
-                        <div class="w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center">
-                            <span class="text-sm font-medium text-text-secondary">
+                        <div class="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-gray-200 flex items-center justify-center">
+                            <span class="text-xs sm:text-sm font-medium text-text-secondary">
                                 {{ $page.props.auth.user.name.charAt(0).toUpperCase() }}
                             </span>
                         </div>
-                        <div>
+                        <div class="hidden sm:block">
                             <p class="font-semibold text-sm text-primary">{{ $page.props.auth.user.name }}</p>
                             <p class="text-xs text-text-secondary">Admin</p>
                         </div>
@@ -144,7 +174,7 @@
             </header>
 
             <!-- Page Content -->
-            <main class="flex-1">
+            <main class="flex-1 p-4 sm:p-6">
                 <slot />
             </main>
         </div>
@@ -152,8 +182,10 @@
 </template>
 
 <script setup>
+import { ref } from 'vue';
 import { Link } from '@inertiajs/vue3';
 import Dropdown from '@/Components/Dropdown.vue';
 import DropdownLink from '@/Components/DropdownLink.vue';
 
+const showMobileMenu = ref(false);
 </script>

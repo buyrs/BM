@@ -8,52 +8,52 @@
 
         <div class="py-12">
             <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
-                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 mb-6 sm:mb-8">
                     <!-- Total Missions Card -->
                     <div class="bg-white overflow-hidden shadow-md rounded-lg">
-                        <div class="p-6 text-text-primary">
-                            <h3 class="text-lg font-medium">Total Missions</h3>
-                            <p class="text-3xl font-bold text-primary">{{ stats.totalMissions }}</p>
+                        <div class="p-4 sm:p-6 text-text-primary">
+                            <h3 class="text-sm sm:text-lg font-medium">Total Missions</h3>
+                            <p class="text-2xl sm:text-3xl font-bold text-primary">{{ stats.totalMissions }}</p>
                         </div>
                     </div>
 
                     <!-- Pending Missions Card -->
                     <div class="bg-white overflow-hidden shadow-md rounded-lg">
-                        <div class="p-6 text-text-primary">
-                            <h3 class="text-lg font-medium">Pending Missions</h3>
-                            <p class="text-3xl font-bold text-warning-text">{{ stats.pendingMissions }}</p>
+                        <div class="p-4 sm:p-6 text-text-primary">
+                            <h3 class="text-sm sm:text-lg font-medium">Pending Missions</h3>
+                            <p class="text-2xl sm:text-3xl font-bold text-warning-text">{{ stats.pendingMissions }}</p>
                         </div>
                     </div>
 
                     <!-- Assigned Missions Card -->
                     <div class="bg-white overflow-hidden shadow-md rounded-lg">
-                        <div class="p-6 text-text-primary">
-                            <h3 class="text-lg font-medium">Assigned Missions</h3>
-                            <p class="text-3xl font-bold text-info-text">{{ stats.assignedMissions }}</p>
+                        <div class="p-4 sm:p-6 text-text-primary">
+                            <h3 class="text-sm sm:text-lg font-medium">Assigned Missions</h3>
+                            <p class="text-2xl sm:text-3xl font-bold text-info-text">{{ stats.assignedMissions }}</p>
                         </div>
                     </div>
 
                     <!-- Completed Missions Card -->
                     <div class="bg-white overflow-hidden shadow-md rounded-lg">
-                        <div class="p-6 text-text-primary">
-                            <h3 class="text-lg font-medium">Completed Missions</h3>
-                            <p class="text-3xl font-bold text-success-text">{{ stats.completedMissions }}</p>
+                        <div class="p-4 sm:p-6 text-text-primary">
+                            <h3 class="text-sm sm:text-lg font-medium">Completed Missions</h3>
+                            <p class="text-2xl sm:text-3xl font-bold text-success-text">{{ stats.completedMissions }}</p>
                         </div>
                     </div>
 
                     <!-- Total Checkers Card -->
                     <div class="bg-white overflow-hidden shadow-md rounded-lg">
-                        <div class="p-6 text-text-primary">
-                            <h3 class="text-lg font-medium">Total Checkers</h3>
-                            <p class="text-3xl font-bold text-primary">{{ stats.totalCheckers }}</p>
+                        <div class="p-4 sm:p-6 text-text-primary">
+                            <h3 class="text-sm sm:text-lg font-medium">Total Checkers</h3>
+                            <p class="text-2xl sm:text-3xl font-bold text-primary">{{ stats.totalCheckers }}</p>
                         </div>
                     </div>
                 </div>
 
                 <!-- Recent Missions Section -->
                 <div class="bg-white overflow-hidden shadow-md rounded-lg">
-                    <div class="p-6 text-text-primary">
-                        <h3 class="text-lg font-medium mb-4">Recent Missions</h3>
+                    <div class="p-4 sm:p-6 text-text-primary">
+                        <h3 class="text-base sm:text-lg font-medium mb-4">Recent Missions</h3>
                         <ul v-if="recentMissions.length">
                             <li v-for="mission in recentMissions" :key="mission.id" class="border-b last:border-b-0 py-2">
                                 <p class="font-semibold">{{ mission.address }}</p>

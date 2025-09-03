@@ -23,18 +23,18 @@
             <div class="py-12">
                 <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
                     <!-- Filters -->
-                    <div class="bg-white rounded-xl shadow-sm p-6 mb-6">
+                    <div class="bg-white rounded-xl shadow-sm p-4 sm:p-6 mb-4 sm:mb-6">
                         <div class="space-y-4">
                             <!-- Type Filters -->
                             <div>
                                 <h3 class="text-sm font-medium text-gray-700 mb-2">Mission Type</h3>
-                                <div class="flex space-x-2">
+                                <div class="flex flex-wrap gap-2">
                                     <button
                                         v-for="type in ['all', 'checkin', 'checkout']"
                                         :key="type"
                                         @click="filterType = type"
                                         :class="[
-                                            'px-4 py-2 rounded-lg text-sm font-medium transition-colors duration-200',
+                                            'px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-medium transition-colors duration-200',
                                             filterType === type
                                                 ? 'bg-primary-100 text-primary-800'
                                                 : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
@@ -48,13 +48,13 @@
                             <!-- Status Filters -->
                             <div>
                                 <h3 class="text-sm font-medium text-gray-700 mb-2">Status</h3>
-                                <div class="flex space-x-2">
+                                <div class="flex flex-wrap gap-2">
                                     <button
                                         v-for="status in ['all', 'unassigned', 'assigned', 'in_progress', 'completed', 'cancelled']"
                                         :key="status"
                                         @click="filterStatus = status"
                                         :class="[
-                                            'px-4 py-2 rounded-lg text-sm font-medium transition-colors duration-200',
+                                            'px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-medium transition-colors duration-200',
                                             filterStatus === status
                                                 ? 'bg-primary-100 text-primary-800'
                                                 : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
@@ -68,7 +68,7 @@
                     </div>
 
                     <!-- Missions Grid -->
-                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
                         <MissionCard
                             v-for="mission in filteredMissions"
                             :key="mission.id"
@@ -109,7 +109,7 @@
             <div class="py-12">
                 <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
                     <!-- Missions Grid -->
-                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
                         <MissionCard
                             v-for="mission in missions.data"
                             :key="mission.id"

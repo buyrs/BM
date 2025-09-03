@@ -13,14 +13,14 @@
                             </div>
 
                             <!-- Navigation Links -->
-                            <div class="hidden space-x-8 sm:-my-px sm:ml-10 sm:flex">
+                            <div class="hidden space-x-4 lg:space-x-8 sm:-my-px sm:ml-10 sm:flex">
                                 <NavLink :href="route('ops.dashboard')" :active="route().current('ops.dashboard')">
                                     Dashboard
                                 </NavLink>
-                                <NavLink :href="route('ops.bail-mobilites.index')" :active="route().current('ops.bail-mobilites.*')">
+                                <NavLink :href="route('ops.bail-mobilites.index')" :active="route().current('ops.bail-mobilites.*')" class="hidden md:block">
                                     Bail Mobilité
                                 </NavLink>
-                                <NavLink :href="route('ops.notifications')" :active="route().current('ops.notifications')">
+                                <NavLink :href="route('ops.notifications')" :active="route().current('ops.notifications')" class="hidden lg:block">
                                     Notifications
                                 </NavLink>
                                 <NavLink :href="route('ops.incidents.index')" :active="route().current('ops.incidents.*')">
@@ -29,7 +29,7 @@
                                 <NavLink :href="route('missions.index')" :active="route().current('missions.index')">
                                     Missions
                                 </NavLink>
-                                <NavLink :href="route('ops.calendar')" :active="route().current('ops.calendar')">
+                                <NavLink :href="route('ops.calendar')" :active="route().current('ops.calendar')" class="hidden lg:block">
                                     Calendar
                                 </NavLink>
                             </div>
@@ -37,12 +37,12 @@
 
                         <div class="hidden sm:flex sm:items-center sm:ml-6">
                             <!-- Notifications -->
-                            <div class="mr-4">
-                                <Link :href="route('ops.notifications')" class="relative p-2 text-gray-500 hover:text-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 rounded-full">
-                                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <div class="mr-2 sm:mr-4">
+                                <Link :href="route('ops.notifications')" class="relative p-2 text-gray-500 hover:text-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 rounded-full transition-colors duration-200">
+                                    <svg class="w-5 h-5 sm:w-6 sm:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-5 5-5-5h5v-12"></path>
                                     </svg>
-                                    <span v-if="notificationCount > 0" class="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">
+                                    <span v-if="notificationCount > 0" class="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full h-4 w-4 sm:h-5 sm:w-5 flex items-center justify-center">
                                         {{ notificationCount }}
                                     </span>
                                 </Link>
@@ -135,7 +135,7 @@
             </header>
 
             <!-- Page Content -->
-            <main>
+            <main class="p-4 sm:p-6">
                 <slot />
             </main>
         </div>

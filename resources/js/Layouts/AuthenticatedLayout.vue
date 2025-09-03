@@ -123,13 +123,13 @@
 
         <!-- Page Heading -->
         <header class="bg-white shadow-md" v-if="$slots.header">
-            <div class="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
+            <div class="max-w-7xl mx-auto py-4 sm:py-6 px-4 sm:px-6 lg:px-8">
                 <slot name="header" />
             </div>
         </header>
 
         <!-- Page Content -->
-        <main class="p-6">
+        <main class="p-4 sm:p-6">
             <slot />
         </main>
     </div>
