@@ -1,5 +1,5 @@
 <template>
-    <DashboardSuperAdmin>
+    <DashboardAdmin>
         <template #header>
             <h2 class="font-semibold text-xl text-gray-800 leading-tight">
                 Create Mission
@@ -178,12 +178,12 @@
                 </div>
             </div>
         </div>
-    </DashboardSuperAdmin>
+    </DashboardAdmin>
 </template>
 
 <script setup>
 import { useForm } from '@inertiajs/vue3'
-import DashboardSuperAdmin from '@/Layouts/DashboardSuperAdmin.vue'
+import DashboardAdmin from '@/Layouts/DashboardAdmin.vue'
 import { ref, computed } from 'vue'
 
 const props = defineProps({

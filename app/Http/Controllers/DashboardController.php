@@ -17,43 +17,6 @@ class DashboardController extends Controller
         return Inertia::render('Dashboard');
     }
 
-    public function superAdminDashboard()
-    {
-        $totalMissions = Mission::count();
-        $pendingMissions = Mission::where('status', 'unassigned')->count();
-        $assignedMissions = Mission::where('status', 'assigned')->count();
-        $completedMissions = Mission::where('status', 'completed')->count();
-
-        $recentMissions = Mission::with('agent')
-            ->latest()
-            ->limit(5)
-            ->get();
-
-        $totalCheckers = User::role('checker')->count();
-
-        return Inertia::render('SuperAdmin/Dashboard', [
-            'stats' => [
-                'totalMissions' => $totalMissions,
-                'pendingMissions' => $pendingMissions,
-                'assignedMissions' => $assignedMissions,
-                'completedMissions' => $completedMissions,
-                'totalCheckers' => $totalCheckers,
-            ],
-            'recentMissions' => $recentMissions,
-        ]);
-    }
-
-    public function missions()
-    {
-        $missions = Mission::with('agent')
-            ->latest()
-            ->get();
-
-        return Inertia::render('SuperAdmin/Missions', [
-            'missions' => $missions
-        ]);
-    }
-
     public function checkers()
     {
         $checkers = User::role('checker')
@@ -65,7 +28,7 @@ class DashboardController extends Controller
             }])
             ->get();
 
-        return Inertia::render('SuperAdmin/Checkers', [
+        return Inertia::render('Admin/Checkers', [
             'checkers' => $checkers
         ]);
     }
@@ -111,7 +74,7 @@ class DashboardController extends Controller
                 ];
             });
 
-        return Inertia::render('SuperAdmin/Reports', [
+        return Inertia::render('Admin/Analytics', [
             'stats' => [
                 'totalMissions' => $totalMissions,
                 'completedMissions' => $completedMissions,
@@ -169,6 +132,7 @@ class DashboardController extends Controller
         $completedMissions = Mission::where('status', 'completed')->count();
         $inProgressMissions = Mission::where('status', 'in_progress')->count();
         $unassignedMissions = Mission::where('status', 'unassigned')->count();
+        $pendingMissions = Mission::where('status', 'unassigned')->count(); // For compatibility
 
         $recentMissions = Mission::with('agent')
             ->latest()
@@ -179,6 +143,7 @@ class DashboardController extends Controller
                     'id' => $mission->id,
                     'address' => $mission->address ?? 'N/A',
                     'status' => $mission->status,
+                    'type' => $mission->type ?? 'N/A',
                     'created_at' => $mission->created_at,
                     'scheduled_at' => $mission->scheduled_at,
                     'agent' => $mission->agent ? [
@@ -188,6 +153,7 @@ class DashboardController extends Controller
                 ];
             });
 
+        $totalCheckers = User::role('checker')->count();
         $activeCheckers = User::role('checker')->count();
         $onlineCheckers = User::role('checker')
             ->where('updated_at', '>=', now()->subMinutes(15))
@@ -200,6 +166,8 @@ class DashboardController extends Controller
                 'completedMissions' => $completedMissions,
                 'inProgressMissions' => $inProgressMissions,
                 'unassignedMissions' => $unassignedMissions,
+                'pendingMissions' => $pendingMissions, // For compatibility with super admin views
+                'totalCheckers' => $totalCheckers,
                 'activeCheckers' => $activeCheckers,
                 'onlineCheckers' => $onlineCheckers,
                 'missionTrend' => 12, // This would be calculated from historical data

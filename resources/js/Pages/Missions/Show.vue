@@ -129,7 +129,7 @@
 <script setup>
 import { computed } from 'vue'
 import { Link, router, usePage } from '@inertiajs/vue3'
-import DashboardSuperAdmin from '@/Layouts/DashboardSuperAdmin.vue'
+import DashboardAdmin from '@/Layouts/DashboardAdmin.vue'
 import DashboardChecker from '@/Layouts/DashboardChecker.vue'
 import DashboardOps from '@/Layouts/DashboardOps.vue'
 import BailMobiliteMissionDetails from '@/Components/BailMobiliteMissionDetails.vue'
@@ -151,7 +151,7 @@ const canUpdateStatus = computed(() => {
 
 const getLayoutComponent = () => {
     const user = page.props.auth.user
-    if (user.roles.includes('super-admin')) return DashboardSuperAdmin
+    if (user.roles.includes('super-admin') || user.roles.includes('admin')) return DashboardAdmin
     if (user.roles.includes('ops')) return DashboardOps
     return DashboardChecker
 }

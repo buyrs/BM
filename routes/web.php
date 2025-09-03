@@ -45,11 +45,20 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
     
     // Super Admin routes
+    // Super Admin routes - redirect to admin (same person)
     Route::middleware(['role:super-admin'])->prefix('super-admin')->name('super-admin.')->group(function () {
-        Route::get('/dashboard', [DashboardController::class, 'superAdminDashboard'])->name('dashboard');
-        Route::get('/missions', [DashboardController::class, 'missions'])->name('missions');
-        Route::get('/checkers', [DashboardController::class, 'checkers'])->name('checkers');
-        Route::get('/reports', [DashboardController::class, 'reports'])->name('reports');
+        Route::get('/dashboard', function () {
+            return redirect()->route('admin.dashboard');
+        })->name('dashboard');
+        Route::get('/missions', function () {
+            return redirect()->route('admin.missions');
+        })->name('missions');
+        Route::get('/checkers', function () {
+            return redirect()->route('admin.checkers');
+        })->name('checkers');
+        Route::get('/reports', function () {
+            return redirect()->route('admin.analytics.data');
+        })->name('reports');
         Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
         Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
         Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
@@ -230,11 +239,13 @@ Route::prefix('admin')->name('admin.')->group(function () {
     Route::post('login', [\App\Http\Controllers\Auth\AuthenticatedSessionController::class, 'store']);
     Route::post('logout', [\App\Http\Controllers\Auth\AuthenticatedSessionController::class, 'destroy'])->name('logout');
     
-    Route::middleware(['auth', 'role:admin'])->group(function () {
+    Route::middleware(['auth', 'role:admin|super-admin'])->group(function () {
         Route::get('dashboard', [\App\Http\Controllers\DashboardController::class, 'adminDashboard'])->name('dashboard');
         Route::get('missions', [MissionController::class, 'index'])->name('missions');
         Route::get('missions/assigned', [MissionController::class, 'getAssignedMissions'])->name('missions.assigned');
         Route::get('missions/completed', [MissionController::class, 'getCompletedMissions'])->name('missions.completed');
+        Route::get('checkers', [\App\Http\Controllers\DashboardController::class, 'checkers'])->name('checkers');
+        Route::get('analytics/data', [\App\Http\Controllers\DashboardController::class, 'reports'])->name('analytics.data');
         Route::get('profile', [ProfileController::class, 'edit'])->name('profile.edit');
         Route::patch('profile', [ProfileController::class, 'update'])->name('profile.update');
         Route::delete('profile', [ProfileController::class, 'destroy'])->name('profile.destroy');

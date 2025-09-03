@@ -2,7 +2,7 @@
     <div>
         <Head title="Missions" />
 
-        <DashboardSuperAdmin v-if="$page.props.auth.user.roles.includes('super-admin')">
+        <DashboardAdmin v-if="$page.props.auth.user.roles.includes('super-admin') || $page.props.auth.user.roles.includes('admin')">
             <template #header>
                 <div class="flex justify-between items-center">
                     <h2 class="font-semibold text-xl text-gray-900 leading-tight">
@@ -97,7 +97,7 @@
                     </div>
                 </div>
             </div>
-        </DashboardSuperAdmin>
+        </DashboardAdmin>
 
         <DashboardChecker v-else>
             <template #header>
@@ -134,7 +134,7 @@
 <script setup>
 import { ref, computed } from 'vue'
 import { Link, Head } from '@inertiajs/vue3'
-import DashboardSuperAdmin from '@/Layouts/DashboardSuperAdmin.vue'
+import DashboardAdmin from '@/Layouts/DashboardAdmin.vue'
 import DashboardChecker from '@/Layouts/DashboardChecker.vue'
 import MissionCard from '@/Components/MissionCard.vue'
 

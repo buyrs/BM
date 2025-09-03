@@ -147,7 +147,9 @@
                         </div>
                         <div class="hidden sm:block">
                             <p class="font-semibold text-sm text-primary">{{ $page.props.auth.user.name }}</p>
-                            <p class="text-xs text-text-secondary">Admin</p>
+                            <p class="text-xs text-text-secondary">
+                                {{ $page.props.auth.user.roles?.includes('super-admin') ? 'Super Admin' : 'Admin' }}
+                            </p>
                         </div>
                         
                         <!-- Dropdown -->

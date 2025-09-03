@@ -6,7 +6,7 @@
             <div class="flex items-center justify-between">
                 <div>
                     <h2 class="text-3xl font-bold text-text-primary">
-                        Welcome back, Admin!
+                        Welcome back, {{ $page.props.auth.user.name }}!
                     </h2>
                     <p class="text-text-secondary mt-1">
                         Here's what's happening with your properties today.
@@ -96,6 +96,35 @@
                     </div>
                 </div>
 
+                <!-- Total Checkers Section (for admin/super-admin) -->
+                <div v-if="stats.totalCheckers !== undefined" class="bg-white rounded-xl shadow-md p-4 sm:p-6 mt-6">
+                    <div class="flex justify-between items-center mb-4">
+                        <h3 class="text-lg sm:text-xl font-bold text-text-primary">
+                            Checker Management
+                        </h3>
+                        <Link 
+                            :href="route('admin.checkers')"
+                            class="text-primary hover:text-primary-dark text-sm font-medium"
+                        >
+                            View All →
+                        </Link>
+                    </div>
+                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                        <div class="text-center p-4 bg-gray-50 rounded-lg">
+                            <p class="text-2xl font-bold text-primary">{{ stats.totalCheckers || 0 }}</p>
+                            <p class="text-sm text-text-secondary">Total Checkers</p>
+                        </div>
+                        <div class="text-center p-4 bg-gray-50 rounded-lg">
+                            <p class="text-2xl font-bold text-success-text">{{ stats.activeCheckers || 0 }}</p>
+                            <p class="text-sm text-text-secondary">Active Checkers</p>
+                        </div>
+                        <div class="text-center p-4 bg-gray-50 rounded-lg">
+                            <p class="text-2xl font-bold text-info-text">{{ stats.onlineCheckers || 0 }}</p>
+                            <p class="text-sm text-text-secondary">Online Now</p>
+                        </div>
+                    </div>
+                </div>
+
                 <!-- Recent Missions Table -->
                 <div class="bg-white rounded-xl shadow-md p-4 sm:p-6">
                     <div class="flex justify-between items-center mb-4">
@@ -167,7 +196,7 @@
 
 <script setup>
 import DashboardAdmin from "@/Layouts/DashboardAdmin.vue";
-import { Head } from "@inertiajs/vue3";
+import { Head, Link } from "@inertiajs/vue3";
 
 const props = defineProps({
     stats: {
