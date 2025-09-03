@@ -42,5 +42,8 @@ class DatabaseSeeder extends Seeder
 
         // Call the MissionSeeder to create dummy missions
         $this->call(MissionSeeder::class);
+
+        // Call the comprehensive dummy data seeder
+        $this->call(ComprehensiveDummyDataSeeder::class);
     }
 }

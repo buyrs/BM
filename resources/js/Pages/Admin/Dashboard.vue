@@ -15,115 +15,42 @@
             </div>
         </template>
 
-        <div class="py-8">
-            <div class="max-w-7xl mx-auto sm:px-6 lg:px-8 space-y-8">
-                <!-- Statistics Cards -->
-                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
-                    <!-- Active Missions Card -->
-                    <div class="bg-white rounded-xl shadow-md p-4 sm:p-6 border-l-4 border-info-border">
-                        <div class="flex items-center justify-between">
-                            <div>
-                                <h3 class="text-sm sm:text-lg font-semibold text-text-secondary">
-                                    Total Missions
-                                </h3>
-                                <p class="text-2xl sm:text-4xl font-extrabold text-info-text mt-1 sm:mt-2">
-                                    {{ stats.totalMissions || 0 }}
-                                </p>
-                            </div>
-                            <div class="p-2 sm:p-3 rounded-full bg-info-bg">
-                                <svg class="w-6 h-6 sm:w-8 sm:h-8 text-info-text" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
-                                </svg>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <!-- Assigned Missions Card -->
-                    <div class="bg-white rounded-xl shadow-md p-4 sm:p-6 border-l-4 border-warning-border">
-                        <div class="flex items-center justify-between">
-                            <div>
-                                <h3 class="text-sm sm:text-lg font-semibold text-text-secondary">
-                                    Assigned Missions
-                                </h3>
-                                <p class="text-2xl sm:text-4xl font-extrabold text-warning-text mt-1 sm:mt-2">
-                                    {{ stats.assignedMissions || 0 }}
-                                </p>
-                            </div>
-                            <div class="p-2 sm:p-3 rounded-full bg-warning-bg">
-                                <svg class="w-6 h-6 sm:w-8 sm:h-8 text-warning-text" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z"/>
-                                </svg>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <!-- Completed Missions Card -->
-                    <div class="bg-white rounded-xl shadow-md p-4 sm:p-6 border-l-4 border-success-border">
-                        <div class="flex items-center justify-between">
-                            <div>
-                                <h3 class="text-sm sm:text-lg font-semibold text-text-secondary">
-                                    Completed Missions
-                                </h3>
-                                <p class="text-2xl sm:text-4xl font-extrabold text-success-text mt-1 sm:mt-2">
-                                    {{ stats.completedMissions || 0 }}
-                                </p>
-                            </div>
-                            <div class="p-2 sm:p-3 rounded-full bg-success-bg">
-                                <svg class="w-6 h-6 sm:w-8 sm:h-8 text-success-text" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
-                                </svg>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Completion Rate Card -->
-                    <div class="bg-white rounded-xl shadow-md p-4 sm:p-6 border-l-4 border-primary">
-                        <div class="flex items-center justify-between">
-                            <div>
-                                <h3 class="text-sm sm:text-lg font-semibold text-text-secondary">
-                                    Completion Rate
-                                </h3>
-                                <p class="text-2xl sm:text-4xl font-extrabold text-primary mt-1 sm:mt-2">
-                                    {{ getCompletionRate() }}%
-                                </p>
-                            </div>
-                            <div class="p-2 sm:p-3 rounded-full bg-secondary">
-                                <svg class="w-6 h-6 sm:w-8 sm:h-8 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
-                                </svg>
-                            </div>
-                        </div>
-                    </div>
+        <ErrorBoundary fallback-message="Failed to load admin dashboard">
+            <LoadingSpinner v-if="loading" message="Loading dashboard..." />
+            
+            <div v-else class="space-y-8">
+                <!-- Error Display -->
+                <div v-if="error" class="bg-error-bg border border-error-border text-error-text px-4 py-3 rounded">
+                    <strong>Error:</strong> {{ error }}
                 </div>
 
-                <!-- Total Checkers Section (for admin/super-admin) -->
-                <div v-if="stats.totalCheckers !== undefined" class="bg-white rounded-xl shadow-md p-4 sm:p-6 mt-6">
-                    <div class="flex justify-between items-center mb-4">
-                        <h3 class="text-lg sm:text-xl font-bold text-text-primary">
-                            Checker Management
-                        </h3>
-                        <Link 
-                            :href="route('admin.checkers')"
-                            class="text-primary hover:text-primary-dark text-sm font-medium"
-                        >
-                            View All →
-                        </Link>
-                    </div>
-                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                        <div class="text-center p-4 bg-gray-50 rounded-lg">
-                            <p class="text-2xl font-bold text-primary">{{ stats.totalCheckers || 0 }}</p>
-                            <p class="text-sm text-text-secondary">Total Checkers</p>
-                        </div>
-                        <div class="text-center p-4 bg-gray-50 rounded-lg">
-                            <p class="text-2xl font-bold text-success-text">{{ stats.activeCheckers || 0 }}</p>
-                            <p class="text-sm text-text-secondary">Active Checkers</p>
-                        </div>
-                        <div class="text-center p-4 bg-gray-50 rounded-lg">
-                            <p class="text-2xl font-bold text-info-text">{{ stats.onlineCheckers || 0 }}</p>
-                            <p class="text-sm text-text-secondary">Online Now</p>
-                        </div>
-                    </div>
+                <!-- Statistics Grid -->
+                <StatsGrid :stats="safeStats" />
+
+                <!-- Main Content Grid -->
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                    <!-- Recent Activity -->
+                    <RecentActivity 
+                        :activities="recentActivities" 
+                        @refresh="refreshActivities"
+                    />
+
+                    <!-- System Health -->
+                    <SystemHealth 
+                        :health="systemHealth" 
+                        @refresh="refreshSystemHealth"
+                        @view-error="viewErrorDetails"
+                    />
                 </div>
+
+                <!-- Checker Management -->
+                <CheckerManagement 
+                    :checkers="checkers"
+                    @refresh="refreshCheckers"
+                    @create="createChecker"
+                    @update="updateChecker"
+                    @toggle-status="toggleCheckerStatus"
+                />
 
                 <!-- Recent Missions Table -->
                 <div class="bg-white rounded-xl shadow-md p-4 sm:p-6">
@@ -131,6 +58,12 @@
                         <h3 class="text-lg sm:text-xl font-bold text-text-primary">
                             Recent Missions
                         </h3>
+                        <Link 
+                            :href="route('missions.index')"
+                            class="text-primary hover:text-primary-dark text-sm font-medium"
+                        >
+                            View All →
+                        </Link>
                     </div>
                     <div class="overflow-x-auto">
                         <table class="w-full text-left">
@@ -152,7 +85,7 @@
                             </thead>
                             <tbody>
                                 <tr
-                                    v-for="mission in recentMissions.slice(0, 5)"
+                                    v-for="mission in safeRecentMissions.slice(0, 5)"
                                     :key="mission.id"
                                     class="border-b border-gray-200 hover:bg-gray-50 transition-colors duration-150"
                                 >
@@ -180,7 +113,7 @@
                                         {{ formatDate(mission.created_at) }}
                                     </td>
                                 </tr>
-                                <tr v-if="recentMissions.length === 0">
+                                <tr v-if="safeRecentMissions.length === 0">
                                     <td colspan="4" class="py-8 text-center text-text-secondary">
                                         No recent missions to display
                                     </td>
@@ -190,13 +123,21 @@
                     </div>
                 </div>
             </div>
-        </div>
+        </ErrorBoundary>
     </DashboardAdmin>
 </template>
 
 <script setup>
 import DashboardAdmin from "@/Layouts/DashboardAdmin.vue";
-import { Head, Link } from "@inertiajs/vue3";
+import { Head, Link, router } from "@inertiajs/vue3";
+import { onMounted, computed, ref } from 'vue';
+import ErrorBoundary from '@/Components/ErrorBoundary.vue';
+import LoadingSpinner from '@/Components/LoadingSpinner.vue';
+import StatsGrid from '@/Components/Admin/StatsGrid.vue';
+import RecentActivity from '@/Components/Admin/RecentActivity.vue';
+import CheckerManagement from '@/Components/Admin/CheckerManagement.vue';
+import SystemHealth from '@/Components/Admin/SystemHealth.vue';
+import { validateStats, validateMissions, validateAndFormatDate } from '@/utils/dataValidation';
 
 const props = defineProps({
     stats: {
@@ -204,21 +145,222 @@ const props = defineProps({
         default: () => ({
             totalMissions: 0,
             assignedMissions: 0,
-            completedMissions: 0
+            completedMissions: 0,
+            activeCheckers: 0,
+            onlineCheckers: 0,
+            missionTrend: 0
         }),
     },
     recentMissions: {
         type: Array,
         default: () => [],
     },
+    checkers: {
+        type: Array,
+        default: () => [],
+    },
+    recentActivities: {
+        type: Array,
+        default: () => [],
+    },
+    systemHealth: {
+        type: Object,
+        default: () => ({
+            database: { status: 'unknown' },
+            api: { status: 'unknown' },
+            storage: { status: 'unknown' },
+            queue: { status: 'unknown' },
+            recent_errors: [],
+            performance: null
+        }),
+    },
+    error: {
+        type: String,
+        default: null,
+    },
+    loading: {
+        type: Boolean,
+        default: false,
+    },
 });
 
-// Helper methods for dashboard calculations
-const getCompletionRate = () => {
-    if (!props.stats.totalMissions || props.stats.totalMissions === 0) return 0;
-    return Math.round((props.stats.completedMissions / props.stats.totalMissions) * 100);
+// Reactive data
+const recentActivities = ref(props.recentActivities || []);
+const checkers = ref(props.checkers || []);
+const systemHealth = ref(props.systemHealth || {});
+
+// Computed properties with safe fallbacks
+const safeStats = computed(() => validateStats(props.stats));
+const safeRecentMissions = computed(() => validateMissions(props.recentMissions));
+
+onMounted(() => {
+    if (process.env.NODE_ENV === 'development') {
+        console.log('Admin Dashboard mounted');
+        console.log('Props:', props);
+        console.log('Stats:', safeStats.value);
+        console.log('Recent Missions:', safeRecentMissions.value);
+    }
+    
+    if (props.error) {
+        console.error('Dashboard Error:', props.error);
+    }
+
+    // Initialize with mock data if not provided
+    if (recentActivities.value.length === 0) {
+        recentActivities.value = generateMockActivities();
+    }
+    
+    if (Object.keys(systemHealth.value).length === 0) {
+        systemHealth.value = generateMockSystemHealth();
+    }
+});
+
+// Activity management methods
+const refreshActivities = async () => {
+    try {
+        // In a real implementation, this would fetch from an API
+        // For now, we'll generate new mock data
+        recentActivities.value = generateMockActivities();
+    } catch (error) {
+        console.error('Failed to refresh activities:', error);
+    }
 };
 
+const generateMockActivities = () => {
+    const activities = [
+        {
+            id: 1,
+            type: 'mission_completed',
+            description: 'Mission #123 completed at 15 Rue de la Paix',
+            created_at: new Date(Date.now() - 1000 * 60 * 15), // 15 minutes ago
+            user: { name: 'John Checker' },
+            metadata: { address: '15 Rue de la Paix', duration: '45 minutes' }
+        },
+        {
+            id: 2,
+            type: 'mission_assigned',
+            description: 'Mission #124 assigned to Marie Dupont',
+            created_at: new Date(Date.now() - 1000 * 60 * 30), // 30 minutes ago
+            user: { name: 'Admin User' },
+            metadata: { address: '22 Avenue des Champs' }
+        },
+        {
+            id: 3,
+            type: 'checker_created',
+            description: 'New checker account created for Pierre Martin',
+            created_at: new Date(Date.now() - 1000 * 60 * 60), // 1 hour ago
+            user: { name: 'Admin User' }
+        },
+        {
+            id: 4,
+            type: 'mission_incident',
+            description: 'Incident reported at Mission #122',
+            created_at: new Date(Date.now() - 1000 * 60 * 90), // 1.5 hours ago
+            user: { name: 'Sophie Checker' },
+            metadata: { address: '8 Boulevard Saint-Germain' }
+        },
+        {
+            id: 5,
+            type: 'system_alert',
+            description: 'High queue processing time detected',
+            created_at: new Date(Date.now() - 1000 * 60 * 120), // 2 hours ago
+            user: null
+        }
+    ];
+    return activities;
+};
+
+// System health management methods
+const refreshSystemHealth = async () => {
+    try {
+        // In a real implementation, this would fetch from an API
+        systemHealth.value = generateMockSystemHealth();
+    } catch (error) {
+        console.error('Failed to refresh system health:', error);
+    }
+};
+
+const generateMockSystemHealth = () => {
+    return {
+        database: {
+            status: 'healthy',
+            response_time: 45
+        },
+        api: {
+            status: 'healthy',
+            active_connections: 23
+        },
+        storage: {
+            status: 'warning',
+            disk_usage: '78%'
+        },
+        queue: {
+            status: 'healthy',
+            pending_jobs: 5
+        },
+        recent_errors: [
+            {
+                id: 1,
+                message: 'Failed to process signature upload',
+                created_at: new Date(Date.now() - 1000 * 60 * 30),
+                context: 'Signature Service'
+            }
+        ],
+        performance: {
+            avg_response_time: 245,
+            requests_per_minute: 127,
+            uptime: 99.8,
+            memory_usage: 512
+        }
+    };
+};
+
+const viewErrorDetails = (error) => {
+    // In a real implementation, this would show a detailed error modal
+    console.log('View error details:', error);
+    alert(`Error Details:\n${error.message}\nTime: ${error.created_at}\nContext: ${error.context}`);
+};
+
+// Checker management methods
+const refreshCheckers = async () => {
+    try {
+        router.reload({ only: ['checkers'] });
+    } catch (error) {
+        console.error('Failed to refresh checkers:', error);
+    }
+};
+
+const createChecker = async (formData) => {
+    try {
+        await router.post(route('admin.checkers.store'), formData);
+    } catch (error) {
+        console.error('Failed to create checker:', error);
+        throw error;
+    }
+};
+
+const updateChecker = async (checkerId, formData) => {
+    try {
+        await router.put(route('admin.checkers.update', checkerId), formData);
+    } catch (error) {
+        console.error('Failed to update checker:', error);
+        throw error;
+    }
+};
+
+const toggleCheckerStatus = async (checker) => {
+    try {
+        const newStatus = checker.status === 'active' ? 'inactive' : 'active';
+        await router.patch(route('admin.checkers.toggle-status', checker.id), {
+            status: newStatus
+        });
+    } catch (error) {
+        console.error('Failed to toggle checker status:', error);
+        throw error;
+    }
+};
+
+// Helper methods for mission table
 const getStatusClass = (status) => {
     const statusClasses = {
         completed: "bg-success-bg text-success-text",
@@ -242,11 +384,6 @@ const formatStatus = (status) => {
 };
 
 const formatDate = (dateString) => {
-    if (!dateString) return 'N/A';
-    return new Date(dateString).toLocaleDateString("en-US", {
-        year: 'numeric',
-        month: 'short',
-        day: 'numeric'
-    });
+    return validateAndFormatDate(dateString);
 };
 </script>

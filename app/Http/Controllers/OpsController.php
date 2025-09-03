@@ -29,7 +29,7 @@ class OpsController extends Controller
     /**
      * Display the ops dashboard with metrics and notifications.
      */
-    public function dashboard()
+    public function dashboard(Request $request)
     {
         $opsUserId = Auth::id();
 
@@ -37,7 +37,7 @@ class OpsController extends Controller
         $metrics = $this->getDashboardMetrics();
 
         // Get kanban data
-        $kanbanData = $this->getKanbanData();
+        $kanbanData = $this->getKanbanData($request);
 
         // Get pending notifications
         $pendingNotifications = Notification::forRecipient($opsUserId)
@@ -234,10 +234,19 @@ class OpsController extends Controller
             'incidents' => BailMobilite::incident()->whereBetween('updated_at', [$lastMonth, $currentMonth])->count(),
         ];
 
-        // Performance metrics
-        $averageDuration = BailMobilite::completed()
-            ->selectRaw('AVG(DATEDIFF(end_date, start_date)) as avg_duration')
-            ->value('avg_duration') ?? 0;
+        // Performance metrics - Calculate average duration in days
+        $completedBailMobilites = BailMobilite::completed()
+            ->whereNotNull('start_date')
+            ->whereNotNull('end_date')
+            ->get(['start_date', 'end_date']);
+        
+        $averageDuration = 0;
+        if ($completedBailMobilites->count() > 0) {
+            $totalDays = $completedBailMobilites->sum(function ($bm) {
+                return Carbon::parse($bm->start_date)->diffInDays(Carbon::parse($bm->end_date));
+            });
+            $averageDuration = $totalDays / $completedBailMobilites->count();
+        }
 
         $incidentRate = $stats['total'] > 0 ? ($stats['incident'] / $stats['total']) * 100 : 0;
 

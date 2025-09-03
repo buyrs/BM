@@ -38,6 +38,9 @@ class AuthenticatedSessionController extends Controller
         if ($user->hasRole('checker')) {
             return redirect()->route('checker.dashboard');
         }
+        if ($user->hasRole('ops')) {
+            return redirect()->route('ops.dashboard');
+        }
 
         return redirect()->intended(RouteServiceProvider::HOME);
     }
@@ -47,12 +50,36 @@ class AuthenticatedSessionController extends Controller
      */
     public function destroy(Request $request): RedirectResponse
     {
+        $user = Auth::user();
+        $userRole = null;
+        
+        // Determine user role before logout
+        if ($user) {
+            if ($user->hasRole('ops')) {
+                $userRole = 'ops';
+            } elseif ($user->hasRole('admin') || $user->hasRole('super-admin')) {
+                $userRole = 'admin';
+            } elseif ($user->hasRole('checker')) {
+                $userRole = 'checker';
+            }
+        }
+
         Auth::guard('web')->logout();
 
         $request->session()->invalidate();
 
         $request->session()->regenerateToken();
 
-        return redirect('/');
+        // Redirect based on user role
+        switch ($userRole) {
+            case 'ops':
+                return redirect()->route('ops.login');
+            case 'admin':
+                return redirect()->route('admin.login');
+            case 'checker':
+                return redirect()->route('checker.login');
+            default:
+                return redirect('/');
+        }
     }
 }

@@ -245,6 +245,9 @@ Route::prefix('admin')->name('admin.')->group(function () {
         Route::get('missions/assigned', [MissionController::class, 'getAssignedMissions'])->name('missions.assigned');
         Route::get('missions/completed', [MissionController::class, 'getCompletedMissions'])->name('missions.completed');
         Route::get('checkers', [\App\Http\Controllers\DashboardController::class, 'checkers'])->name('checkers');
+        Route::post('checkers', [\App\Http\Controllers\DashboardController::class, 'storeChecker'])->name('checkers.store');
+        Route::put('checkers/{checker}', [\App\Http\Controllers\DashboardController::class, 'updateChecker'])->name('checkers.update');
+        Route::patch('checkers/{checker}/toggle-status', [\App\Http\Controllers\DashboardController::class, 'toggleCheckerStatus'])->name('checkers.toggle-status');
         Route::get('analytics/data', [\App\Http\Controllers\DashboardController::class, 'reports'])->name('analytics.data');
         Route::get('profile', [ProfileController::class, 'edit'])->name('profile.edit');
         Route::patch('profile', [ProfileController::class, 'update'])->name('profile.update');

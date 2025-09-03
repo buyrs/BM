@@ -242,7 +242,7 @@
                                     Profile
                                 </DropdownLink>
                                 <DropdownLink
-                                    href="/checker/logout"
+                                    :href="route('checker.logout')"
                                     method="post"
                                     as="button"
                                 >

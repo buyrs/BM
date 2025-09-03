@@ -15,6 +15,7 @@
             </div>
         </template>
 
+        <ErrorBoundary fallback-message="Failed to load checker dashboard">
         <div class="py-4 sm:py-6 lg:py-8">
             <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-6 sm:space-y-8">
                 <!-- Priority Missions Alert -->
@@ -324,6 +325,7 @@
                 </div>
             </div>
         </div>
+        </ErrorBoundary>
     </DashboardChecker>
 </template>
 
@@ -331,6 +333,8 @@
 import DashboardChecker from '@/Layouts/DashboardChecker.vue';
 import { Head, Link } from '@inertiajs/vue3';
 import { computed } from 'vue';
+import ErrorBoundary from '@/Components/ErrorBoundary.vue';
+import LoadingSpinner from '@/Components/LoadingSpinner.vue';
 
 const props = defineProps({
     assignedMissions: {

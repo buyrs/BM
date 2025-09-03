@@ -151,6 +151,8 @@ function currentLogoutRoute() {
         return route('admin.logout');
     } else if (window.location.pathname.startsWith('/checker')) {
         return route('checker.logout');
+    } else if (window.location.pathname.startsWith('/ops')) {
+        return route('ops.logout');
     }
     return route('logout');
 }

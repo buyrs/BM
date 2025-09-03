@@ -177,12 +177,13 @@ class CalendarEventService
         if ($mission->bailMobilite) {
             $bailMobilite = $mission->bailMobilite;
             
-            // If this was the only active mission, revert bail mobilité status
-            $activeMissions = $bailMobilite->missions()
-                ->whereNotIn('status', ['cancelled', 'completed'])
-                ->count();
+            // Check if both entry and exit missions are cancelled/completed
+            $entryMissionActive = $bailMobilite->entryMission && 
+                !in_array($bailMobilite->entryMission->status, ['cancelled', 'completed']);
+            $exitMissionActive = $bailMobilite->exitMission && 
+                !in_array($bailMobilite->exitMission->status, ['cancelled', 'completed']);
                 
-            if ($activeMissions === 0) {
+            if (!$entryMissionActive && !$exitMissionActive) {
                 $bailMobilite->update(['status' => 'assigned']);
             }
         }

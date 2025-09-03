@@ -6,6 +6,8 @@ import { createInertiaApp } from '@inertiajs/vue3';
 import { resolvePageComponent } from 'laravel-vite-plugin/inertia-helpers';
 import { ZiggyVue } from 'ziggy-js';
 import { Ziggy } from './ziggy';
+import errorHandler from './utils/errorHandler';
+import GlobalLoadingIndicator from './Components/GlobalLoadingIndicator.vue';
 
 const appName = window.document.getElementsByTagName('title')[0]?.innerText || 'Laravel';
 
@@ -13,10 +15,27 @@ createInertiaApp({
     title: (title) => `${title} - ${appName}`,
     resolve: (name) => resolvePageComponent(`./Pages/${name}.vue`, import.meta.glob('./Pages/**/*.vue')),
     setup({ el, App, props, plugin }) {
-        return createApp({ render: () => h(App, props) })
+        const app = createApp({ 
+            render: () => h('div', [
+                h(App, props),
+                h(GlobalLoadingIndicator)
+            ])
+        })
             .use(plugin)
-            .use(ZiggyVue, Ziggy)
-            .mount(el);
+            .use(ZiggyVue, Ziggy);
+
+        // Global error handling
+        app.config.errorHandler = (error, instance, info) => {
+            errorHandler.handleVueError(error, instance, info);
+        };
+
+        // Global properties for error handling
+        app.config.globalProperties.$errorHandler = errorHandler;
+
+        // Global loading state
+        app.provide('globalLoading', { value: false });
+
+        return app.mount(el);
     },
     progress: {
         color: '#4B5563',

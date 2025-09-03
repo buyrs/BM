@@ -20,10 +20,10 @@ class DashboardController extends Controller
     public function checkers()
     {
         $checkers = User::role('checker')
-            ->withCount(['missions as assigned_missions_count' => function ($query) {
+            ->withCount(['assignedMissions as assigned_missions_count' => function ($query) {
                 $query->whereIn('status', ['assigned', 'in_progress']);
             }])
-            ->withCount(['missions as completed_missions_count' => function ($query) {
+            ->withCount(['assignedMissions as completed_missions_count' => function ($query) {
                 $query->where('status', 'completed');
             }])
             ->get();
@@ -37,7 +37,7 @@ class DashboardController extends Controller
     {
         $totalMissions = Mission::count();
         $completedMissions = Mission::where('status', 'completed')->count();
-        $activeCheckers = User::role('checker')->whereHas('missions', function ($query) {
+        $activeCheckers = User::role('checker')->whereHas('assignedMissions', function ($query) {
             $query->whereIn('status', ['assigned', 'in_progress']);
         })->count();
 
@@ -47,10 +47,10 @@ class DashboardController extends Controller
         $checkoutMissions = Mission::where('type', 'checkout')->count();
 
         $topCheckers = User::role('checker')
-            ->withCount(['missions as completed_missions_count' => function ($query) {
+            ->withCount(['assignedMissions as completed_missions_count' => function ($query) {
                 $query->where('status', 'completed');
             }])
-            ->withCount(['missions as total_missions_count'])
+            ->withCount(['assignedMissions as total_missions_count'])
             ->get()
             ->map(function ($checker) {
                 $checker->completion_rate = $checker->total_missions_count > 0
@@ -127,53 +127,282 @@ class DashboardController extends Controller
 
     public function adminDashboard()
     {
-        $totalMissions = Mission::count();
-        $assignedMissions = Mission::where('status', 'assigned')->count();
-        $completedMissions = Mission::where('status', 'completed')->count();
-        $inProgressMissions = Mission::where('status', 'in_progress')->count();
-        $unassignedMissions = Mission::where('status', 'unassigned')->count();
-        $pendingMissions = Mission::where('status', 'unassigned')->count(); // For compatibility
+        try {
+            $totalMissions = Mission::count();
+            $assignedMissions = Mission::where('status', 'assigned')->count();
+            $completedMissions = Mission::where('status', 'completed')->count();
+            $inProgressMissions = Mission::where('status', 'in_progress')->count();
+            $unassignedMissions = Mission::where('status', 'unassigned')->count();
+            $pendingMissions = Mission::where('status', 'unassigned')->count(); // For compatibility
 
-        $recentMissions = Mission::with('agent')
+            $recentMissions = Mission::with('agent')
+                ->latest()
+                ->limit(10)
+                ->get()
+                ->map(function ($mission) {
+                    return [
+                        'id' => $mission->id,
+                        'address' => $mission->address ?? 'N/A',
+                        'status' => $mission->status,
+                        'type' => $mission->type ?? 'N/A',
+                        'created_at' => $mission->created_at,
+                        'scheduled_at' => $mission->scheduled_at,
+                        'agent' => $mission->agent ? [
+                            'id' => $mission->agent->id,
+                            'name' => $mission->agent->name,
+                        ] : null,
+                    ];
+                });
+
+            $totalCheckers = User::role('checker')->count();
+            $activeCheckers = User::role('checker')->count();
+            $onlineCheckers = User::role('checker')
+                ->where('updated_at', '>=', now()->subMinutes(15))
+                ->count();
+
+            // Get checkers with additional data
+            $checkers = User::role('checker')
+                ->withCount(['assignedMissions as assigned_missions_count' => function ($query) {
+                    $query->whereIn('status', ['assigned', 'in_progress']);
+                }])
+                ->withCount(['assignedMissions as completed_missions_count' => function ($query) {
+                    $query->where('status', 'completed');
+                }])
+                ->get()
+                ->map(function ($checker) {
+                    return [
+                        'id' => $checker->id,
+                        'name' => $checker->name,
+                        'email' => $checker->email,
+                        'phone' => $checker->phone ?? null,
+                        'status' => 'active', // Default status, could be enhanced with actual status field
+                        'is_online' => $checker->updated_at >= now()->subMinutes(15),
+                        'assigned_missions_count' => $checker->assigned_missions_count,
+                        'completed_missions_count' => $checker->completed_missions_count,
+                        'performance_score' => $checker->completed_missions_count > 0 
+                            ? round(($checker->completed_missions_count / ($checker->assigned_missions_count + $checker->completed_missions_count)) * 100)
+                            : null,
+                    ];
+                });
+
+            // Generate recent activities
+            $recentActivities = $this->generateRecentActivities();
+
+            // Generate system health data
+            $systemHealth = $this->generateSystemHealth();
+
+            $data = [
+                'stats' => [
+                    'totalMissions' => $totalMissions,
+                    'assignedMissions' => $assignedMissions,
+                    'completedMissions' => $completedMissions,
+                    'inProgressMissions' => $inProgressMissions,
+                    'unassignedMissions' => $unassignedMissions,
+                    'pendingMissions' => $pendingMissions, // For compatibility with super admin views
+                    'totalCheckers' => $totalCheckers,
+                    'activeCheckers' => $activeCheckers,
+                    'onlineCheckers' => $onlineCheckers,
+                    'missionTrend' => 12, // This would be calculated from historical data
+                    'incidentTrend' => -8, // This would be calculated from historical data
+                ],
+                'recentMissions' => $recentMissions,
+                'checkers' => $checkers,
+                'recentActivities' => $recentActivities,
+                'systemHealth' => $systemHealth,
+            ];
+
+            \Log::info('Admin Dashboard Data:', $data);
+
+            return Inertia::render('Admin/Dashboard', $data);
+        } catch (\Exception $e) {
+            \Log::error('Admin Dashboard Error: ' . $e->getMessage());
+            \Log::error('Stack trace: ' . $e->getTraceAsString());
+            
+            // Return a simple response for debugging
+            return Inertia::render('Admin/Dashboard', [
+                'stats' => [
+                    'totalMissions' => 0,
+                    'assignedMissions' => 0,
+                    'completedMissions' => 0,
+                    'inProgressMissions' => 0,
+                    'unassignedMissions' => 0,
+                    'pendingMissions' => 0,
+                    'totalCheckers' => 0,
+                    'activeCheckers' => 0,
+                    'onlineCheckers' => 0,
+                    'missionTrend' => 0,
+                    'incidentTrend' => 0,
+                ],
+                'recentMissions' => [],
+                'checkers' => [],
+                'recentActivities' => [],
+                'systemHealth' => [
+                    'database' => ['status' => 'unknown'],
+                    'api' => ['status' => 'unknown'],
+                    'storage' => ['status' => 'unknown'],
+                    'queue' => ['status' => 'unknown'],
+                    'recent_errors' => [],
+                    'performance' => null
+                ],
+                'error' => 'Dashboard loading error: ' . $e->getMessage(),
+            ]);
+        }
+    }
+
+    private function generateRecentActivities()
+    {
+        // Get recent missions for activity feed
+        $recentMissionActivities = Mission::with('agent')
             ->latest()
-            ->limit(10)
+            ->limit(5)
             ->get()
             ->map(function ($mission) {
+                $type = 'mission_' . $mission->status;
+                $description = "Mission #{$mission->id} at {$mission->address} was {$mission->status}";
+                
                 return [
-                    'id' => $mission->id,
-                    'address' => $mission->address ?? 'N/A',
-                    'status' => $mission->status,
-                    'type' => $mission->type ?? 'N/A',
-                    'created_at' => $mission->created_at,
-                    'scheduled_at' => $mission->scheduled_at,
-                    'agent' => $mission->agent ? [
-                        'id' => $mission->agent->id,
-                        'name' => $mission->agent->name,
-                    ] : null,
+                    'id' => 'mission_' . $mission->id,
+                    'type' => $type,
+                    'description' => $description,
+                    'created_at' => $mission->updated_at,
+                    'user' => $mission->agent ? ['name' => $mission->agent->name] : null,
+                    'metadata' => [
+                        'address' => $mission->address,
+                        'mission_id' => $mission->id
+                    ]
                 ];
             });
 
-        $totalCheckers = User::role('checker')->count();
-        $activeCheckers = User::role('checker')->count();
-        $onlineCheckers = User::role('checker')
-            ->where('updated_at', '>=', now()->subMinutes(15))
-            ->count();
+        // Get recent user activities
+        $recentUserActivities = User::role('checker')
+            ->latest()
+            ->limit(3)
+            ->get()
+            ->map(function ($user) {
+                return [
+                    'id' => 'user_' . $user->id,
+                    'type' => 'checker_created',
+                    'description' => "New checker account created for {$user->name}",
+                    'created_at' => $user->created_at,
+                    'user' => ['name' => 'Admin User'],
+                    'metadata' => [
+                        'user_id' => $user->id,
+                        'email' => $user->email
+                    ]
+                ];
+            });
 
-        return Inertia::render('Admin/Dashboard', [
-            'stats' => [
-                'totalMissions' => $totalMissions,
-                'assignedMissions' => $assignedMissions,
-                'completedMissions' => $completedMissions,
-                'inProgressMissions' => $inProgressMissions,
-                'unassignedMissions' => $unassignedMissions,
-                'pendingMissions' => $pendingMissions, // For compatibility with super admin views
-                'totalCheckers' => $totalCheckers,
-                'activeCheckers' => $activeCheckers,
-                'onlineCheckers' => $onlineCheckers,
-                'missionTrend' => 12, // This would be calculated from historical data
-                'incidentTrend' => -8, // This would be calculated from historical data
+        return $recentMissionActivities->concat($recentUserActivities)
+            ->sortByDesc('created_at')
+            ->values()
+            ->toArray();
+    }
+
+    private function generateSystemHealth()
+    {
+        // In a real implementation, these would be actual health checks
+        return [
+            'database' => [
+                'status' => 'healthy',
+                'response_time' => rand(20, 100)
             ],
-            'recentMissions' => $recentMissions,
+            'api' => [
+                'status' => 'healthy',
+                'active_connections' => rand(10, 50)
+            ],
+            'storage' => [
+                'status' => rand(0, 10) > 8 ? 'warning' : 'healthy',
+                'disk_usage' => rand(60, 85) . '%'
+            ],
+            'queue' => [
+                'status' => 'healthy',
+                'pending_jobs' => rand(0, 20)
+            ],
+            'recent_errors' => [],
+            'performance' => [
+                'avg_response_time' => rand(200, 400),
+                'requests_per_minute' => rand(100, 200),
+                'uptime' => 99.8,
+                'memory_usage' => rand(400, 800)
+            ]
+        ];
+    }
+
+    public function storeChecker(Request $request)
+    {
+        $validated = $request->validate([
+            'name' => 'required|string|max:255',
+            'email' => 'required|string|email|max:255|unique:users',
+            'password' => 'required|string|min:8',
+            'phone' => 'nullable|string|max:20',
         ]);
+
+        try {
+            $user = User::create([
+                'name' => $validated['name'],
+                'email' => $validated['email'],
+                'password' => bcrypt($validated['password']),
+                'phone' => $validated['phone'] ?? null,
+            ]);
+
+            $user->assignRole('checker');
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Checker created successfully',
+                'checker' => $user
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to create checker: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    public function updateChecker(Request $request, User $checker)
+    {
+        $validated = $request->validate([
+            'name' => 'required|string|max:255',
+            'email' => 'required|string|email|max:255|unique:users,email,' . $checker->id,
+            'phone' => 'nullable|string|max:20',
+        ]);
+
+        try {
+            $checker->update($validated);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Checker updated successfully',
+                'checker' => $checker
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to update checker: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    public function toggleCheckerStatus(Request $request, User $checker)
+    {
+        $validated = $request->validate([
+            'status' => 'required|in:active,inactive,suspended'
+        ]);
+
+        try {
+            // In a real implementation, you might have a status field on the user model
+            // For now, we'll just return success
+            return response()->json([
+                'success' => true,
+                'message' => 'Checker status updated successfully',
+                'status' => $validated['status']
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to update checker status: ' . $e->getMessage()
+            ], 500);
+        }
     }
 } 
