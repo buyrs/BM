@@ -25,26 +25,26 @@
                 </div>
 
                 <!-- Statistics Grid -->
-                <StatsGrid :stats="safeStats" />
+                <LazyDashboardComponents.StatsGrid :stats="safeStats" />
 
                 <!-- Main Content Grid -->
                 <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
                     <!-- Recent Activity -->
-                    <RecentActivity 
-                        :activities="recentActivities" 
+                    <LazyDashboardComponents.RecentActivity
+                        :activities="recentActivities"
                         @refresh="refreshActivities"
                     />
 
                     <!-- System Health -->
-                    <SystemHealth 
-                        :health="systemHealth" 
+                    <LazyDashboardComponents.SystemHealth
+                        :health="systemHealth"
                         @refresh="refreshSystemHealth"
                         @view-error="viewErrorDetails"
                     />
                 </div>
 
                 <!-- Checker Management -->
-                <CheckerManagement 
+                <LazyDashboardComponents.CheckerManagement
                     :checkers="checkers"
                     @refresh="refreshCheckers"
                     @create="createChecker"
@@ -133,10 +133,7 @@ import { Head, Link, router } from "@inertiajs/vue3";
 import { onMounted, computed, ref } from 'vue';
 import ErrorBoundary from '@/Components/ErrorBoundary.vue';
 import LoadingSpinner from '@/Components/LoadingSpinner.vue';
-import StatsGrid from '@/Components/Admin/StatsGrid.vue';
-import RecentActivity from '@/Components/Admin/RecentActivity.vue';
-import CheckerManagement from '@/Components/Admin/CheckerManagement.vue';
-import SystemHealth from '@/Components/Admin/SystemHealth.vue';
+import { LazyDashboardComponents } from '@/utils/lazyLoading';
 import { validateStats, validateMissions, validateAndFormatDate } from '@/utils/dataValidation';
 
 const props = defineProps({

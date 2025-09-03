@@ -173,7 +173,7 @@
 
                     <!-- Overview View -->
                     <div v-if="currentView === 'overview'">
-                        <OverviewStats
+                        <LazyDashboardComponents.OverviewStats
                             :metrics="metrics"
                             :recent-activities="recentActivities"
                             :today-missions="todayMissions"
@@ -184,7 +184,7 @@
 
                     <!-- Kanban View -->
                     <div v-if="currentView === 'kanban'" class="space-y-6">
-                        <KanbanBoard
+                        <LazyDashboardComponents.KanbanBoard
                             :items="kanbanData"
                             :loading="loading"
                             @drop="handleKanbanDrop"
@@ -195,7 +195,7 @@
 
                     <!-- Analytics View -->
                     <div v-if="currentView === 'analytics'" class="space-y-6">
-                        <AnalyticsView
+                        <LazyDashboardComponents.AnalyticsView
                             :data="{
                                 metrics,
                                 trends: performanceTrends,
@@ -217,13 +217,10 @@ import { ref, reactive, onMounted, computed } from 'vue'
 import ErrorBoundary from '@/Components/ErrorBoundary.vue'
 import LoadingSpinner from '@/Components/LoadingSpinner.vue'
 import DashboardOps from '@/Layouts/DashboardOps.vue'
-import NotificationPanel from '@/Components/NotificationPanel.vue'
 import BailMobiliteCard from '@/Components/BailMobiliteCard.vue'
 import PrimaryButton from '@/Components/PrimaryButton.vue'
 import SecondaryButton from '@/Components/SecondaryButton.vue'
-import KanbanBoard from '@/Components/KanbanBoard.vue'
-import OverviewStats from '@/Components/OverviewStats.vue'
-import AnalyticsView from '@/Components/AnalyticsView.vue'
+import { LazyDashboardComponents } from '@/utils/lazyLoading'
 // Simple debounce function
 const debounce = (func, wait) => {
     let timeout
