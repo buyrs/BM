@@ -8,8 +8,8 @@
             <div class="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
                 <div class="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
                     <div class="sm:flex sm:items-start">
-                        <div class="mx-auto flex-shrink-0 flex items-center justify-center h-12 w-12 rounded-full bg-primary-100 sm:mx-0 sm:h-10 sm:w-10">
-                            <svg class="h-6 w-6 text-primary-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <div class="mx-auto flex-shrink-0 flex items-center justify-center h-12 w-12 rounded-full bg-secondary sm:mx-0 sm:h-10 sm:w-10">
+                            <svg class="h-6 w-6 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/>
                             </svg>
                         </div>
@@ -39,8 +39,8 @@
                                 <select
                                     id="checker_id"
                                     v-model="form.checker_id"
-                                    class="w-full rounded-lg border-gray-300 focus:border-primary-500 focus:ring-primary-500"
-                                    :class="{ 'border-red-300': errors.checker_id }"
+                                    class="w-full rounded-lg border-gray-200 focus:border-primary focus:ring-primary transition-colors duration-200"
+                                    :class="{ 'border-error-border': errors.checker_id }"
                                     required
                                 >
                                     <option value="">Choisir un checker...</option>
@@ -65,8 +65,8 @@
                                     id="scheduled_time"
                                     v-model="form.scheduled_time"
                                     type="time"
-                                    class="w-full rounded-lg border-gray-300 focus:border-primary-500 focus:ring-primary-500"
-                                    :class="{ 'border-red-300': errors.scheduled_time }"
+                                    class="w-full rounded-lg border-gray-200 focus:border-primary focus:ring-primary transition-colors duration-200"
+                                    :class="{ 'border-error-border': errors.scheduled_time }"
                                     required
                                 />
                                 <div v-if="errors.scheduled_time" class="mt-1 text-sm text-red-600">
@@ -83,7 +83,7 @@
                                     id="scheduled_time"
                                     v-model="form.scheduled_time"
                                     type="time"
-                                    class="w-full rounded-lg border-gray-300 focus:border-primary-500 focus:ring-primary-500"
+                                    class="w-full rounded-lg border-gray-200 focus:border-primary focus:ring-primary transition-colors duration-200"
                                 />
                                 <p class="mt-1 text-xs text-gray-500">
                                     Si non spécifiée, le checker pourra choisir l'heure
@@ -112,14 +112,14 @@
                             <button
                                 type="button"
                                 @click="$emit('close')"
-                                class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
+                                class="px-4 py-2 text-sm font-medium text-text-primary bg-white border border-gray-200 rounded-lg hover:bg-secondary focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary transition-colors duration-200"
                             >
                                 Annuler
                             </button>
                             <button
                                 type="submit"
                                 :disabled="!form.checker_id || (assignmentType === 'exit' && !form.scheduled_time) || processing"
-                                class="px-4 py-2 text-sm font-medium text-white bg-primary-600 border border-transparent rounded-lg hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                                class="px-4 py-2 text-sm font-medium text-white bg-primary border border-transparent rounded-lg hover:bg-accent focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200"
                             >
                                 <span v-if="processing">Assignation...</span>
                                 <span v-else>Assigner</span>

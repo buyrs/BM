@@ -1,7 +1,7 @@
 <template>
     <a
         :href="href"
-        class="block px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-600"
+        class="block px-4 py-2 text-sm text-text-primary hover:bg-secondary hover:text-primary transition-colors duration-200"
         role="menuitem"
         v-bind="$attrs"
     >

@@ -4,44 +4,58 @@
 
         <DashboardOps>
             <template #header>
-                <div class="flex justify-between items-center">
-                    <h2 class="font-semibold text-xl text-gray-900 leading-tight">
-                        Tableau de Bord Ops
-                    </h2>
+                <div class="flex items-center justify-between">
+                    <div>
+                        <h2 class="text-3xl font-bold text-primary">
+                            Welcome back, {{ $page.props.auth.user.name }}!
+                        </h2>
+                        <p class="text-text-secondary mt-1">
+                            Here's what's happening with your properties today.
+                        </p>
+                    </div>
                     <div class="flex items-center space-x-3">
                         <!-- View Toggle -->
-                        <div class="flex bg-gray-100 rounded-lg p-1">
+                        <div class="flex bg-gray-100 rounded-lg p-1 shadow-inner">
                             <button
                                 @click="currentView = 'overview'"
                                 :class="[
-                                    'px-3 py-1 text-sm font-medium rounded-md transition-colors',
+                                    'px-4 py-2 text-sm font-medium rounded-md transition-all duration-200 flex items-center gap-2',
                                     currentView === 'overview' 
-                                        ? 'bg-primary text-white shadow-sm'
-                                        : 'text-text-secondary hover:bg-secondary hover:text-primary'
+                                        ? 'bg-white text-primary shadow-sm transform scale-105' 
+                                        : 'text-text-secondary hover:text-primary hover:bg-white/50'
                                 ]"
                             >
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"/>
+                                </svg>
                                 Vue d'ensemble
                             </button>
                             <button
                                 @click="currentView = 'kanban'"
                                 :class="[
-                                    'px-3 py-1 text-sm font-medium rounded-md transition-colors',
+                                    'px-4 py-2 text-sm font-medium rounded-md transition-all duration-200 flex items-center gap-2',
                                     currentView === 'kanban' 
-                                        ? 'bg-primary text-white shadow-sm'
-                                        : 'text-text-secondary hover:bg-secondary hover:text-primary'
+                                        ? 'bg-white text-primary shadow-sm transform scale-105' 
+                                        : 'text-text-secondary hover:text-primary hover:bg-white/50'
                                 ]"
                             >
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17V7m0 10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h2a2 2 0 012 2m0 10a2 2 0 002 2h2a2 2 0 002-2M9 7a2 2 0 012-2h2a2 2 0 012 2m0 0a2 2 0 012 2v6a2 2 0 01-2 2m-6 0a2 2 0 002 2h2a2 2 0 002-2"/>
+                                </svg>
                                 Kanban
                             </button>
                             <button
                                 @click="currentView = 'analytics'"
                                 :class="[
-                                    'px-3 py-1 text-sm font-medium rounded-md transition-colors',
+                                    'px-4 py-2 text-sm font-medium rounded-md transition-all duration-200 flex items-center gap-2',
                                     currentView === 'analytics' 
-                                        ? 'bg-primary text-white shadow-sm'
-                                        : 'text-text-secondary hover:bg-secondary hover:text-primary'
+                                        ? 'bg-white text-primary shadow-sm transform scale-105' 
+                                        : 'text-text-secondary hover:text-primary hover:bg-white/50'
                                 ]"
                             >
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
+                                </svg>
                                 Analyses
                             </button>
                         </div>
@@ -84,8 +98,8 @@
                 </div>
             </template>
 
-            <div class="py-12">
-                <div class="max-w-7xl mx-auto sm:px-6 lg:px-8 space-y-6">
+            <div class="py-8">
+                <div class="max-w-7xl mx-auto sm:px-6 lg:px-8 space-y-8">
                     <!-- Filters -->
                     <div v-if="currentView !== 'overview'" class="bg-white rounded-xl shadow-md p-4">
                         <div class="flex flex-wrap items-center gap-4">
@@ -158,6 +172,48 @@
 
                     <!-- Overview View -->
                     <div v-if="currentView === 'overview'">
+                        <!-- Missions Requiring Attention -->
+                        <div v-if="getOverdueMissions() > 0 || getUnassignedMissions() > 0 || getCriticalIncidents() > 0" class="bg-white rounded-xl shadow-md p-6 border-l-4 border-error-border mb-8">
+                            <h3 class="text-xl font-bold text-error-text flex items-center mb-4">
+                                <svg class="w-6 h-6 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z"/>
+                                </svg>
+                                Missions Requiring Attention
+                            </h3>
+                            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                                <Link v-if="getOverdueMissions() > 0" href="#" class="block p-4 bg-error-bg rounded-lg hover:bg-red-100 transition-colors duration-200">
+                                    <div class="flex items-center text-error-text">
+                                        <svg class="w-6 h-6 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                                        </svg>
+                                        <h4 class="font-semibold">Overdue Missions</h4>
+                                    </div>
+                                    <p class="text-3xl font-bold text-error-text mt-2">{{ getOverdueMissions() }}</p>
+                                    <p class="text-xs text-error-text">View Details</p>
+                                </Link>
+                                <Link v-if="getUnassignedMissions() > 0" href="#" class="block p-4 bg-warning-bg rounded-lg hover:bg-orange-100 transition-colors duration-200">
+                                    <div class="flex items-center text-warning-text">
+                                        <svg class="w-6 h-6 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z"/>
+                                        </svg>
+                                        <h4 class="font-semibold">Unassigned Missions</h4>
+                                    </div>
+                                    <p class="text-3xl font-bold text-warning-text mt-2">{{ getUnassignedMissions() }}</p>
+                                    <p class="text-xs text-warning-text">View Details</p>
+                                </Link>
+                                <Link v-if="getCriticalIncidents() > 0" href="#" class="block p-4 bg-yellow-50 rounded-lg hover:bg-yellow-100 transition-colors duration-200">
+                                    <div class="flex items-center text-yellow-600">
+                                        <svg class="w-6 h-6 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z"/>
+                                        </svg>
+                                        <h4 class="font-semibold">Critical Incidents</h4>
+                                    </div>
+                                    <p class="text-3xl font-bold text-yellow-800 mt-2">{{ getCriticalIncidents() }}</p>
+                                    <p class="text-xs text-yellow-600">View Details</p>
+                                </Link>
+                            </div>
+                        </div>
+
                         <!-- Enhanced Statistics Cards -->
                         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                             <div class="bg-white rounded-xl shadow-md p-6">
@@ -652,13 +708,43 @@ const debounce = (func, wait) => {
 }
 
 const props = defineProps({
-    metrics: Object,
-    kanbanData: Object,
-    pendingNotifications: Array,
-    missionsForValidation: Array,
-    endingSoon: Array,
-    notificationStats: Object,
-    performanceTrends: Object,
+    metrics: {
+        type: Object,
+        default: () => ({}),
+    },
+    kanbanData: {
+        type: Object,
+        default: () => ({
+            assigned: [],
+            in_progress: [],
+            completed: [],
+            incident: [],
+        }),
+    },
+    pendingNotifications: {
+        type: Array,
+        default: () => [],
+    },
+    missionsForValidation: {
+        type: Array,
+        default: () => [],
+    },
+    endingSoon: {
+        type: Array,
+        default: () => [],
+    },
+    notificationStats: {
+        type: Object,
+        default: () => ({}),
+    },
+    performanceTrends: {
+        type: Object,
+        default: () => ({}),
+    },
+    todayMissions: {
+        type: Array,
+        default: () => [],
+    },
 })
 
 // Reactive state
@@ -683,6 +769,24 @@ const filters = reactive({
 const debouncedSearch = debounce(() => {
     applyFilters()
 }, 300)
+
+// Helper methods for attention alerts
+const getOverdueMissions = () => {
+    const now = new Date();
+    return props.todayMissions.filter(mission => 
+        new Date(mission.scheduled_date) < now && mission.status !== 'completed'
+    ).length;
+};
+
+const getUnassignedMissions = () => {
+    return Object.values(props.kanbanData).flat().filter(bm => 
+        bm.status === 'assigned' && (!bm.entry_mission?.agent_id || !bm.exit_mission?.agent_id)
+    ).length;
+};
+
+const getCriticalIncidents = () => {
+    return props.kanbanData.incident?.length || 0;
+};
 
 // Methods
 const formatDate = (date) => {

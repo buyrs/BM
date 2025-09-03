@@ -17,7 +17,7 @@
                     <h3 class="text-lg font-semibold text-gray-900">
                         {{ day.date.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }) }}
                     </h3>
-                    <span class="bg-blue-600 text-white text-xs rounded-full px-2 py-1">
+                    <span class="bg-primary text-white text-xs rounded-full px-2 py-1">
                         {{ day.missions.length }} mission{{ day.missions.length !== 1 ? 's' : '' }}
                     </span>
                 </div>
@@ -84,7 +84,7 @@
                     :class="[
                         'bg-white min-h-32 p-2 cursor-pointer hover:bg-gray-50 transition-colors touch-feedback',
                         day.isCurrentMonth ? 'text-gray-900' : 'text-gray-400',
-                        day.isToday ? 'bg-blue-50 border-2 border-blue-200' : '',
+                        day.isToday ? 'bg-secondary border-2 border-primary' : '',
                         day.isSelected ? 'keyboard-selected' : ''
                     ]"
                     role="gridcell"
@@ -99,7 +99,7 @@
                         <span
                             :class="[
                                 'text-sm font-medium',
-                                day.isToday ? 'bg-blue-600 text-white rounded-full w-6 h-6 flex items-center justify-center' : ''
+                                day.isToday ? 'bg-primary text-white rounded-full w-6 h-6 flex items-center justify-center' : ''
                             ]"
                         >
                             {{ day.date.getDate() }}
@@ -108,7 +108,7 @@
                         <!-- Mission Count Badge -->
                         <span
                             v-if="day.missions.length > 0"
-                            class="bg-blue-600 text-white text-xs rounded-full px-2 py-1 min-w-6 text-center"
+                            class="bg-primary text-white text-xs rounded-full px-2 py-1 min-w-6 text-center"
                         >
                             {{ day.missions.length }}
                         </span>
@@ -160,7 +160,7 @@
                             <!-- More missions indicator -->
                             <div
                                 v-if="day.missions.length > 3"
-                                class="absolute bottom-0 right-0 z-20 bg-blue-600 text-white text-xs rounded-full px-2 py-1 cursor-pointer hover:bg-blue-700 transform translate-y-1"
+                                class="absolute bottom-0 right-0 z-20 bg-primary text-white text-xs rounded-full px-2 py-1 cursor-pointer hover:bg-accent transform translate-y-1"
                                 @click="handleDateClick(day.date)"
                                 :title="`${day.missions.length - 3} more missions`"
                             >
@@ -186,7 +186,7 @@
                     :key="day.date.toISOString()"
                     :class="[
                         'bg-gray-50 p-3 text-center text-sm font-medium',
-                        day.isToday ? 'bg-blue-100 text-blue-800' : 'text-gray-700'
+                        day.isToday ? 'bg-secondary text-primary' : 'text-text-secondary'
                     ]"
                 >
                     <div>{{ day.dayName }}</div>
@@ -290,7 +290,7 @@
             <div class="mt-6">
                 <button
                     @click="handleDateClick(currentDate)"
-                    class="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                    class="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-primary hover:bg-accent focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary transition-colors duration-200"
                 >
                     Create Mission
                 </button>

@@ -1,11 +1,11 @@
 <template>
-    <div class="bg-white rounded-xl shadow-sm p-6">
+    <div class="bg-white rounded-xl shadow-md p-6 hover:shadow-lg transition-shadow duration-200">
         <div class="flex justify-between items-start">
             <div>
-                <h3 class="text-lg font-semibold text-gray-900">
+                <h3 class="text-lg font-semibold text-text-primary">
                     {{ mission.type === 'checkin' ? 'Check-in' : 'Check-out' }}
                 </h3>
-                <p class="mt-1 text-sm text-gray-500">{{ mission.address }}</p>
+                <p class="mt-1 text-sm text-text-secondary">{{ mission.address }}</p>
             </div>
             <span :class="getStatusClass(mission.status)" class="text-sm">
                 {{ formatStatus(mission.status) }}
@@ -13,13 +13,13 @@
         </div>
 
         <div class="mt-4">
-            <div class="flex items-center text-sm text-gray-500">
+            <div class="flex items-center text-sm text-text-secondary">
                 <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
                 </svg>
                 {{ formatDate(mission.scheduled_at) }}
             </div>
-            <div class="mt-2 flex items-center text-sm text-gray-500">
+            <div class="mt-2 flex items-center text-sm text-text-secondary">
                 <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/>
                 </svg>
@@ -31,7 +31,7 @@
             <Link
                 v-if="mission.status === 'in_progress'"
                 :href="route('checklist.create', mission.id)"
-                class="inline-flex items-center px-4 py-2 bg-primary-600 text-white text-sm font-medium rounded-lg hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
+                class="inline-flex items-center px-4 py-2 bg-primary text-white text-sm font-medium rounded-lg hover:bg-accent focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary transition-colors duration-200"
                 :class="{ 'opacity-50 cursor-not-allowed': loading }"
                 :disabled="loading"
             >
@@ -46,7 +46,7 @@
             </Link>
             <Link
                 :href="route('missions.show', mission.id)"
-                class="inline-flex items-center px-4 py-2 bg-white text-gray-700 text-sm font-medium rounded-lg border border-gray-300 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
+                class="inline-flex items-center px-4 py-2 bg-white text-text-primary text-sm font-medium rounded-lg border border-gray-200 hover:bg-secondary focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary transition-colors duration-200"
                 :class="{ 'opacity-50 cursor-not-allowed': loading }"
                 :disabled="loading"
             >
@@ -59,7 +59,7 @@
             <button
                 v-if="mission.status === 'assigned'"
                 @click="refuseMission"
-                class="inline-flex items-center px-4 py-2 bg-red-600 text-white text-sm font-medium rounded-lg hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
+                class="inline-flex items-center px-4 py-2 bg-error-border text-white text-sm font-medium rounded-lg hover:bg-error-text focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-error-border transition-colors duration-200"
                 :class="{ 'opacity-50 cursor-not-allowed': loading }"
                 :disabled="loading"
             >
@@ -107,10 +107,10 @@ const formatStatus = (status) => {
 const getStatusClass = (status) => {
     const classes = {
         unassigned: 'bg-gray-100 text-gray-800',
-        assigned: 'bg-yellow-100 text-yellow-800',
-        in_progress: 'bg-blue-100 text-blue-800',
-        completed: 'bg-green-100 text-green-800',
-        cancelled: 'bg-red-100 text-red-800'
+        assigned: 'bg-warning-bg text-warning-text',
+        in_progress: 'bg-info-bg text-info-text',
+        completed: 'bg-success-bg text-success-text',
+        cancelled: 'bg-error-bg text-error-text'
     }
     return `px-3 py-1 rounded-full ${classes[status]}`
 }

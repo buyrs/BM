@@ -4,8 +4,8 @@
             'mission-event cursor-pointer transition-all duration-200 hover:shadow-md relative touch-feedback',
             eventClasses,
             compact ? 'p-1 rounded text-xs' : 'p-2 rounded-md text-sm',
-            selectionMode ? 'hover:ring-2 hover:ring-blue-300' : '',
-            selected ? 'ring-2 ring-blue-500 bg-blue-100' : '',
+            selectionMode ? 'hover:ring-2 hover:ring-info-border' : '',
+            selected ? 'ring-2 ring-primary bg-secondary' : '',
             mission.type === 'entry' ? 'colorblind-pattern-entry' : 'colorblind-pattern-exit'
         ]"
         role="button"
@@ -22,7 +22,7 @@
         <div v-if="selectionMode" class="absolute -top-1 -right-1 z-10">
             <div :class="[
                 'w-5 h-5 rounded-full border-2 flex items-center justify-center',
-                selected ? 'bg-blue-600 border-blue-600' : 'bg-white border-gray-300'
+                selected ? 'bg-primary border-primary' : 'bg-white border-gray-300'
             ]">
                 <svg v-if="selected" class="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 20 20">
                     <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd" />
@@ -96,7 +96,7 @@
                     <div class="flex items-center space-x-2">
                         <span :class="[
                             'px-2 py-0.5 rounded text-xs font-medium',
-                            mission.type === 'entry' ? 'bg-blue-600 text-blue-100' : 'bg-orange-600 text-orange-100'
+                            mission.type === 'entry' ? 'bg-info-border text-white' : 'bg-warning-border text-white'
                         ]">
                             {{ missionTypeLabel }}
                         </span>
@@ -191,8 +191,8 @@ const formattedStatus = computed(() => {
 const eventClasses = computed(() => {
     const baseClasses = 'border-l-4'
     const typeClasses = {
-        'entry': 'bg-blue-50 border-blue-500 text-blue-900',
-        'exit': 'bg-orange-50 border-orange-500 text-orange-900'
+        'entry': 'bg-info-bg border-info-border text-info-text',
+        'exit': 'bg-warning-bg border-warning-border text-warning-text'
     }
     
     const statusClasses = {
@@ -212,8 +212,8 @@ const eventClasses = computed(() => {
 
 const typeIconClasses = computed(() => {
     return props.mission.type === 'entry' 
-        ? 'text-blue-600' 
-        : 'text-orange-600'
+        ? 'text-info-text' 
+        : 'text-warning-text'
 })
 
 const statusIndicatorClasses = computed(() => {
@@ -221,10 +221,10 @@ const statusIndicatorClasses = computed(() => {
     
     const statusColors = {
         'unassigned': 'bg-gray-400',
-        'assigned': 'bg-blue-400',
-        'in_progress': 'bg-green-400 animate-pulse',
-        'completed': 'bg-green-600',
-        'cancelled': 'bg-red-400'
+        'assigned': 'bg-warning-border',
+        'in_progress': 'bg-info-border animate-pulse',
+        'completed': 'bg-success-border',
+        'cancelled': 'bg-error-border'
     }
     
     return [
@@ -237,10 +237,10 @@ const statusIndicatorClasses = computed(() => {
 const getTooltipStatusClasses = (status) => {
     const statusClasses = {
         'unassigned': 'bg-gray-600 text-gray-100',
-        'assigned': 'bg-blue-600 text-blue-100',
-        'in_progress': 'bg-green-600 text-green-100',
-        'completed': 'bg-green-700 text-green-100',
-        'cancelled': 'bg-red-600 text-red-100'
+        'assigned': 'bg-warning-border text-white',
+        'in_progress': 'bg-info-border text-white',
+        'completed': 'bg-success-border text-white',
+        'cancelled': 'bg-error-border text-white'
     }
     
     return statusClasses[status] || statusClasses.unassigned
