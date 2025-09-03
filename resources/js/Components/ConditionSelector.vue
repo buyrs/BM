@@ -33,26 +33,26 @@ const conditions = [
     {
         value: 'perfect',
         label: 'Perfect',
-        activeClass: 'border-green-500',
-        bgClass: 'bg-green-500'
+        activeClass: 'border-success-border',
+        bgClass: 'bg-success-border'
     },
     {
         value: 'good',
         label: 'Good',
-        activeClass: 'border-blue-500',
-        bgClass: 'bg-blue-500'
+        activeClass: 'border-info-border',
+        bgClass: 'bg-info-border'
     },
     {
         value: 'damaged',
         label: 'Damaged',
-        activeClass: 'border-yellow-500',
-        bgClass: 'bg-yellow-500'
+        activeClass: 'border-warning-border',
+        bgClass: 'bg-warning-border'
     },
     {
         value: 'broken',
         label: 'Broken',
-        activeClass: 'border-red-500',
-        bgClass: 'bg-red-500'
+        activeClass: 'border-error-border',
+        bgClass: 'bg-error-border'
     }
 ]
 </script>

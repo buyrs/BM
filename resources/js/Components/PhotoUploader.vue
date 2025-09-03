@@ -13,13 +13,13 @@
             <button
                 type="button"
                 @click="$refs.fileInput.click()"
-                class="px-3 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 text-sm"
-                :class="{ 'opacity-50 cursor-not-allowed': loading, 'bg-red-600 hover:bg-red-700': required && selectedPhotos.length === 0 }"
+                class="px-3 py-2 bg-primary text-white rounded hover:bg-accent text-sm"
+                :class="{ 'opacity-50 cursor-not-allowed': loading, 'bg-error-border hover:bg-error-text': required && selectedPhotos.length === 0 }"
                 :disabled="loading"
             >
                 {{ loading ? 'Processing...' : 'Add Photos' }}
             </button>
-            <span v-if="required" class="text-sm text-red-600">*Required</span>
+            <span v-if="required" class="text-sm text-error-text">*Required</span>
         </div>
         
         <div v-if="selectedPhotos.length > 0 || existingPhotos.length > 0" class="grid grid-cols-3 md:grid-cols-4 gap-2">
@@ -30,7 +30,7 @@
                     class="w-full h-20 object-cover rounded border"
                     @error="handleImageError"
                 >
-                <div class="absolute bottom-0 left-0 right-0 bg-black bg-opacity-50 text-white text-xs p-1 rounded-b">
+                <div class="absolute bottom-0 left-0 right-0 bg-gray-500 bg-opacity-75 text-white text-xs p-1 rounded-b">
                     Existing
                 </div>
             </div>
@@ -44,17 +44,17 @@
                 >
                 <button
                     @click.prevent="removePhoto(i)"
-                    class="absolute top-1 right-1 bg-red-600 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs hover:bg-red-700"
+                    class="absolute top-1 right-1 bg-error-border text-white rounded-full w-5 h-5 flex items-center justify-center text-xs hover:bg-error-text"
                 >
                     ×
                 </button>
-                <div class="absolute bottom-0 left-0 right-0 bg-green-600 bg-opacity-75 text-white text-xs p-1 rounded-b">
+                <div class="absolute bottom-0 left-0 right-0 bg-success-border bg-opacity-75 text-white text-xs p-1 rounded-b">
                     New
                 </div>
             </div>
         </div>
         
-        <div v-if="error" class="text-red-500 text-sm">{{ error }}</div>
+        <div v-if="error" class="text-error-text text-sm">{{ error }}</div>
     </div>
 </template>
 
