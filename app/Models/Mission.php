@@ -8,7 +8,9 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasOne;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\Cache;
+use App\Services\CacheService;
 
 class Mission extends Model
 {
@@ -243,5 +245,145 @@ class Mission extends Model
         }
 
         return $this->scheduled_at->setTimeFromTimeString($this->scheduled_time);
+    }
+
+    /**
+     * Optimized query scopes with eager loading
+     */
+    public function scopeWithRelations(Builder $query): Builder
+    {
+        return $query->with([
+            'agent:id,name,email',
+            'bailMobilite:id,tenant_name,address,status',
+            'opsAssignedBy:id,name,email',
+            'checklist:id,mission_id,status'
+        ]);
+    }
+
+    public function scopeForDashboard(Builder $query, int $userId, string $role): Builder
+    {
+        $query = $query->withRelations();
+        
+        if ($role === 'checker') {
+            $query->where('agent_id', $userId);
+        } elseif ($role === 'ops') {
+            $query->where('ops_assigned_by', $userId);
+        }
+        
+        return $query->orderBy('scheduled_at', 'desc');
+    }
+
+    public function scopeUpcoming(Builder $query, int $days = 7): Builder
+    {
+        return $query->where('scheduled_at', '>=', now())
+                    ->where('scheduled_at', '<=', now()->addDays($days))
+                    ->whereIn('status', ['assigned', 'in_progress']);
+    }
+
+    public function scopeOverdue(Builder $query): Builder
+    {
+        return $query->where('scheduled_at', '<', now())
+                    ->whereIn('status', ['assigned', 'in_progress']);
+    }
+
+    public function scopeByDateRange(Builder $query, string $startDate, string $endDate): Builder
+    {
+        return $query->whereBetween('scheduled_at', [$startDate, $endDate]);
+    }
+
+    public function scopeWithStats(Builder $query): Builder
+    {
+        return $query->selectRaw('
+            COUNT(*) as total_missions,
+            COUNT(CASE WHEN status = "completed" THEN 1 END) as completed_missions,
+            COUNT(CASE WHEN status = "in_progress" THEN 1 END) as in_progress_missions,
+            COUNT(CASE WHEN status = "assigned" THEN 1 END) as assigned_missions,
+            COUNT(CASE WHEN scheduled_at < NOW() AND status != "completed" THEN 1 END) as overdue_missions
+        ');
+    }
+
+    /**
+     * Cached query methods
+     */
+    public static function getCachedMissionsByAgent(int $agentId): \Illuminate\Support\Collection
+    {
+        $cacheService = app(CacheService::class);
+        
+        return $cacheService->getMissionsByAgent($agentId, function() use ($agentId) {
+            return static::where('agent_id', $agentId)
+                        ->withRelations()
+                        ->orderBy('scheduled_at', 'desc')
+                        ->get();
+        });
+    }
+
+    public static function getCachedUpcomingMissions(int $days = 7): \Illuminate\Support\Collection
+    {
+        $cacheKey = "missions:upcoming:{$days}";
+        
+        return Cache::remember($cacheKey, CacheService::SHORT_CACHE, function() use ($days) {
+            return static::upcoming($days)
+                        ->withRelations()
+                        ->orderBy('scheduled_at', 'asc')
+                        ->get();
+        });
+    }
+
+    public static function getCachedOverdueMissions(): \Illuminate\Support\Collection
+    {
+        $cacheKey = "missions:overdue";
+        
+        return Cache::remember($cacheKey, CacheService::SHORT_CACHE, function() {
+            return static::overdue()
+                        ->withRelations()
+                        ->orderBy('scheduled_at', 'asc')
+                        ->get();
+        });
+    }
+
+    public static function getCachedMissionStats(): array
+    {
+        $cacheKey = "missions:stats";
+        
+        return Cache::remember($cacheKey, CacheService::MEDIUM_CACHE, function() {
+            $stats = static::withStats()->first();
+            
+            return [
+                'total' => $stats->total_missions ?? 0,
+                'completed' => $stats->completed_missions ?? 0,
+                'in_progress' => $stats->in_progress_missions ?? 0,
+                'assigned' => $stats->assigned_missions ?? 0,
+                'overdue' => $stats->overdue_missions ?? 0,
+                'completion_rate' => $stats->total_missions > 0 
+                    ? round(($stats->completed_missions / $stats->total_missions) * 100, 2) 
+                    : 0
+            ];
+        });
+    }
+
+    /**
+     * Clear related caches when mission is updated
+     */
+    protected static function clearRelatedCaches($mission): void
+    {
+        $cacheService = app(CacheService::class);
+        
+        // Clear mission-specific caches
+        $cacheService->invalidateMissionCache($mission->id);
+        
+        // Clear agent-specific caches
+        if ($mission->agent_id) {
+            Cache::forget("missions:agent:{$mission->agent_id}");
+        }
+        
+        // Clear general mission caches
+        Cache::forget('missions:upcoming:7');
+        Cache::forget('missions:overdue');
+        Cache::forget('missions:stats');
+        
+        // Clear calendar caches
+        if ($mission->scheduled_at) {
+            $cacheService->invalidateCalendarCache($mission->scheduled_at->format('Y-m-d'));
+        }
     }
 }      

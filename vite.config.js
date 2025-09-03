@@ -2,6 +2,7 @@ import { defineConfig } from 'vite';
 import laravel from 'laravel-vite-plugin';
 import vue from '@vitejs/plugin-vue';
 import { VitePWA } from 'vite-plugin-pwa';
+import { splitVendorChunkPlugin } from 'vite';
 
 export default defineConfig({
     plugins: [
@@ -17,6 +18,7 @@ export default defineConfig({
                 },
             },
         }),
+        splitVendorChunkPlugin(),
         VitePWA({
             registerType: 'autoUpdate',
             includeAssets: ['favicon.ico', 'robots.txt', 'icons/*.png', 'assets/*.css', 'assets/*.js'],
@@ -68,4 +70,53 @@ export default defineConfig({
             },
         }),
     ],
+    build: {
+        rollupOptions: {
+            output: {
+                manualChunks: {
+                    // Vendor chunks
+                    'vue-vendor': ['vue', '@inertiajs/vue3'],
+                    'chart-vendor': ['chart.js'],
+                    'date-vendor': ['date-fns'],
+                    'editor-vendor': ['@tiptap/vue-3', '@tiptap/starter-kit'],
+                    
+                    // Feature chunks
+                    'dashboard': [
+                        './resources/js/Pages/Admin/Dashboard.vue',
+                        './resources/js/Pages/Ops/Dashboard.vue',
+                        './resources/js/Pages/Checker/Dashboard.vue'
+                    ],
+                    'components': [
+                        './resources/js/Components/KanbanBoard.vue',
+                        './resources/js/Components/SignaturePad.vue',
+                        './resources/js/Components/ContractTemplateManager.vue'
+                    ]
+                }
+            }
+        },
+        chunkSizeWarningLimit: 1000,
+        sourcemap: false,
+        minify: 'terser',
+        terserOptions: {
+            compress: {
+                drop_console: true,
+                drop_debugger: true
+            }
+        }
+    },
+    optimizeDeps: {
+        include: [
+            'vue',
+            '@inertiajs/vue3',
+            'chart.js',
+            'date-fns',
+            '@tiptap/vue-3',
+            '@tiptap/starter-kit'
+        ]
+    },
+    server: {
+        hmr: {
+            overlay: false
+        }
+    }
 });
