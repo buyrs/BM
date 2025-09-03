@@ -34,20 +34,20 @@
         <div class="py-3 sm:py-4 lg:py-6">
             <div class="max-w-7xl mx-auto px-3 sm:px-4 lg:px-6 space-y-3 sm:space-y-4 lg:space-y-6">
                 <!-- Urgent Missions Component -->
-                <UrgentMissions 
+                <LazyDashboardComponents.UrgentMissions
                     v-if="urgentMissions.length > 0"
                     :missions="urgentMissions"
                     @start-mission="handleStartMission"
                 />
 
                 <!-- Statistics Cards Component -->
-                <StatsCards :stats="dashboardStats" />
+                <LazyDashboardComponents.StatsCards :stats="dashboardStats" />
 
                 <!-- Main Content Grid - Mobile-first responsive -->
                 <div class="grid grid-cols-1 xl:grid-cols-3 gap-3 sm:gap-4 lg:gap-6">
                     <!-- Today's Schedule Component -->
                     <div class="xl:col-span-2 order-2 xl:order-1">
-                        <TodaySchedule 
+                        <LazyDashboardComponents.TodaySchedule
                             :missions="getTodaySchedule()"
                             @start-mission="handleStartMission"
                             @navigate-to-mission="handleNavigateToMission"
@@ -57,7 +57,7 @@
                     <!-- Quick Actions & Weekly Performance -->
                     <div class="space-y-3 sm:space-y-4 order-1 xl:order-2">
                         <!-- Quick Actions Component -->
-                        <QuickActions 
+                        <LazyDashboardComponents.QuickActions
                             :stats="quickActionStats"
                             @open-camera="handleOpenCamera"
                             @call-support="handleCallSupport"
@@ -206,11 +206,8 @@ import { Head, Link, router } from '@inertiajs/vue3';
 import { computed, ref, onMounted, onUnmounted } from 'vue';
 import ErrorBoundary from '@/Components/ErrorBoundary.vue';
 import LoadingSpinner from '@/Components/LoadingSpinner.vue';
-import UrgentMissions from '@/Components/Checker/UrgentMissions.vue';
-import StatsCards from '@/Components/Checker/StatsCards.vue';
-import TodaySchedule from '@/Components/Checker/TodaySchedule.vue';
-import QuickActions from '@/Components/Checker/QuickActions.vue';
 import OfflineService from '@/Services/OfflineService.js';
+import { LazyDashboardComponents } from '@/utils/lazyLoading';
 
 const props = defineProps({
     assignedMissions: {
