@@ -1,6 +1,6 @@
 <template>
-    <div>
-        <nav class="bg-white border-b border-gray-100">
+    <div class="min-h-screen bg-background">
+        <nav class="bg-white shadow-md">
             <!-- Primary Navigation Menu -->
             <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                 <div class="flex justify-between h-16">
@@ -9,7 +9,7 @@
                         <div class="shrink-0 flex items-center">
                             <Link :href="route('dashboard')">
                                 <ApplicationLogo
-                                    class="block h-9 w-auto fill-current text-gray-800"
+                                    class="block h-9 w-auto fill-current text-text-primary"
                                 />
                             </Link>
                         </div>
@@ -30,7 +30,7 @@
                                     <span class="inline-flex rounded-md">
                                         <button
                                             type="button"
-                                            class="inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-gray-500 bg-white hover:text-gray-700 focus:outline-none transition ease-in-out duration-150"
+                                            class="inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-text-secondary bg-white hover:text-text-primary focus:outline-none transition ease-in-out duration-150"
                                         >
                                             {{ $page.props.auth.user.name }}
 
@@ -66,7 +66,7 @@
                     <div class="-mr-2 flex items-center sm:hidden">
                         <button
                             @click="showingNavigationDropdown = !showingNavigationDropdown"
-                            class="inline-flex items-center justify-center p-2 rounded-md text-gray-400 hover:text-gray-500 hover:bg-gray-100 focus:outline-none focus:bg-gray-100 focus:text-gray-500 transition duration-150 ease-in-out"
+                            class="inline-flex items-center justify-center p-2 rounded-md text-text-secondary hover:text-text-primary hover:bg-gray-100 focus:outline-none focus:bg-gray-100 focus:text-text-primary transition duration-150 ease-in-out"
                         >
                             <svg class="h-6 w-6" stroke="currentColor" fill="none" viewBox="0 0 24 24">
                                 <path
@@ -103,10 +103,10 @@
                 <!-- Responsive Settings Options -->
                 <div class="pt-4 pb-1 border-t border-gray-200">
                     <div class="px-4">
-                        <div class="font-medium text-base text-gray-800">
+                        <div class="font-medium text-base text-text-primary">
                             {{ $page.props.auth.user.name }}
                         </div>
-                        <div class="font-medium text-sm text-gray-500">{{ $page.props.auth.user.email }}</div>
+                        <div class="font-medium text-sm text-text-secondary">{{ $page.props.auth.user.email }}</div>
                     </div>
 
                     <div class="mt-3 space-y-1">
@@ -122,14 +122,14 @@
         </nav>
 
         <!-- Page Heading -->
-        <header class="bg-white shadow" v-if="$slots.header">
+        <header class="bg-white shadow-md" v-if="$slots.header">
             <div class="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
                 <slot name="header" />
             </div>
         </header>
 
         <!-- Page Content -->
-        <main>
+        <main class="p-6">
             <slot />
         </main>
     </div>

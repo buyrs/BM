@@ -4,7 +4,7 @@
     <DashboardAdmin>
         <template #header>
             <div class="flex justify-between items-center">
-                <h2 class="font-semibold text-xl text-gray-800 leading-tight">Contract Templates</h2>
+                <h2 class="font-semibold text-xl text-text-primary leading-tight">Contract Templates</h2>
                 <Link :href="route('admin.contract-templates.create')">
                     <PrimaryButton>Create Template</PrimaryButton>
                 </Link>
@@ -14,18 +14,18 @@
         <div class="py-12">
             <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
                 <!-- Success/Error Messages -->
-                <div v-if="$page.props.flash.success" class="mb-6 bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded">
+                <div v-if="$page.props.flash.success" class="mb-6 bg-success-bg border border-success-border text-success-text px-4 py-3 rounded">
                     {{ $page.props.flash.success }}
                 </div>
-                <div v-if="$page.props.flash.error" class="mb-6 bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">
+                <div v-if="$page.props.flash.error" class="mb-6 bg-error-bg border border-error-border text-error-text px-4 py-3 rounded">
                     {{ $page.props.flash.error }}
                 </div>
 
                 <!-- Templates List -->
-                <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg">
+                <div class="bg-white overflow-hidden shadow-md rounded-lg">
                     <div class="p-6">
                         <div v-if="templates.data.length === 0" class="text-center py-8">
-                            <p class="text-gray-500 text-lg">No contract templates found.</p>
+                            <p class="text-text-secondary text-lg">No contract templates found.</p>
                             <Link :href="route('admin.contract-templates.create')" class="mt-4 inline-block">
                                 <PrimaryButton>Create Your First Template</PrimaryButton>
                             </Link>
@@ -35,22 +35,22 @@
                             <table class="min-w-full divide-y divide-gray-200">
                                 <thead class="bg-gray-50">
                                     <tr>
-                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                        <th class="px-6 py-3 text-left text-xs font-medium text-text-secondary uppercase tracking-wider">
                                             Name
                                         </th>
-                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                        <th class="px-6 py-3 text-left text-xs font-medium text-text-secondary uppercase tracking-wider">
                                             Type
                                         </th>
-                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                        <th class="px-6 py-3 text-left text-xs font-medium text-text-secondary uppercase tracking-wider">
                                             Status
                                         </th>
-                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                        <th class="px-6 py-3 text-left text-xs font-medium text-text-secondary uppercase tracking-wider">
                                             Signed
                                         </th>
-                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                        <th class="px-6 py-3 text-left text-xs font-medium text-text-secondary uppercase tracking-wider">
                                             Created
                                         </th>
-                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                        <th class="px-6 py-3 text-left text-xs font-medium text-text-secondary uppercase tracking-wider">
                                             Actions
                                         </th>
                                     </tr>
@@ -58,49 +58,49 @@
                                 <tbody class="bg-white divide-y divide-gray-200">
                                     <tr v-for="template in templates.data" :key="template.id">
                                         <td class="px-6 py-4 whitespace-nowrap">
-                                            <div class="text-sm font-medium text-gray-900">
+                                            <div class="text-sm font-medium text-text-primary">
                                                 {{ template.name }}
                                             </div>
                                         </td>
                                         <td class="px-6 py-4 whitespace-nowrap">
                                             <span class="inline-flex px-2 py-1 text-xs font-semibold rounded-full"
-                                                  :class="template.type === 'entry' ? 'bg-blue-100 text-blue-800' : 'bg-purple-100 text-purple-800'">
+                                                  :class="template.type === 'entry' ? 'bg-info-bg text-info-text' : 'bg-purple-100 text-purple-800'">
                                                 {{ template.type === 'entry' ? 'Entry' : 'Exit' }}
                                             </span>
                                         </td>
                                         <td class="px-6 py-4 whitespace-nowrap">
                                             <span class="inline-flex px-2 py-1 text-xs font-semibold rounded-full"
-                                                  :class="template.is_active ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'">
+                                                  :class="template.is_active ? 'bg-success-bg text-success-text' : 'bg-gray-100 text-gray-800'">
                                                 {{ template.is_active ? 'Active' : 'Inactive' }}
                                             </span>
                                         </td>
                                         <td class="px-6 py-4 whitespace-nowrap">
                                             <span class="inline-flex px-2 py-1 text-xs font-semibold rounded-full"
-                                                  :class="template.admin_signed_at ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'">
+                                                  :class="template.admin_signed_at ? 'bg-success-bg text-success-text' : 'bg-warning-bg text-warning-text'">
                                                 {{ template.admin_signed_at ? 'Signed' : 'Unsigned' }}
                                             </span>
                                         </td>
-                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-text-secondary">
                                             {{ formatDate(template.created_at) }}
                                         </td>
                                         <td class="px-6 py-4 whitespace-nowrap text-sm font-medium space-x-2">
                                             <Link :href="route('admin.contract-templates.show', template.id)"
-                                                  class="text-indigo-600 hover:text-indigo-900">
+                                                  class="text-primary hover:underline">
                                                 View
                                             </Link>
                                             <Link v-if="!template.admin_signed_at"
                                                   :href="route('admin.contract-templates.edit', template.id)"
-                                                  class="text-blue-600 hover:text-blue-900">
+                                                  class="text-info-text hover:underline">
                                                 Edit
                                             </Link>
                                             <button v-if="template.admin_signed_at"
                                                     @click="createVersion(template)"
-                                                    class="text-green-600 hover:text-green-900">
+                                                    class="text-success-text hover:underline">
                                                 New Version
                                             </button>
                                             <button v-if="!hasSignatures(template)"
                                                     @click="deleteTemplate(template)"
-                                                    class="text-red-600 hover:text-red-900">
+                                                    class="text-error-text hover:underline">
                                                 Delete
                                             </button>
                                         </td>
@@ -118,8 +118,8 @@
                                           :class="[
                                               'px-3 py-2 text-sm font-medium rounded-md',
                                               link.active 
-                                                  ? 'bg-indigo-600 text-white' 
-                                                  : 'text-gray-500 hover:text-gray-700 hover:bg-gray-100'
+                                                  ? 'bg-primary text-white'
+                                                  : 'text-text-secondary hover:bg-secondary hover:text-primary'
                                           ]"
                                           v-html="link.label">
                                     </Link>

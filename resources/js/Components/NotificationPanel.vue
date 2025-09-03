@@ -1,18 +1,18 @@
 <template>
-    <div class="bg-white rounded-lg shadow">
+    <div class="bg-white rounded-lg shadow-md">
         <div class="p-4 border-b border-gray-200">
             <div class="flex items-center justify-between">
-                <h3 class="text-lg font-medium text-gray-900">Notifications</h3>
+                <h3 class="text-lg font-medium text-text-primary">Notifications</h3>
                 <div class="flex items-center space-x-2">
                     <span 
                         v-if="pendingCount > 0"
-                        class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800"
+                        class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-error-bg text-error-text"
                     >
                         {{ pendingCount }} en attente
                     </span>
                     <Link 
                         :href="route('ops.notifications')"
-                        class="text-sm text-blue-600 hover:text-blue-800"
+                        class="text-sm text-primary hover:underline"
                     >
                         Voir tout
                     </Link>
@@ -20,7 +20,7 @@
             </div>
         </div>
         <div class="max-h-96 overflow-y-auto">
-            <div v-if="notifications.length === 0" class="p-4 text-center text-gray-500">
+            <div v-if="notifications.length === 0" class="p-4 text-center text-text-secondary">
                 Aucune notification en attente
             </div>
             <div v-else class="divide-y divide-gray-200">
@@ -38,14 +38,14 @@
                                 >
                                     {{ getNotificationTypeLabel(notification.type) }}
                                 </span>
-                                <span class="text-xs text-gray-500">
+                                <span class="text-xs text-text-secondary">
                                     {{ formatRelativeTime(notification.created_at) }}
                                 </span>
                             </div>
-                            <p class="text-sm text-gray-900 truncate">
+                            <p class="text-sm text-text-primary truncate">
                                 {{ notification.message || getDefaultMessage(notification) }}
                             </p>
-                            <div v-if="notification.bail_mobilite" class="text-xs text-gray-600 mt-1">
+                            <div v-if="notification.bail_mobilite" class="text-xs text-text-secondary mt-1">
                                 {{ notification.bail_mobilite.tenant_name }} - {{ notification.bail_mobilite.address }}
                             </div>
                         </div>
@@ -53,17 +53,17 @@
                             <!-- Priority indicator -->
                             <div 
                                 v-if="notification.type === 'incident_alert'"
-                                class="w-2 h-2 bg-red-500 rounded-full"
+                                class="w-2 h-2 bg-error-border rounded-full"
                                 title="Priorité élevée"
                             ></div>
                             <div 
                                 v-else-if="notification.type === 'exit_reminder'"
-                                class="w-2 h-2 bg-yellow-500 rounded-full"
+                                class="w-2 h-2 bg-warning-border rounded-full"
                                 title="Rappel important"
                             ></div>
                             <div 
                                 v-else
-                                class="w-2 h-2 bg-blue-500 rounded-full"
+                                class="w-2 h-2 bg-info-border rounded-full"
                                 title="Notification standard"
                             ></div>
                         </div>
@@ -74,21 +74,21 @@
                         <button 
                             v-if="notification.type === 'exit_reminder'"
                             @click="handleQuickAction(notification, 'assign_exit')"
-                            class="px-2 py-1 bg-blue-600 text-white text-xs rounded hover:bg-blue-700 transition-colors"
+                            class="px-2 py-1 bg-primary text-white text-xs rounded hover:bg-accent transition-colors"
                         >
                             Assigner sortie
                         </button>
                         <button 
                             v-if="notification.type === 'checklist_validation'"
                             @click="handleQuickAction(notification, 'validate_checklist')"
-                            class="px-2 py-1 bg-green-600 text-white text-xs rounded hover:bg-green-700 transition-colors"
+                            class="px-2 py-1 bg-success-border text-white text-xs rounded hover:bg-success-text transition-colors"
                         >
                             Valider
                         </button>
                         <button 
                             v-if="notification.type === 'incident_alert'"
                             @click="handleQuickAction(notification, 'handle_incident')"
-                            class="px-2 py-1 bg-red-600 text-white text-xs rounded hover:bg-red-700 transition-colors"
+                            class="px-2 py-1 bg-error-border text-white text-xs rounded hover:bg-error-text transition-colors"
                         >
                             Gérer
                         </button>
@@ -100,7 +100,7 @@
                         </button>
                         <button 
                             @click="markAsHandled(notification)"
-                            class="px-2 py-1 border border-gray-300 text-gray-700 text-xs rounded hover:bg-gray-50 transition-colors"
+                            class="px-2 py-1 border border-gray-300 text-text-secondary text-xs rounded hover:bg-gray-50 transition-colors"
                         >
                             Marquer comme traitée
                         </button>
@@ -128,10 +128,10 @@ const pendingCount = computed(() => {
 
 const getNotificationTypeClass = (type) => {
     const classes = {
-        'exit_reminder': 'bg-yellow-100 text-yellow-800',
-        'checklist_validation': 'bg-green-100 text-green-800',
-        'incident_alert': 'bg-red-100 text-red-800',
-        'mission_assigned': 'bg-blue-100 text-blue-800'
+        'exit_reminder': 'bg-warning-bg text-warning-text',
+        'checklist_validation': 'bg-success-bg text-success-text',
+        'incident_alert': 'bg-error-bg text-error-text',
+        'mission_assigned': 'bg-info-bg text-info-text'
     }
     return classes[type] || 'bg-gray-100 text-gray-800'
 }

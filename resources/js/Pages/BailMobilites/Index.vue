@@ -5,17 +5,16 @@
         <DashboardOps>
             <template #header>
                 <div class="flex justify-between items-center">
-                    <h2 class="font-semibold text-xl text-gray-900 leading-tight">
+                    <h2 class="font-semibold text-xl text-text-primary leading-tight">
                         Gestion des Bail Mobilités
                     </h2>
-                    <Link
-                        :href="route('ops.bail-mobilites.create')"
-                        class="inline-flex items-center px-4 py-2 bg-primary-600 text-white text-sm font-medium rounded-lg hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
-                    >
-                        <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
-                        </svg>
-                        Nouveau Bail Mobilité
+                    <Link :href="route('ops.bail-mobilites.create')">
+                        <PrimaryButton>
+                            <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+                            </svg>
+                            Nouveau Bail Mobilité
+                        </PrimaryButton>
                     </Link>
                 </div>
             </template>
@@ -23,11 +22,11 @@
             <div class="py-12">
                 <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
                     <!-- Filters -->
-                    <div class="bg-white rounded-xl shadow-sm p-6 mb-6">
+                    <div class="bg-white rounded-xl shadow-md p-6 mb-6">
                         <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
                             <div>
-                                <label class="block text-sm font-medium text-gray-700 mb-2">Checker</label>
-                                <select v-model="filters.checker_id" @change="applyFilters" class="w-full rounded-lg border-gray-300 focus:border-primary-500 focus:ring-primary-500">
+                                <label class="block text-sm font-medium text-text-secondary mb-2">Checker</label>
+                                <select v-model="filters.checker_id" @change="applyFilters" class="w-full bg-white border-gray-200 rounded-md shadow-sm p-md focus:ring-2 focus:ring-primary focus:border-transparent">
                                     <option value="">Tous les checkers</option>
                                     <option v-for="checker in checkers" :key="checker.id" :value="checker.id">
                                         {{ checker.name }}
@@ -35,17 +34,17 @@
                                 </select>
                             </div>
                             <div>
-                                <label class="block text-sm font-medium text-gray-700 mb-2">Date de début</label>
-                                <input v-model="filters.date_from" @change="applyFilters" type="date" class="w-full rounded-lg border-gray-300 focus:border-primary-500 focus:ring-primary-500">
+                                <label class="block text-sm font-medium text-text-secondary mb-2">Date de début</label>
+                                <input v-model="filters.date_from" @change="applyFilters" type="date" class="w-full bg-white border-gray-200 rounded-md shadow-sm p-md focus:ring-2 focus:ring-primary focus:border-transparent">
                             </div>
                             <div>
-                                <label class="block text-sm font-medium text-gray-700 mb-2">Date de fin</label>
-                                <input v-model="filters.date_to" @change="applyFilters" type="date" class="w-full rounded-lg border-gray-300 focus:border-primary-500 focus:ring-primary-500">
+                                <label class="block text-sm font-medium text-text-secondary mb-2">Date de fin</label>
+                                <input v-model="filters.date_to" @change="applyFilters" type="date" class="w-full bg-white border-gray-200 rounded-md shadow-sm p-md focus:ring-2 focus:ring-primary focus:border-transparent">
                             </div>
                             <div class="flex items-end">
-                                <button @click="clearFilters" class="w-full px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500">
+                                <SecondaryButton @click="clearFilters" class="w-full">
                                     Effacer les filtres
-                                </button>
+                                </SecondaryButton>
                             </div>
                         </div>
                     </div>
@@ -53,11 +52,11 @@
                     <!-- Kanban Board -->
                     <div class="grid grid-cols-1 lg:grid-cols-4 gap-6">
                         <!-- Assigned Column -->
-                        <div class="bg-white rounded-xl shadow-sm">
+                        <div class="bg-white rounded-xl shadow-md">
                             <div class="p-4 border-b border-gray-200">
                                 <div class="flex items-center justify-between">
-                                    <h3 class="font-semibold text-gray-900">Assignés</h3>
-                                    <span class="bg-yellow-100 text-yellow-800 text-xs font-medium px-2.5 py-0.5 rounded-full">
+                                    <h3 class="font-semibold text-text-primary">Assignés</h3>
+                                    <span class="bg-warning-bg text-warning-text text-xs font-medium px-2.5 py-0.5 rounded-full">
                                         {{ kanbanData.assigned.length }}
                                     </span>
                                 </div>
@@ -72,18 +71,18 @@
                                     @assign-exit="handleAssignExit"
                                     @view-details="viewDetails"
                                 />
-                                <div v-if="kanbanData.assigned.length === 0" class="text-center py-8 text-gray-500">
+                                <div v-if="kanbanData.assigned.length === 0" class="text-center py-8 text-text-secondary">
                                     Aucun BM assigné
                                 </div>
                             </div>
                         </div>
 
                         <!-- In Progress Column -->
-                        <div class="bg-white rounded-xl shadow-sm">
+                        <div class="bg-white rounded-xl shadow-md">
                             <div class="p-4 border-b border-gray-200">
                                 <div class="flex items-center justify-between">
-                                    <h3 class="font-semibold text-gray-900">En Cours</h3>
-                                    <span class="bg-blue-100 text-blue-800 text-xs font-medium px-2.5 py-0.5 rounded-full">
+                                    <h3 class="font-semibold text-text-primary">En Cours</h3>
+                                    <span class="bg-info-bg text-info-text text-xs font-medium px-2.5 py-0.5 rounded-full">
                                         {{ kanbanData.in_progress.length }}
                                     </span>
                                 </div>
@@ -98,18 +97,18 @@
                                     @assign-exit="handleAssignExit"
                                     @view-details="viewDetails"
                                 />
-                                <div v-if="kanbanData.in_progress.length === 0" class="text-center py-8 text-gray-500">
+                                <div v-if="kanbanData.in_progress.length === 0" class="text-center py-8 text-text-secondary">
                                     Aucun BM en cours
                                 </div>
                             </div>
                         </div>
 
                         <!-- Completed Column -->
-                        <div class="bg-white rounded-xl shadow-sm">
+                        <div class="bg-white rounded-xl shadow-md">
                             <div class="p-4 border-b border-gray-200">
                                 <div class="flex items-center justify-between">
-                                    <h3 class="font-semibold text-gray-900">Terminés</h3>
-                                    <span class="bg-green-100 text-green-800 text-xs font-medium px-2.5 py-0.5 rounded-full">
+                                    <h3 class="font-semibold text-text-primary">Terminés</h3>
+                                    <span class="bg-success-bg text-success-text text-xs font-medium px-2.5 py-0.5 rounded-full">
                                         {{ kanbanData.completed.length }}
                                     </span>
                                 </div>
@@ -122,18 +121,18 @@
                                     :checkers="checkers"
                                     @view-details="viewDetails"
                                 />
-                                <div v-if="kanbanData.completed.length === 0" class="text-center py-8 text-gray-500">
+                                <div v-if="kanbanData.completed.length === 0" class="text-center py-8 text-text-secondary">
                                     Aucun BM terminé
                                 </div>
                             </div>
                         </div>
 
                         <!-- Incident Column -->
-                        <div class="bg-white rounded-xl shadow-sm">
+                        <div class="bg-white rounded-xl shadow-md">
                             <div class="p-4 border-b border-gray-200">
                                 <div class="flex items-center justify-between">
-                                    <h3 class="font-semibold text-gray-900">Incidents</h3>
-                                    <span class="bg-red-100 text-red-800 text-xs font-medium px-2.5 py-0.5 rounded-full">
+                                    <h3 class="font-semibold text-text-primary">Incidents</h3>
+                                    <span class="bg-error-bg text-error-text text-xs font-medium px-2.5 py-0.5 rounded-full">
                                         {{ kanbanData.incident.length }}
                                     </span>
                                 </div>
@@ -147,7 +146,7 @@
                                     @handle-incident="handleIncident"
                                     @view-details="viewDetails"
                                 />
-                                <div v-if="kanbanData.incident.length === 0" class="text-center py-8 text-gray-500">
+                                <div v-if="kanbanData.incident.length === 0" class="text-center py-8 text-text-secondary">
                                     Aucun incident
                                 </div>
                             </div>
@@ -185,6 +184,8 @@ import DashboardOps from '@/Layouts/DashboardOps.vue'
 import BailMobiliteCard from '@/Components/BailMobiliteCard.vue'
 import AssignmentModal from '@/Components/AssignmentModal.vue'
 import IncidentModal from '@/Components/IncidentModal.vue'
+import PrimaryButton from '@/Components/PrimaryButton.vue'
+import SecondaryButton from '@/Components/SecondaryButton.vue'
 
 const props = defineProps({
     kanbanData: Object,

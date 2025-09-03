@@ -4,17 +4,13 @@
     <DashboardAdmin>
         <template #header>
             <div class="flex justify-between items-center">
-                <h2 class="font-semibold text-xl text-gray-800 leading-tight">Edit Contract Template</h2>
+                <h2 class="font-semibold text-xl text-text-primary leading-tight">Edit Contract Template</h2>
                 <div class="flex space-x-2">
                     <Link :href="route('admin.contract-templates.show', template.id)">
-                        <button class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50">
-                            View Template
-                        </button>
+                        <SecondaryButton>View Template</SecondaryButton>
                     </Link>
                     <Link :href="route('admin.contract-templates.index')">
-                        <button class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50">
-                            Back to Templates
-                        </button>
+                        <SecondaryButton>Back to Templates</SecondaryButton>
                     </Link>
                 </div>
             </div>
@@ -23,9 +19,9 @@
         <div class="py-12">
             <div class="max-w-4xl mx-auto sm:px-6 lg:px-8">
                 <!-- Warning for signed templates -->
-                <div v-if="template.admin_signed_at" class="mb-6 bg-yellow-100 border border-yellow-400 text-yellow-700 px-4 py-3 rounded">
+                <div v-if="template.admin_signed_at" class="mb-6 bg-warning-bg border border-warning-border text-warning-text px-4 py-3 rounded">
                     <div class="flex">
-                        <svg class="w-5 h-5 text-yellow-400 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                        <svg class="w-5 h-5 text-warning-text mr-2" fill="currentColor" viewBox="0 0 20 20">
                             <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"></path>
                         </svg>
                         <div>
@@ -35,7 +31,7 @@
                     </div>
                 </div>
 
-                <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg">
+                <div class="bg-white overflow-hidden shadow-md rounded-lg">
                     <div class="p-6">
                         <form @submit.prevent="submit">
                             <!-- Template Name -->
@@ -60,7 +56,7 @@
                                 <select
                                     id="type"
                                     v-model="form.type"
-                                    class="mt-1 block w-full border-gray-300 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300 focus:border-indigo-500 dark:focus:border-indigo-600 focus:ring-indigo-500 dark:focus:ring-indigo-600 rounded-md shadow-sm"
+                                    class="mt-1 block w-full bg-white border-gray-200 rounded-md shadow-sm p-md focus:ring-2 focus:ring-primary focus:border-transparent"
                                     required
                                     :disabled="template.admin_signed_at"
                                 >
@@ -79,7 +75,7 @@
                                         id="content"
                                         v-model="form.content"
                                         rows="15"
-                                        class="block w-full border-gray-300 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300 focus:border-indigo-500 dark:focus:border-indigo-600 focus:ring-indigo-500 dark:focus:ring-indigo-600 rounded-md shadow-sm"
+                                        class="block w-full bg-white border-gray-200 rounded-md shadow-sm p-md focus:ring-2 focus:ring-primary focus:border-transparent"
                                         placeholder="Enter the legal content of the contract..."
                                         required
                                         :disabled="template.admin_signed_at"
@@ -88,17 +84,17 @@
                                 <InputError class="mt-2" :message="form.errors.content" />
                                 
                                 <!-- Placeholder Help -->
-                                <div class="mt-2 text-sm text-gray-600">
+                                <div class="mt-2 text-sm text-text-secondary">
                                     <p class="font-medium">Available placeholders:</p>
                                     <div class="grid grid-cols-2 gap-2 mt-1">
-                                        <span class="font-mono text-xs bg-gray-100 px-2 py-1 rounded">{{tenant_name}}</span>
-                                        <span class="font-mono text-xs bg-gray-100 px-2 py-1 rounded">{{tenant_email}}</span>
-                                        <span class="font-mono text-xs bg-gray-100 px-2 py-1 rounded">{{tenant_phone}}</span>
-                                        <span class="font-mono text-xs bg-gray-100 px-2 py-1 rounded">{{address}}</span>
-                                        <span class="font-mono text-xs bg-gray-100 px-2 py-1 rounded">{{start_date}}</span>
-                                        <span class="font-mono text-xs bg-gray-100 px-2 py-1 rounded">{{end_date}}</span>
-                                        <span class="font-mono text-xs bg-gray-100 px-2 py-1 rounded">{{admin_name}}</span>
-                                        <span class="font-mono text-xs bg-gray-100 px-2 py-1 rounded">{{admin_signature_date}}</span>
+                                        <span class="font-mono text-xs bg-gray-50 px-2 py-1 rounded">{{tenant_name}}</span>
+                                        <span class="font-mono text-xs bg-gray-50 px-2 py-1 rounded">{{tenant_email}}</span>
+                                        <span class="font-mono text-xs bg-gray-50 px-2 py-1 rounded">{{tenant_phone}}</span>
+                                        <span class="font-mono text-xs bg-gray-50 px-2 py-1 rounded">{{address}}</span>
+                                        <span class="font-mono text-xs bg-gray-50 px-2 py-1 rounded">{{start_date}}</span>
+                                        <span class="font-mono text-xs bg-gray-50 px-2 py-1 rounded">{{end_date}}</span>
+                                        <span class="font-mono text-xs bg-gray-50 px-2 py-1 rounded">{{admin_name}}</span>
+                                        <span class="font-mono text-xs bg-gray-50 px-2 py-1 rounded">{{admin_signature_date}}</span>
                                     </div>
                                 </div>
                             </div>
@@ -106,9 +102,7 @@
                             <!-- Actions -->
                             <div class="flex items-center justify-end space-x-4">
                                 <Link :href="route('admin.contract-templates.show', template.id)">
-                                    <button type="button" class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50">
-                                        Cancel
-                                    </button>
+                                    <SecondaryButton type="button">Cancel</SecondaryButton>
                                 </Link>
                                 <PrimaryButton 
                                     v-if="!template.admin_signed_at"
@@ -117,14 +111,14 @@
                                 >
                                     Update Template
                                 </PrimaryButton>
-                                <button 
+                                <PrimaryButton
                                     v-else
                                     @click="createVersion"
                                     type="button"
-                                    class="px-4 py-2 text-sm font-medium text-white bg-green-600 border border-transparent rounded-md hover:bg-green-700"
+                                    class="bg-success-border hover:bg-success-text"
                                 >
                                     Create New Version
-                                </button>
+                                </PrimaryButton>
                             </div>
                         </form>
                     </div>
@@ -140,6 +134,7 @@ import DashboardAdmin from '@/Layouts/DashboardAdmin.vue'
 import InputError from '@/Components/InputError.vue'
 import InputLabel from '@/Components/InputLabel.vue'
 import PrimaryButton from '@/Components/PrimaryButton.vue'
+import SecondaryButton from '@/Components/SecondaryButton.vue'
 import TextInput from '@/Components/TextInput.vue'
 
 const props = defineProps({
