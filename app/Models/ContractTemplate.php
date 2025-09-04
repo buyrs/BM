@@ -18,12 +18,19 @@ class ContractTemplate extends Model
         'admin_signature',
         'admin_signed_at',
         'is_active',
-        'created_by'
+        'created_by',
+        'signature_workflow',
+        'signature_parties',
+        'requires_multi_party',
+        'signature_order'
     ];
 
     protected $casts = [
         'admin_signed_at' => 'datetime',
-        'is_active' => 'boolean'
+        'is_active' => 'boolean',
+        'signature_workflow' => 'array',
+        'signature_parties' => 'array',
+        'requires_multi_party' => 'boolean'
     ];
 
     /**
@@ -40,6 +47,24 @@ class ContractTemplate extends Model
     public function signatures(): HasMany
     {
         return $this->hasMany(BailMobiliteSignature::class);
+    }
+
+    /**
+     * Get the signature parties for this contract template.
+     */
+    public function signatureParties(): \Illuminate\Database\Eloquent\Relations\BelongsToMany
+    {
+        return $this->belongsToMany(SignatureParty::class, 'signature_workflow_steps')
+            ->withPivot(['order', 'is_required', 'timeout_hours', 'validation_rules', 'notification_settings'])
+            ->withTimestamps();
+    }
+
+    /**
+     * Get the workflow steps for this contract template.
+     */
+    public function workflowSteps(): \Illuminate\Database\Eloquent\Relations\HasMany
+    {
+        return $this->hasMany(SignatureWorkflowStep::class);
     }
 
     /**
