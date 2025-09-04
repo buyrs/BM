@@ -29,8 +29,8 @@
                                     <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
                                         <path v-if="metrics.completionTrend >= 0" d="M12 19V5"></path>
                                         <path v-if="metrics.completionTrend >= 0" d="M5 12l7-7 7 7"></path>
-                                        <path v-else d="M12 5v14"></path>
-                                        <path v-else d="M19 12l-7 7-7-7"></path>
+                                        <path v-else-if="metrics.completionTrend < 0" d="M12 5v14"></path>
+                                        <path v-else-if="metrics.completionTrend < 0" d="M19 12l-7 7-7-7"></path>
                                     </svg>
                                     {{ Math.abs(metrics.completionTrend) }}%
                                 </span>
@@ -62,8 +62,8 @@
                                     <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
                                         <path v-if="metrics.inspectionTrend >= 0" d="M12 5v14"></path>
                                         <path v-if="metrics.inspectionTrend >= 0" d="M19 12l-7 7-7-7"></path>
-                                        <path v-else d="M12 19V5"></path>
-                                        <path v-else d="M5 12l7-7 7 7"></path>
+                                        <path v-else-if="metrics.inspectionTrend < 0" d="M12 19V5"></path>
+                                        <path v-else-if="metrics.inspectionTrend < 0" d="M5 12l7-7 7 7"></path>
                                     </svg>
                                     {{ Math.abs(metrics.inspectionTrend) }}%
                                 </span>
@@ -98,8 +98,8 @@
                                     <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
                                         <path v-if="metrics.incidentTrend <= 0" d="M12 19V5"></path>
                                         <path v-if="metrics.incidentTrend <= 0" d="M5 12l7-7 7 7"></path>
-                                        <path v-else d="M12 5v14"></path>
-                                        <path v-else d="M19 12l-7 7-7-7"></path>
+                                        <path v-else-if="metrics.incidentTrend > 0" d="M12 5v14"></path>
+                                        <path v-else-if="metrics.incidentTrend > 0" d="M19 12l-7 7-7-7"></path>
                                     </svg>
                                     {{ Math.abs(metrics.incidentTrend) }}%
                                 </span>
@@ -139,8 +139,8 @@
                                     <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
                                         <path v-if="metrics.ratingTrend >= 0" d="M12 19V5"></path>
                                         <path v-if="metrics.ratingTrend >= 0" d="M5 12l7-7 7 7"></path>
-                                        <path v-else d="M12 5v14"></path>
-                                        <path v-else d="M19 12l-7 7-7-7"></path>
+                                        <path v-else-if="metrics.ratingTrend < 0" d="M12 5v14"></path>
+                                        <path v-else-if="metrics.ratingTrend < 0" d="M19 12l-7 7-7-7"></path>
                                     </svg>
                                     {{ Math.abs(metrics.ratingTrend) }}%
                                 </span>

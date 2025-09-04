@@ -7,7 +7,12 @@ import { splitVendorChunkPlugin } from 'vite';
 export default defineConfig({
     plugins: [
         laravel({
-            input: ['resources/css/app.css', 'resources/js/app.js'],
+            input: [
+                'resources/css/app.css', 
+                'resources/js/app.js',
+                'resources/css/blade.css',  // New CSS for Blade templates
+                'resources/js/blade.js'     // New JS for Blade + Alpine.js
+            ],
             refresh: true,
         }),
         vue({

@@ -142,4 +142,3 @@ const getConditionDescription = () => {
     return condition?.description || ''
 }
 </script>
-</template>

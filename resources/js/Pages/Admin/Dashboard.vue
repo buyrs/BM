@@ -1,14 +1,14 @@
 <template>
     <Head title="Admin Dashboard" />
 
-    <DashboardAdmin>
+    <RoleBasedLayout>
         <template #header>
             <div class="flex items-center justify-between">
                 <div>
-                    <h2 class="text-3xl font-bold text-text-primary">
+                    <h2 class="text-3xl font-bold text-gray-900">
                         Welcome back, {{ $page.props.auth.user.name }}!
                     </h2>
-                    <p class="text-text-secondary mt-1">
+                    <p class="text-gray-600 mt-1">
                         Here's what's happening with your properties today.
                     </p>
                 </div>
@@ -124,11 +124,11 @@
                 </div>
             </div>
         </ErrorBoundary>
-    </DashboardAdmin>
+    </RoleBasedLayout>
 </template>
 
 <script setup>
-import DashboardAdmin from "@/Layouts/DashboardAdmin.vue";
+import RoleBasedLayout from "@/Layouts/RoleBasedLayout.vue";
 import { Head, Link, router } from "@inertiajs/vue3";
 import { onMounted, computed, ref } from 'vue';
 import ErrorBoundary from '@/Components/ErrorBoundary.vue';

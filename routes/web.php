@@ -212,6 +212,17 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('/analytics/data', [\App\Http\Controllers\Admin\AnalyticsController::class, 'index'])->name('analytics.data');
         Route::get('/checkers', [\App\Http\Controllers\Admin\AnalyticsController::class, 'checkers'])->name('checkers');
         
+        // Role Management routes
+        Route::get('/role-management', [\App\Http\Controllers\RoleManagementController::class, 'index'])->name('role-management');
+        Route::post('/roles', [\App\Http\Controllers\RoleManagementController::class, 'storeRole'])->name('roles.store');
+        Route::put('/roles/{role}', [\App\Http\Controllers\RoleManagementController::class, 'updateRole'])->name('roles.update');
+        Route::delete('/roles/{role}', [\App\Http\Controllers\RoleManagementController::class, 'destroyRole'])->name('roles.destroy');
+        Route::post('/users', [\App\Http\Controllers\RoleManagementController::class, 'storeUser'])->name('users.store');
+        Route::put('/users/{user}', [\App\Http\Controllers\RoleManagementController::class, 'updateUser'])->name('users.update');
+        Route::post('/users/{user}/assign-role', [\App\Http\Controllers\RoleManagementController::class, 'assignRole'])->name('users.assign-role');
+        Route::post('/users/{user}/reset-password', [\App\Http\Controllers\RoleManagementController::class, 'resetPassword'])->name('users.reset-password');
+        Route::get('/role-stats', [\App\Http\Controllers\RoleManagementController::class, 'getRoleStats'])->name('role-stats');
+        
         // Contract Templates routes
         Route::resource('contract-templates', \App\Http\Controllers\ContractTemplateController::class);
         Route::post('contract-templates/{contractTemplate}/sign', [\App\Http\Controllers\ContractTemplateController::class, 'signTemplate'])->name('contract-templates.sign');
