@@ -2,13 +2,52 @@
 
 namespace App\Services;
 
+use App\Models\SignatureInvitation;
+use App\Models\BailMobiliteSignature;
+use App\Models\SignatureWorkflowStep;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Crypt;
+use Carbon\Carbon;
 use Exception;
 
 class SignatureValidationService
 {
+    protected $signature;
+    protected $invitation;
+    protected $workflowStep;
+
+    public function __construct(
+        BailMobiliteSignature $signature = null,
+        SignatureInvitation $invitation = null,
+        SignatureWorkflowStep $workflowStep = null
+    ) {
+        $this->signature = $signature;
+        $this->invitation = $invitation;
+        $this->workflowStep = $workflowStep;
+    }
     /**
-     * Validate signature data integrity
+     * Validate signature data for workflow integration
+     */
+    public function validateWorkflowSignature(array $signatureData): array
+    {
+        $errors = [];
+
+        if ($this->signature && $this->invitation && $this->workflowStep) {
+            $errors = array_merge($errors, $this->validateBasicRequirements($signatureData));
+            $errors = array_merge($errors, $this->validateWorkflowStepRules($signatureData));
+            $errors = array_merge($errors, $this->validateTemporalConstraints());
+            $errors = array_merge($errors, $this->validateIntegrity($signatureData));
+        }
+
+        return [
+            'is_valid' => empty($errors),
+            'errors' => $errors,
+            'metadata' => $this->generateAuditTrail($signatureData)
+        ];
+    }
+
+    /**
+     * Validate signature data integrity (legacy method)
      */
     public function validateSignatureData(string $signatureData): array
     {
@@ -59,6 +98,256 @@ class SignatureValidationService
         }
 
         return $validation;
+    }
+
+    protected function validateBasicRequirements(array $signatureData): array
+    {
+        $errors = [];
+
+        if (empty($signatureData['signature'])) {
+            $errors[] = 'Signature data is required';
+        }
+
+        if (empty($signatureData['timestamp'])) {
+            $errors[] = 'Timestamp is required';
+        }
+
+        if (empty($signatureData['ip_address'])) {
+            $errors[] = 'IP address is required';
+        }
+
+        if (empty($signatureData['user_agent'])) {
+            $errors[] = 'User agent is required';
+        }
+
+        return $errors;
+    }
+
+    protected function validateWorkflowStepRules(array $signatureData): array
+    {
+        return $this->workflowStep->validateSignatureData($signatureData);
+    }
+
+    protected function validateTemporalConstraints(): array
+    {
+        $errors = [];
+
+        if ($this->invitation->isExpired()) {
+            $errors[] = 'Signature invitation has expired';
+        }
+
+        if ($this->invitation->isCompleted()) {
+            $errors[] = 'Signature invitation has already been completed';
+        }
+
+        if (!$this->workflowStep->isActiveInWorkflow($this->signature)) {
+            $errors[] = 'This workflow step is not currently active';
+        }
+
+        $currentStep = $this->signature->getCurrentWorkflowStep();
+        if (!$currentStep || $currentStep->id !== $this->workflowStep->id) {
+            $errors[] = 'Invalid workflow step sequence';
+        }
+
+        return $errors;
+    }
+
+    protected function validateIntegrity(array $signatureData): array
+    {
+        $errors = [];
+
+        if (!$this->validateTimestamp($signatureData['timestamp'])) {
+            $errors[] = 'Invalid timestamp - signature appears to be from the future or too far in the past';
+        }
+
+        if (!$this->validateSignatureFormat($signatureData['signature'])) {
+            $errors[] = 'Invalid signature format';
+        }
+
+        if (!$this->validateDocumentIntegrity()) {
+            $errors[] = 'Document integrity check failed - contract may have been modified';
+        }
+
+        return $errors;
+    }
+
+    protected function validateTimestamp(string $timestamp): bool
+    {
+        try {
+            $signatureTime = Carbon::parse($timestamp);
+            $now = now();
+
+            if ($signatureTime->isFuture()) {
+                Log::warning('Future timestamp detected in signature', [
+                    'signature_id' => $this->signature->id,
+                    'invitation_id' => $this->invitation->id,
+                    'timestamp' => $timestamp,
+                    'current_time' => $now->toISOString()
+                ]);
+                return false;
+            }
+
+            if ($signatureTime->diffInHours($now) > 24) {
+                Log::warning('Old timestamp detected in signature', [
+                    'signature_id' => $this->signature->id,
+                    'invitation_id' => $this->invitation->id,
+                    'timestamp' => $timestamp,
+                    'hours_diff' => $signatureTime->diffInHours($now)
+                ]);
+                return false;
+            }
+
+            return true;
+        } catch (\Exception $e) {
+            Log::error('Timestamp validation failed', [
+                'signature_id' => $this->signature->id,
+                'invitation_id' => $this->invitation->id,
+                'timestamp' => $timestamp,
+                'error' => $e->getMessage()
+            ]);
+            return false;
+        }
+    }
+
+    protected function validateSignatureFormat($signature): bool
+    {
+        if (is_string($signature)) {
+            return $this->validateStringSignature($signature);
+        }
+
+        if (is_array($signature)) {
+            return $this->validateArraySignature($signature);
+        }
+
+        return false;
+    }
+
+    protected function validateStringSignature(string $signature): bool
+    {
+        if (base64_decode($signature, true) === false) {
+            return false;
+        }
+
+        if (strlen($signature) < 50 || strlen($signature) > 10000) {
+            return false;
+        }
+
+        return true;
+    }
+
+    protected function validateArraySignature(array $signature): bool
+    {
+        if (empty($signature['data'])) {
+            return false;
+        }
+
+        if (!empty($signature['type']) && !in_array($signature['type'], ['drawing', 'typed', 'uploaded', 'digital_certificate'])) {
+            return false;
+        }
+
+        if (!empty($signature['coordinates']) && !is_array($signature['coordinates'])) {
+            return false;
+        }
+
+        return true;
+    }
+
+    protected function validateDocumentIntegrity(): bool
+    {
+        $currentHash = $this->generateDocumentHash();
+        $storedHash = $this->signature->document_hash;
+
+        if ($storedHash && $currentHash !== $storedHash) {
+            Log::critical('Document integrity violation detected', [
+                'signature_id' => $this->signature->id,
+                'stored_hash' => $storedHash,
+                'current_hash' => $currentHash,
+                'contract_template_id' => $this->signature->contract_template_id
+            ]);
+            return false;
+        }
+
+        return true;
+    }
+
+    protected function generateDocumentHash(): string
+    {
+        $content = $this->signature->contract_content ?? '';
+        $metadata = json_encode([
+            'contract_template_id' => $this->signature->contract_template_id,
+            'bail_mobilite_id' => $this->signature->bail_mobilite_id,
+            'version' => $this->signature->version
+        ]);
+
+        return hash('sha256', $content . $metadata);
+    }
+
+    public function generateAuditTrail(array $signatureData): array
+    {
+        return [
+            'signature_id' => $this->signature->id,
+            'invitation_id' => $this->invitation->id,
+            'workflow_step_id' => $this->workflowStep->id,
+            'party_id' => $this->invitation->signature_party_id,
+            'party_role' => $this->invitation->signatureParty->role,
+            'timestamp' => $signatureData['timestamp'],
+            'ip_address' => $signatureData['ip_address'],
+            'user_agent' => $signatureData['user_agent'],
+            'validation_time' => now()->toISOString(),
+            'document_hash' => $this->generateDocumentHash(),
+            'validation_checksum' => $this->generateValidationChecksum($signatureData)
+        ];
+    }
+
+    protected function generateValidationChecksum(array $signatureData): string
+    {
+        $data = [
+            'signature_id' => $this->signature->id,
+            'timestamp' => $signatureData['timestamp'],
+            'ip_address' => $signatureData['ip_address'],
+            'document_hash' => $this->generateDocumentHash()
+        ];
+
+        return hash('sha256', json_encode($data) . config('app.key'));
+    }
+
+    public static function verifyValidationChecksum(array $auditTrail): bool
+    {
+        $expectedData = [
+            'signature_id' => $auditTrail['signature_id'],
+            'timestamp' => $auditTrail['timestamp'],
+            'ip_address' => $auditTrail['ip_address'],
+            'document_hash' => $auditTrail['document_hash']
+        ];
+
+        $expectedChecksum = hash('sha256', json_encode($expectedData) . config('app.key'));
+        
+        return $expectedChecksum === $auditTrail['validation_checksum'];
+    }
+
+    public function encryptSignatureData(array $signatureData): string
+    {
+        $secureData = [
+            'signature' => $signatureData['signature'],
+            'timestamp' => $signatureData['timestamp'],
+            'ip_address' => $signatureData['ip_address'],
+            'user_agent' => $signatureData['user_agent'],
+            'validation_checksum' => $this->generateValidationChecksum($signatureData)
+        ];
+
+        return Crypt::encrypt($secureData);
+    }
+
+    public static function decryptSignatureData(string $encryptedData): array
+    {
+        try {
+            return Crypt::decrypt($encryptedData);
+        } catch (\Exception $e) {
+            Log::error('Failed to decrypt signature data', [
+                'error' => $e->getMessage()
+            ]);
+            throw new \Exception('Invalid signature data encryption');
+        }
     }
 
     /**

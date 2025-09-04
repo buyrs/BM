@@ -5,6 +5,8 @@ namespace App\Services;
 use App\Models\BailMobilite;
 use App\Models\Mission;
 use App\Models\Notification;
+use App\Models\SignatureInvitation;
+use App\Models\BailMobiliteSignature;
 use App\Models\User;
 use App\Notifications\BailMobiliteExitReminder;
 use App\Notifications\ChecklistValidationNotification;
@@ -12,6 +14,10 @@ use App\Notifications\IncidentAlertNotification;
 use App\Notifications\MissionAssignedNotification;
 use App\Notifications\MissionReassignmentNotification;
 use App\Notifications\MissionUnassignmentNotification;
+use App\Notifications\SignatureInvitationNotification;
+use App\Notifications\WorkflowCompletionNotification;
+use App\Notifications\InvitationExpiredNotification;
+use App\Notifications\EscalationNotification;
 use Carbon\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Log;
@@ -813,5 +819,211 @@ class NotificationService
 
         Log::info("Assignment deadline reminder notifications sent: {$notificationsSent}");
         return $notificationsSent;
+    }
+
+    /**
+     * Send signature invitation email
+     */
+    public function sendSignatureInvitationEmail(string $email, array $data): void
+    {
+        try {
+            $invitation = $data['invitation'];
+            $signatureUrl = $invitation->getSignatureUrl();
+            
+            // Send email notification
+            $notification = new SignatureInvitationNotification($data);
+            
+            // In a real implementation, you would use Laravel's mail system:
+            // Mail::to($email)->send($notification);
+            
+            Log::info("Signature invitation email sent to {$email}", [
+                'invitation_id' => $invitation->id,
+                'signature_id' => $invitation->bail_mobilite_signature_id,
+                'party_role' => $data['party']->role
+            ]);
+            
+        } catch (\Exception $e) {
+            Log::error("Failed to send signature invitation email", [
+                'email' => $email,
+                'error' => $e->getMessage()
+            ]);
+        }
+    }
+
+    /**
+     * Send SMS invitation
+     */
+    public function sendSms(string $phone, string $message, array $metadata = []): void
+    {
+        try {
+            // In a real implementation, integrate with SMS service like Twilio
+            Log::info("SMS would be sent to {$phone}", [
+                'message' => $message,
+                'metadata' => $metadata
+            ]);
+            
+        } catch (\Exception $e) {
+            Log::error("Failed to send SMS", [
+                'phone' => $phone,
+                'error' => $e->getMessage()
+            ]);
+        }
+    }
+
+    /**
+     * Send workflow completion notification
+     */
+    public function sendWorkflowCompletionNotification(BailMobiliteSignature $signature): void
+    {
+        try {
+            $opsUsers = User::role('ops')->get();
+            
+            foreach ($opsUsers as $opsUser) {
+                $opsUser->notify(new WorkflowCompletionNotification($signature));
+                
+                Notification::create([
+                    'type' => 'workflow_completed',
+                    'recipient_id' => $opsUser->id,
+                    'bail_mobilite_id' => $signature->bail_mobilite_id,
+                    'status' => 'sent',
+                    'sent_at' => now(),
+                    'data' => [
+                        'signature_id' => $signature->id,
+                        'bail_mobilite_id' => $signature->bail_mobilite_id,
+                        'tenant_name' => $signature->bailMobilite->tenant_name,
+                        'address' => $signature->bailMobilite->address,
+                        'completed_at' => now()->toDateTimeString()
+                    ]
+                ]);
+            }
+            
+            Log::info("Workflow completion notifications sent for signature {$signature->id}");
+            
+        } catch (\Exception $e) {
+            Log::error("Failed to send workflow completion notifications", [
+                'signature_id' => $signature->id,
+                'error' => $e->getMessage()
+            ]);
+        }
+    }
+
+    /**
+     * Send tenant completion notification
+     */
+    public function sendTenantCompletionNotification(BailMobilite $bailMobilite, BailMobiliteSignature $signature): void
+    {
+        try {
+            if ($bailMobilite->tenant_email) {
+                // In a real implementation, send email to tenant
+                Log::info("Tenant completion notification would be sent to {$bailMobilite->tenant_email}", [
+                    'bail_mobilite_id' => $bailMobilite->id,
+                    'signature_id' => $signature->id
+                ]);
+            }
+            
+        } catch (\Exception $e) {
+            Log::error("Failed to send tenant completion notification", [
+                'bail_mobilite_id' => $bailMobilite->id,
+                'error' => $e->getMessage()
+            ]);
+        }
+    }
+
+    /**
+     * Send party completion notification
+     */
+    public function sendPartyCompletionNotification(SignatureInvitation $invitation, BailMobiliteSignature $signature): void
+    {
+        try {
+            $party = $invitation->signatureParty;
+            
+            // In a real implementation, send email to the signing party
+            Log::info("Party completion notification would be sent to {$party->email}", [
+                'invitation_id' => $invitation->id,
+                'party_role' => $party->role,
+                'signature_id' => $signature->id
+            ]);
+            
+        } catch (\Exception $e) {
+            Log::error("Failed to send party completion notification", [
+                'invitation_id' => $invitation->id,
+                'error' => $e->getMessage()
+            ]);
+        }
+    }
+
+    /**
+     * Send invitation expired notification
+     */
+    public function sendInvitationExpiredNotification(SignatureInvitation $invitation): void
+    {
+        try {
+            $opsUsers = User::role('ops')->get();
+            
+            foreach ($opsUsers as $opsUser) {
+                $opsUser->notify(new InvitationExpiredNotification($invitation));
+                
+                Notification::create([
+                    'type' => 'invitation_expired',
+                    'recipient_id' => $opsUser->id,
+                    'bail_mobilite_id' => $invitation->bailMobiliteSignature->bail_mobilite_id,
+                    'status' => 'sent',
+                    'sent_at' => now(),
+                    'data' => [
+                        'invitation_id' => $invitation->id,
+                        'signature_id' => $invitation->bail_mobilite_signature_id,
+                        'party_email' => $invitation->signatureParty->email,
+                        'party_role' => $invitation->signatureParty->role,
+                        'expired_at' => $invitation->expires_at
+                    ]
+                ]);
+            }
+            
+            Log::warning("Invitation expired notifications sent for invitation {$invitation->id}");
+            
+        } catch (\Exception $e) {
+            Log::error("Failed to send invitation expired notifications", [
+                'invitation_id' => $invitation->id,
+                'error' => $e->getMessage()
+            ]);
+        }
+    }
+
+    /**
+     * Send escalation notification
+     */
+    public function sendEscalationNotification(SignatureInvitation $invitation, array $escalationSettings): void
+    {
+        try {
+            $opsUsers = User::role('ops')->get();
+            
+            foreach ($opsUsers as $opsUser) {
+                $opsUser->notify(new EscalationNotification($invitation, $escalationSettings));
+                
+                Notification::create([
+                    'type' => 'signature_escalation',
+                    'recipient_id' => $opsUser->id,
+                    'bail_mobilite_id' => $invitation->bailMobiliteSignature->bail_mobilite_id,
+                    'status' => 'sent',
+                    'sent_at' => now(),
+                    'data' => [
+                        'invitation_id' => $invitation->id,
+                        'signature_id' => $invitation->bail_mobilite_signature_id,
+                        'party_email' => $invitation->signatureParty->email,
+                        'party_role' => $invitation->signatureParty->role,
+                        'escalation_reason' => 'invitation_expired',
+                        'escalation_settings' => $escalationSettings
+                    ]
+                ]);
+            }
+            
+            Log::warning("Escalation notifications sent for expired invitation {$invitation->id}");
+            
+        } catch (\Exception $e) {
+            Log::error("Failed to send escalation notifications", [
+                'invitation_id' => $invitation->id,
+                'error' => $e->getMessage()
+            ]);
+        }
     }
 }

@@ -276,6 +276,23 @@ Route::middleware(['auth', 'verified'])->group(function () {
             Route::get('/{signature}/validate', [\App\Http\Controllers\SignatureController::class, 'validateSignature'])->name('validate');
             Route::get('/bail-mobilites/{bailMobilite}/signatures', [\App\Http\Controllers\SignatureController::class, 'getBailMobiliteSignatures'])->name('bail-mobilite');
             Route::post('/bail-mobilites/{bailMobilite}/archive', [\App\Http\Controllers\SignatureController::class, 'archiveSignatures'])->name('archive');
+
+            // Multi-party signature workflow routes
+            Route::prefix('workflow')->name('workflow.')->group(function () {
+                Route::get('/{signature}/status', [\App\Http\Controllers\SignatureWorkflowController::class, 'showWorkflowStatus'])->name('status');
+                Route::get('/{signature}/status/api', [\App\Http\Controllers\SignatureWorkflowController::class, 'getWorkflowStatusApi'])->name('status.api');
+                Route::post('/{signature}/initialize', [\App\Http\Controllers\SignatureWorkflowController::class, 'initializeWorkflow'])->name('initialize');
+                Route::post('/invitations/{invitation}/resend', [\App\Http\Controllers\SignatureWorkflowController::class, 'resendInvitation'])->name('resend');
+                Route::post('/invitations/{invitation}/cancel', [\App\Http\Controllers\SignatureWorkflowController::class, 'cancelInvitation'])->name('cancel');
+                Route::get('/{signature}/download-contract', [\App\Http\Controllers\SignatureWorkflowController::class, 'downloadContract'])->name('download-contract');
+            });
+        });
+
+        // Public invitation routes (no auth required)
+        Route::prefix('invitations')->name('invitations.')->group(function () {
+            Route::get('/{token}', [\App\Http\Controllers\SignatureWorkflowController::class, 'showInvitation'])->name('show');
+            Route::post('/{token}/process', [\App\Http\Controllers\SignatureWorkflowController::class, 'processSignature'])->name('process');
+            Route::get('/{invitation}/completed', [\App\Http\Controllers\SignatureWorkflowController::class, 'showCompletion'])->name('completed');
         });
     });
 
