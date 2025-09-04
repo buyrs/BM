@@ -12,11 +12,21 @@ class ChecklistPhoto extends Model
 
     protected $fillable = [
         'checklist_item_id',
-        'photo_path'
+        'photo_path',
+        'filename',
+        'original_name',
+        'file_size',
+        'mime_type',
+        'uploaded_by'
     ];
 
     public function checklistItem(): BelongsTo
     {
         return $this->belongsTo(ChecklistItem::class);
+    }
+
+    public function uploadedBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'uploaded_by');
     }
 }

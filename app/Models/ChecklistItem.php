@@ -16,7 +16,10 @@ class ChecklistItem extends Model
         'category',
         'item_name',
         'condition',
-        'comment'
+        'comment',
+        'notes',
+        'is_required',
+        'created_by'
     ];
 
     public function checklist(): BelongsTo
@@ -27,5 +30,10 @@ class ChecklistItem extends Model
     public function photos(): HasMany
     {
         return $this->hasMany(ChecklistPhoto::class);
+    }
+
+    public function createdBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'created_by');
     }
 }

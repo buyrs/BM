@@ -6,6 +6,7 @@ use App\Models\Checklist;
 use App\Models\ChecklistItem;
 use App\Models\ChecklistPhoto;
 use App\Models\Mission;
+use App\Services\PhotoUploadService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Log;
@@ -14,6 +15,9 @@ use Exception;
 
 class ChecklistController extends Controller
 {
+    public function __construct(
+        private PhotoUploadService $photoUploadService
+    ) {}
     public function create(Mission $mission)
     {
         try {
@@ -30,7 +34,16 @@ class ChecklistController extends Controller
                 ]);
             }
 
-            return Inertia::render('Checklists/Edit', [
+            // Check if request expects JSON (AJAX) or wants Blade view
+            if (request()->expectsJson() || request()->wantsJson()) {
+                return Inertia::render('Checklists/Edit', [
+                    'mission' => $mission->load('agent'),
+                    'checklist' => $checklist->load('items.photos'),
+                ]);
+            }
+
+            // Return Blade view for the new dynamic form
+            return view('pages.checklists.edit', [
                 'mission' => $mission->load('agent'),
                 'checklist' => $checklist->load('items.photos'),
             ]);
@@ -52,6 +65,9 @@ class ChecklistController extends Controller
                 'items' => 'array',
                 'tenant_signature' => 'nullable|string|regex:/^data:image\/[a-zA-Z]+;base64,/',
                 'agent_signature' => 'nullable|string|regex:/^data:image\/[a-zA-Z]+;base64,/',
+                'is_draft' => 'boolean',
+                'photos' => 'array',
+                'photos.*' => 'file|image|mimes:jpeg,png,jpg,gif,webp|max:10240' // 10MB max
             ]);
 
             $checklist = Checklist::where('mission_id', $mission->id)->first();
@@ -65,7 +81,7 @@ class ChecklistController extends Controller
             $checklist->utilities = $validated['utilities'];
             $checklist->tenant_signature = $validated['tenant_signature'];
             $checklist->agent_signature = $validated['agent_signature'];
-            $checklist->status = $request->input('is_draft', true) ? 'draft' : 'completed';
+            $checklist->status = $request->input('is_draft', true) ? 'draft' : 'submitted';
             $checklist->save();
 
             // Handle checklist items
@@ -83,15 +99,15 @@ class ChecklistController extends Controller
                         ]
                     );
 
-                    // Handle photos
+                    // Handle photos for this item
                     if (isset($itemData['photos'])) {
                         foreach ($itemData['photos'] as $photo) {
                             if (isset($photo['data'])) {
                                 $imageData = base64_decode(preg_replace('#^data:image/\w+;base64,#i', '', $photo['data']));
-                                $path = Storage::disk('public')->put(
-                                    "checklist_photos/{$checklist->id}",
-                                    $imageData
-                                );
+                                $filename = 'item_' . $item->id . '_' . time() . '_' . uniqid() . '.jpg';
+                                $path = "checklist_photos/{$checklist->id}/{$filename}";
+                                
+                                Storage::disk('public')->put($path, $imageData);
                                 
                                 ChecklistPhoto::create([
                                     'checklist_item_id' => $item->id,
@@ -103,14 +119,52 @@ class ChecklistController extends Controller
                 }
             }
 
-            if ($checklist->status === 'completed') {
+            // Handle direct photo uploads
+            if ($request->hasFile('photos')) {
+                foreach ($request->file('photos') as $photo) {
+                    $filename = 'general_' . time() . '_' . uniqid() . '.' . $photo->getClientOriginalExtension();
+                    $path = $photo->storeAs("checklist_photos/{$checklist->id}", $filename, 'public');
+                    
+                    // Create a general checklist item for these photos
+                    $item = ChecklistItem::firstOrCreate([
+                        'checklist_id' => $checklist->id,
+                        'category' => 'general',
+                        'item_name' => 'Photos générales'
+                    ]);
+                    
+                    ChecklistPhoto::create([
+                        'checklist_item_id' => $item->id,
+                        'photo_path' => $path
+                    ]);
+                }
+            }
+
+            if ($checklist->status === 'submitted') {
                 $mission->update(['status' => 'completed']);
             }
 
+            // Return JSON response for AJAX requests
+            if ($request->expectsJson() || $request->wantsJson()) {
+                return response()->json([
+                    'success' => true,
+                    'message' => 'Checklist ' . ($checklist->status === 'draft' ? 'saved as draft' : 'submitted successfully'),
+                    'checklist' => $checklist->load('items.photos')
+                ]);
+            }
+
             return redirect()->route('missions.show', $mission)
-                ->with('success', 'Checklist ' . ($checklist->status === 'draft' ? 'saved as draft' : 'completed successfully'));
+                ->with('success', 'Checklist ' . ($checklist->status === 'draft' ? 'saved as draft' : 'submitted successfully'));
         } catch (Exception $e) {
             Log::error('Checklist storage failed: ' . $e->getMessage());
+            
+            if ($request->expectsJson() || $request->wantsJson()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Unable to save checklist. Please try again.',
+                    'error' => $e->getMessage()
+                ], 500);
+            }
+            
             return redirect()->back()->with('error', 'Unable to save checklist. Please try again.');
         }
     }
@@ -166,20 +220,26 @@ class ChecklistController extends Controller
             $this->authorize('update', $item->checklist);
 
             $request->validate([
-                'photo' => 'required|image|mimes:jpeg,png,jpg,gif|max:5120' // 5MB max
+                'photo' => 'required|image|mimes:jpeg,png,jpg,gif,webp|max:10240' // 10MB max
             ]);
 
-            $path = $request->file('photo')->store('checklist_photos/' . $item->checklist_id, 'public');
+            $photo = $this->photoUploadService->uploadChecklistPhoto(
+                $item,
+                $request->file('photo'),
+                auth()->id()
+            );
 
-            $photo = ChecklistPhoto::create([
-                'checklist_item_id' => $item->id,
-                'photo_path' => $path
+            return response()->json([
+                'success' => true,
+                'photo' => $photo->load('uploadedBy'),
+                'url' => $this->photoUploadService->getPhotoUrl($photo)
             ]);
-
-            return response()->json($photo);
         } catch (Exception $e) {
             Log::error('Photo upload failed: ' . $e->getMessage());
-            return response()->json(['error' => 'Unable to upload photo'], 500);
+            return response()->json([
+                'success' => false,
+                'error' => $e->getMessage()
+            ], 500);
         }
     }
 
@@ -188,13 +248,46 @@ class ChecklistController extends Controller
         try {
             $this->authorize('update', $photo->checklistItem->checklist);
 
-            Storage::disk('public')->delete($photo->photo_path);
-            $photo->delete();
+            $success = $this->photoUploadService->deletePhoto($photo);
 
-            return response()->json(['message' => 'Photo deleted successfully']);
+            if ($success) {
+                return response()->json([
+                    'success' => true,
+                    'message' => 'Photo deleted successfully'
+                ]);
+            } else {
+                return response()->json([
+                    'success' => false,
+                    'error' => 'Unable to delete photo'
+                ], 500);
+            }
         } catch (Exception $e) {
             Log::error('Photo deletion failed: ' . $e->getMessage());
-            return response()->json(['error' => 'Unable to delete photo'], 500);
+            return response()->json([
+                'success' => false,
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    public function getPhotoUrl(ChecklistPhoto $photo, string $size = 'original')
+    {
+        try {
+            $this->authorize('view', $photo->checklistItem->checklist);
+
+            $url = $this->photoUploadService->getPhotoUrl($photo, $size);
+
+            return response()->json([
+                'success' => true,
+                'url' => $url,
+                'size' => $size
+            ]);
+        } catch (Exception $e) {
+            Log::error('Failed to get photo URL: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'error' => $e->getMessage()
+            ], 500);
         }
     }
 }

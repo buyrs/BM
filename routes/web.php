@@ -2,6 +2,9 @@
 
 use App\Http\Controllers\Auth\GoogleController;
 use App\Http\Controllers\MissionController;
+use App\Http\Controllers\BladeMissionController;
+use App\Http\Controllers\MissionAssignmentController;
+use App\Http\Controllers\MissionStatusController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\ChecklistController;
 use App\Http\Controllers\DashboardController;
@@ -109,17 +112,86 @@ Route::middleware(['auth', 'verified'])->group(function () {
         });
     });
 
+    // Blade Mission routes (new implementation)
+    Route::prefix('blade-missions')->name('blade-missions.')->group(function () {
+        Route::get('/', [BladeMissionController::class, 'index'])->name('index');
+        Route::get('/create', [BladeMissionController::class, 'create'])->name('create');
+        Route::post('/', [BladeMissionController::class, 'store'])->name('store');
+        Route::get('/{mission}', [BladeMissionController::class, 'show'])->name('show');
+        Route::get('/{mission}/edit', [BladeMissionController::class, 'edit'])->name('edit');
+        Route::put('/{mission}', [BladeMissionController::class, 'update'])->name('update');
+        Route::delete('/{mission}', [BladeMissionController::class, 'destroy'])->name('destroy');
+        
+        // Additional mission actions
+        Route::post('/{mission}/assign', [BladeMissionController::class, 'assignToChecker'])->name('assign');
+        Route::post('/{mission}/update-status', [BladeMissionController::class, 'updateStatus'])->name('update-status');
+        Route::post('/bulk-update', [BladeMissionController::class, 'bulkUpdate'])->name('bulk-update');
+        Route::get('/assigned', [BladeMissionController::class, 'getAssignedMissions'])->name('assigned');
+        Route::get('/completed', [BladeMissionController::class, 'getCompletedMissions'])->name('completed');
+        Route::get('/calendar', [BladeMissionController::class, 'calendar'])->name('calendar');
+        Route::post('/{mission}/update-schedule', [BladeMissionController::class, 'updateSchedule'])->name('update-schedule');
+        Route::get('/api/statistics', [BladeMissionController::class, 'getStatistics'])->name('statistics');
+    });
+
+    // Mission Assignment routes
+    Route::prefix('mission-assignments')->name('mission-assignments.')->group(function () {
+        Route::get('/', [MissionAssignmentController::class, 'index'])->name('index');
+        Route::post('/assign/{mission}', [MissionAssignmentController::class, 'assignSingle'])->name('assign');
+        Route::post('/bulk-assign', [MissionAssignmentController::class, 'bulkAssign'])->name('bulk-assign');
+        Route::post('/reassign/{mission}', [MissionAssignmentController::class, 'reassign'])->name('reassign');
+        Route::get('/api/agent-availability', [MissionAssignmentController::class, 'getAgentAvailability'])->name('agent-availability');
+    });
+
+    // Mission Status Tracking routes
+    Route::prefix('mission-status')->name('mission-status.')->group(function () {
+        Route::get('/dashboard', [MissionStatusController::class, 'dashboard'])->name('dashboard');
+        Route::post('/update/{mission}', [MissionStatusController::class, 'updateStatus'])->name('update');
+        Route::get('/updates', [MissionStatusController::class, 'getStatusUpdates'])->name('updates');
+        Route::get('/history/{mission}', [MissionStatusController::class, 'getStatusHistory'])->name('history');
+    });
+
     // Checklist routes
     Route::prefix('checklists')->name('checklists.')->group(function () {
         Route::get('/{mission}', [ChecklistController::class, 'show'])->name('show');
         Route::post('/{mission}', [ChecklistController::class, 'store'])->name('store');
         Route::put('/{mission}', [ChecklistController::class, 'update'])->name('update');
+        Route::post('/{mission}/rooms', [ChecklistController::class, 'addRoom'])->name('add-room');
+        
+        // Photo management
+        Route::post('/items/{item}/photos', [ChecklistController::class, 'uploadPhoto'])->name('upload-photo');
+        Route::delete('/photos/{photo}', [ChecklistController::class, 'deletePhoto'])->name('delete-photo');
+        Route::get('/photos/{photo}/url/{size?}', [ChecklistController::class, 'getPhotoUrl'])->name('photo-url');
+    });
+
+    // Signature routes
+    Route::prefix('signatures')->name('signatures.')->group(function () {
+        Route::post('/validate', [\App\Http\Controllers\SignatureController::class, 'validateSignature'])->name('validate');
+        Route::post('/checklist/{checklist}/save', [\App\Http\Controllers\SignatureController::class, 'saveSignature'])->name('save');
+        Route::get('/checklist/{checklist}/{type}', [\App\Http\Controllers\SignatureController::class, 'getSignature'])->name('get');
+        Route::delete('/checklist/{checklist}/{type}', [\App\Http\Controllers\SignatureController::class, 'deleteSignature'])->name('delete');
+        Route::post('/thumbnail', [\App\Http\Controllers\SignatureController::class, 'createThumbnail'])->name('thumbnail');
+        Route::post('/checklist/{checklist}/verify', [\App\Http\Controllers\SignatureController::class, 'verifyIntegrity'])->name('verify');
+    });
+
+    // Security routes
+    Route::prefix('security')->name('security.')->group(function () {
+        Route::post('/checklist/{checklist}/encrypt', [\App\Http\Controllers\ChecklistSecurityController::class, 'encryptChecklist'])->name('encrypt');
+        Route::post('/checklist/{checklist}/decrypt', [\App\Http\Controllers\ChecklistSecurityController::class, 'decryptChecklist'])->name('decrypt');
+        Route::post('/checklist/{checklist}/audit', [\App\Http\Controllers\ChecklistSecurityController::class, 'performSecurityAudit'])->name('audit');
+        Route::get('/checklist/{checklist}/report', [\App\Http\Controllers\ChecklistSecurityController::class, 'generateSecurityReport'])->name('report');
+        Route::post('/checklist/{checklist}/backup', [\App\Http\Controllers\ChecklistSecurityController::class, 'createSecureBackup'])->name('backup');
+        Route::post('/checklist/{checklist}/restore', [\App\Http\Controllers\ChecklistSecurityController::class, 'restoreFromBackup'])->name('restore');
+        Route::get('/checklist/{checklist}/integrity', [\App\Http\Controllers\ChecklistSecurityController::class, 'verifyIntegrity'])->name('integrity');
+        Route::get('/checklist/{checklist}/status', [\App\Http\Controllers\ChecklistSecurityController::class, 'getSecurityStatus'])->name('status');
     });
 
     // PDF routes
     Route::prefix('pdf')->name('pdf.')->group(function () {
-        Route::get('/mission/{mission}', [PdfController::class, 'mission'])->name('mission');
-        Route::get('/checklist/{checklist}', [PdfController::class, 'checklist'])->name('checklist');
+        Route::get('/mission/{mission}', [PdfController::class, 'generateMissionPdf'])->name('mission');
+        Route::get('/checklist/{checklist}', [PdfController::class, 'generateChecklistPdf'])->name('checklist');
+        Route::get('/shared/{token}', [PdfController::class, 'sharedChecklistPdf'])->name('shared');
+        Route::get('/statistics', [PdfController::class, 'getPdfStatistics'])->name('statistics');
+        Route::post('/cleanup', [PdfController::class, 'cleanupOldPdfs'])->name('cleanup');
     });
 
     // Ops routes for Bail Mobilité management

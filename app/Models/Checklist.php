@@ -46,6 +46,11 @@ class Checklist extends Model
         return $this->belongsTo(User::class, 'validated_by');
     }
 
+    public function photos(): HasMany
+    {
+        return $this->hasMany(ChecklistPhoto::class, 'checklist_id');
+    }
+
     public function getDefaultStructure(): array
     {
         return [

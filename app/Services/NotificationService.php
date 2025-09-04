@@ -10,6 +10,8 @@ use App\Notifications\BailMobiliteExitReminder;
 use App\Notifications\ChecklistValidationNotification;
 use App\Notifications\IncidentAlertNotification;
 use App\Notifications\MissionAssignedNotification;
+use App\Notifications\MissionReassignmentNotification;
+use App\Notifications\MissionUnassignmentNotification;
 use Carbon\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Log;
@@ -631,5 +633,185 @@ class NotificationService
             'total_sent_today' => (clone $query)->sent()->whereDate('sent_at', today())->count(),
             'total_sent_this_week' => (clone $query)->sent()->whereBetween('sent_at', [now()->startOfWeek(), now()->endOfWeek()])->count(),
         ];
+    }
+
+    /**
+     * Send mission assignment notification to agent
+     */
+    public function sendMissionAssignmentNotification(Mission $mission, User $agent): void
+    {
+        try {
+            $agent->notify(new MissionAssignedNotification($mission));
+            
+            // Also create a database notification
+            Notification::create([
+                'type' => 'mission_assigned',
+                'recipient_id' => $agent->id,
+                'mission_id' => $mission->id,
+                'status' => 'sent',
+                'sent_at' => now(),
+                'data' => [
+                    'mission_id' => $mission->id,
+                    'address' => $mission->address,
+                    'tenant_name' => $mission->tenant_name,
+                    'scheduled_at' => $mission->scheduled_at?->format('d/m/Y H:i'),
+                    'mission_type' => $mission->mission_type,
+                    'assigned_by' => auth()->user()->name ?? 'System'
+                ]
+            ]);
+
+            Log::info("Mission assignment notification sent to agent {$agent->id} for mission {$mission->id}");
+        } catch (\Exception $e) {
+            Log::error("Failed to send mission assignment notification", [
+                'mission_id' => $mission->id,
+                'agent_id' => $agent->id,
+                'error' => $e->getMessage()
+            ]);
+        }
+    }
+
+    /**
+     * Send mission reassignment notification
+     */
+    public function sendMissionReassignmentNotification(Mission $mission, User $newAgent, ?User $oldAgent = null): void
+    {
+        try {
+            $newAgent->notify(new MissionReassignmentNotification($mission, $oldAgent));
+            
+            // Create database notification
+            Notification::create([
+                'type' => 'mission_reassigned',
+                'recipient_id' => $newAgent->id,
+                'mission_id' => $mission->id,
+                'status' => 'sent',
+                'sent_at' => now(),
+                'data' => [
+                    'mission_id' => $mission->id,
+                    'address' => $mission->address,
+                    'tenant_name' => $mission->tenant_name,
+                    'scheduled_at' => $mission->scheduled_at?->format('d/m/Y H:i'),
+                    'mission_type' => $mission->mission_type,
+                    'previous_agent' => $oldAgent?->name,
+                    'reassigned_by' => auth()->user()->name ?? 'System',
+                    'reason' => $mission->reassignment_reason
+                ]
+            ]);
+
+            Log::info("Mission reassignment notification sent to agent {$newAgent->id} for mission {$mission->id}");
+        } catch (\Exception $e) {
+            Log::error("Failed to send mission reassignment notification", [
+                'mission_id' => $mission->id,
+                'new_agent_id' => $newAgent->id,
+                'error' => $e->getMessage()
+            ]);
+        }
+    }
+
+    /**
+     * Send mission unassignment notification
+     */
+    public function sendMissionUnassignmentNotification(Mission $mission, User $agent): void
+    {
+        try {
+            $agent->notify(new MissionUnassignmentNotification($mission));
+            
+            // Create database notification
+            Notification::create([
+                'type' => 'mission_unassigned',
+                'recipient_id' => $agent->id,
+                'mission_id' => $mission->id,
+                'status' => 'sent',
+                'sent_at' => now(),
+                'data' => [
+                    'mission_id' => $mission->id,
+                    'address' => $mission->address,
+                    'tenant_name' => $mission->tenant_name,
+                    'scheduled_at' => $mission->scheduled_at?->format('d/m/Y H:i'),
+                    'mission_type' => $mission->mission_type,
+                    'unassigned_by' => auth()->user()->name ?? 'System',
+                    'reason' => $mission->reassignment_reason
+                ]
+            ]);
+
+            Log::info("Mission unassignment notification sent to agent {$agent->id} for mission {$mission->id}");
+        } catch (\Exception $e) {
+            Log::error("Failed to send mission unassignment notification", [
+                'mission_id' => $mission->id,
+                'agent_id' => $agent->id,
+                'error' => $e->getMessage()
+            ]);
+        }
+    }
+
+    /**
+     * Send bulk assignment summary notification to ops staff
+     */
+    public function sendBulkAssignmentSummaryNotification(array $results, User $opsUser): void
+    {
+        try {
+            $successCount = collect($results)->where('success', true)->count();
+            $failureCount = collect($results)->where('success', false)->count();
+            
+            Notification::create([
+                'type' => 'bulk_assignment_summary',
+                'recipient_id' => $opsUser->id,
+                'status' => 'sent',
+                'sent_at' => now(),
+                'data' => [
+                    'total_processed' => count($results),
+                    'successful_assignments' => $successCount,
+                    'failed_assignments' => $failureCount,
+                    'results' => $results,
+                    'processed_by' => auth()->user()->name ?? 'System'
+                ]
+            ]);
+
+            Log::info("Bulk assignment summary notification sent to ops user {$opsUser->id}");
+        } catch (\Exception $e) {
+            Log::error("Failed to send bulk assignment summary notification", [
+                'ops_user_id' => $opsUser->id,
+                'error' => $e->getMessage()
+            ]);
+        }
+    }
+
+    /**
+     * Send assignment deadline reminder notifications
+     */
+    public function sendAssignmentDeadlineReminders(): int
+    {
+        $unassignedMissions = Mission::where('status', 'unassigned')
+            ->where('scheduled_at', '<=', now()->addHours(2))
+            ->where('scheduled_at', '>', now())
+            ->get();
+
+        $notificationsSent = 0;
+
+        foreach ($unassignedMissions as $mission) {
+            $opsUsers = User::role('ops')->get();
+            
+            foreach ($opsUsers as $opsUser) {
+                Notification::create([
+                    'type' => 'assignment_deadline_reminder',
+                    'recipient_id' => $opsUser->id,
+                    'mission_id' => $mission->id,
+                    'status' => 'sent',
+                    'sent_at' => now(),
+                    'data' => [
+                        'mission_id' => $mission->id,
+                        'address' => $mission->address,
+                        'tenant_name' => $mission->tenant_name,
+                        'scheduled_at' => $mission->scheduled_at->format('d/m/Y H:i'),
+                        'time_until_mission' => $mission->scheduled_at->diffForHumans(),
+                        'priority' => 'high'
+                    ]
+                ]);
+                
+                $notificationsSent++;
+            }
+        }
+
+        Log::info("Assignment deadline reminder notifications sent: {$notificationsSent}");
+        return $notificationsSent;
     }
 }

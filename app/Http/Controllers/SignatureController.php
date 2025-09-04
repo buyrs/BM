@@ -2,238 +2,313 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\BailMobilite;
-use App\Models\BailMobiliteSignature;
-use App\Services\SignatureService;
+use App\Models\Checklist;
+use App\Services\SignatureValidationService;
 use Illuminate\Http\Request;
-use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Storage;
-use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Facades\DB;
+use Exception;
 
 class SignatureController extends Controller
 {
-    protected SignatureService $signatureService;
-
-    public function __construct(SignatureService $signatureService)
-    {
-        $this->signatureService = $signatureService;
-    }
+    public function __construct(
+        private SignatureValidationService $signatureValidationService
+    ) {}
 
     /**
-     * Create a tenant signature for a bail mobilite
+     * Validate signature data
      */
-    public function createTenantSignature(Request $request, BailMobilite $bailMobilite)
+    public function validateSignature(Request $request)
     {
-        $validator = Validator::make($request->all(), [
-            'signature_type' => 'required|in:entry,exit',
-            'signature_data' => 'required|string|min:10', // Ensure signature has minimum data
-        ]);
-
-        if ($validator->fails()) {
-            return response()->json([
-                'success' => false,
-                'errors' => $validator->errors()
-            ], 422);
-        }
-
         try {
-            // Enhanced metadata collection for security
-            $metadata = [
-                'mission_id' => $request->input('mission_id'),
-                'checker_id' => auth()->id(),
-                'checker_email' => auth()->user()->email,
-                'device_info' => $request->input('device_info', []),
-                'signature_length' => strlen($request->input('signature_data')),
-                'request_timestamp' => now()->toISOString(),
-            ];
+            $request->validate([
+                'signature_data' => 'required|string',
+                'signature_type' => 'required|in:tenant,agent'
+            ]);
 
-            $signature = $this->signatureService->createTenantSignature(
-                $bailMobilite,
-                $request->input('signature_type'),
-                $request->input('signature_data'),
-                $metadata
+            $validation = $this->signatureValidationService->validateSignatureData(
+                $request->signature_data
             );
-
-            // Log signature creation for audit trail
-            $this->signatureService->logSignatureAccess($signature, 'created', auth()->user());
 
             return response()->json([
                 'success' => true,
-                'signature' => $signature->load('contractTemplate'),
-                'message' => 'Signature créée avec succès',
-                'security_info' => [
-                    'integrity_verified' => $this->signatureService->verifySignatureIntegrity($signature),
-                    'created_at' => $signature->created_at
-                ]
+                'validation' => $validation
             ]);
 
-        } catch (\Exception $e) {
-            // Log failed signature creation attempt
-            Log::channel('security')->error('Signature creation failed', [
-                'bail_mobilite_id' => $bailMobilite->id,
-                'signature_type' => $request->input('signature_type'),
-                'user_id' => auth()->id(),
-                'error' => $e->getMessage(),
-                'ip_address' => $request->ip()
+        } catch (Exception $e) {
+            Log::error('Signature validation failed', [
+                'error' => $e->getMessage()
             ]);
 
             return response()->json([
                 'success' => false,
-                'message' => 'Erreur lors de la création de la signature: ' . $e->getMessage()
+                'error' => 'Signature validation failed'
             ], 500);
         }
     }
 
     /**
-     * Get signature details with validation
+     * Save signature to checklist
      */
-    public function getSignature(BailMobiliteSignature $signature)
+    public function saveSignature(Request $request, Checklist $checklist)
     {
-        // Log signature access
-        $this->signatureService->logSignatureAccess($signature, 'viewed', auth()->user());
-        
-        $signature->load(['bailMobilite', 'contractTemplate']);
-        
-        return response()->json([
-            'signature' => $signature,
-            'validation' => $this->signatureService->validateSignature($signature),
-            'metadata' => $this->signatureService->getSignatureMetadata($signature),
-            'access_logged' => true
-        ]);
-    }
-
-    /**
-     * Download signed contract PDF
-     */
-    public function downloadContract(BailMobiliteSignature $signature)
-    {
-        // Check permissions
-        if (!auth()->user()->can('view_signatures')) {
-            abort(403, 'Accès non autorisé');
-        }
-
-        // Log PDF download for audit trail
-        $this->signatureService->logSignatureAccess($signature, 'pdf_downloaded', auth()->user());
-
-        $pdfContent = $this->signatureService->getSignedContractPdf($signature);
-        
-        if (!$pdfContent) {
-            abort(404, 'Contrat PDF non trouvé');
-        }
-
-        $filename = sprintf(
-            'Contrat_BM_%s_%s_%s.pdf',
-            $signature->bail_mobilite_id,
-            $signature->signature_type,
-            $signature->tenant_signed_at->format('Y-m-d')
-        );
-
-        return response($pdfContent)
-            ->header('Content-Type', 'application/pdf')
-            ->header('Content-Disposition', 'attachment; filename="' . $filename . '"');
-    }
-
-    /**
-     * Preview contract PDF in browser
-     */
-    public function previewContract(BailMobiliteSignature $signature)
-    {
-        // Check permissions
-        if (!auth()->user()->can('view_signatures')) {
-            abort(403, 'Accès non autorisé');
-        }
-
-        // Log PDF preview for audit trail
-        $this->signatureService->logSignatureAccess($signature, 'pdf_previewed', auth()->user());
-
-        $pdfContent = $this->signatureService->getSignedContractPdf($signature);
-        
-        if (!$pdfContent) {
-            abort(404, 'Contrat PDF non trouvé');
-        }
-
-        return response($pdfContent)
-            ->header('Content-Type', 'application/pdf')
-            ->header('Content-Disposition', 'inline');
-    }
-
-    /**
-     * Validate signature integrity
-     */
-    public function validateSignature(BailMobiliteSignature $signature)
-    {
-        // Log signature validation for audit trail
-        $this->signatureService->logSignatureAccess($signature, 'validated', auth()->user());
-        
-        $validation = $this->signatureService->validateSignature($signature);
-        $metadata = $this->signatureService->getSignatureMetadata($signature);
-        
-        return response()->json([
-            'signature_id' => $signature->id,
-            'validation' => $validation,
-            'metadata' => $metadata,
-            'audit_trail' => $this->signatureService->createAuditTrail($signature)
-        ]);
-    }
-
-    /**
-     * Get all signatures for a bail mobilite
-     */
-    public function getBailMobiliteSignatures(BailMobilite $bailMobilite)
-    {
-        $signatures = $bailMobilite->signatures()
-            ->with('contractTemplate')
-            ->get()
-            ->map(function ($signature) {
-                return [
-                    'signature' => $signature,
-                    'validation' => $this->signatureService->validateSignature($signature)
-                ];
-            });
-
-        return response()->json([
-            'bail_mobilite_id' => $bailMobilite->id,
-            'signatures' => $signatures
-        ]);
-    }
-
-    /**
-     * Archive signatures for legal retention
-     */
-    public function archiveSignatures(BailMobilite $bailMobilite)
-    {
-        // Check permissions
-        if (!auth()->user()->can('archive_signatures')) {
-            abort(403, 'Accès non autorisé');
-        }
-
         try {
-            // Log each signature before archiving
-            foreach ($bailMobilite->signatures as $signature) {
-                $this->signatureService->logSignatureAccess($signature, 'archived', auth()->user());
-            }
+            $this->authorize('update', $checklist);
 
-            $this->signatureService->archiveSignatures($bailMobilite);
-
-            return response()->json([
-                'success' => true,
-                'message' => 'Signatures archivées avec succès',
-                'archived_at' => now(),
-                'archived_by' => auth()->user()->email
+            $request->validate([
+                'signature_data' => 'required|string',
+                'signature_type' => 'required|in:tenant,agent'
             ]);
 
-        } catch (\Exception $e) {
-            Log::channel('security')->error('Signature archiving failed', [
-                'bail_mobilite_id' => $bailMobilite->id,
-                'user_id' => auth()->id(),
-                'error' => $e->getMessage(),
-                'ip_address' => request()->ip()
+            // Validate signature data
+            $validation = $this->signatureValidationService->validateSignatureData(
+                $request->signature_data
+            );
+
+            if (!$validation['is_valid']) {
+                return response()->json([
+                    'success' => false,
+                    'error' => 'Invalid signature data',
+                    'validation_errors' => $validation['errors']
+                ], 422);
+            }
+
+            // Optimize signature image
+            $optimizedSignature = $this->signatureValidationService->optimizeSignatureImage(
+                $request->signature_data
+            );
+
+            // Extract metadata
+            $metadata = $this->signatureValidationService->extractSignatureMetadata(
+                $optimizedSignature,
+                [
+                    'signature_type' => $request->signature_type,
+                    'checklist_id' => $checklist->id,
+                    'user_id' => auth()->id()
+                ]
+            );
+
+            DB::beginTransaction();
+
+            try {
+                // Update checklist with signature
+                $updateData = [];
+                if ($request->signature_type === 'tenant') {
+                    $updateData['tenant_signature'] = $optimizedSignature;
+                } else {
+                    $updateData['agent_signature'] = $optimizedSignature;
+                }
+
+                $checklist->update($updateData);
+
+                // Log signature save
+                Log::info('Signature saved to checklist', [
+                    'checklist_id' => $checklist->id,
+                    'signature_type' => $request->signature_type,
+                    'user_id' => auth()->id(),
+                    'metadata' => $metadata
+                ]);
+
+                DB::commit();
+
+                return response()->json([
+                    'success' => true,
+                    'message' => 'Signature saved successfully',
+                    'signature_type' => $request->signature_type,
+                    'metadata' => $metadata
+                ]);
+
+            } catch (Exception $e) {
+                DB::rollBack();
+                throw $e;
+            }
+
+        } catch (Exception $e) {
+            Log::error('Failed to save signature', [
+                'checklist_id' => $checklist->id,
+                'error' => $e->getMessage()
             ]);
 
             return response()->json([
                 'success' => false,
-                'message' => 'Erreur lors de l\'archivage: ' . $e->getMessage()
+                'error' => 'Failed to save signature'
+            ], 500);
+        }
+    }
+
+    /**
+     * Get signature data
+     */
+    public function getSignature(Checklist $checklist, string $type)
+    {
+        try {
+            $this->authorize('view', $checklist);
+
+            if (!in_array($type, ['tenant', 'agent'])) {
+                return response()->json([
+                    'success' => false,
+                    'error' => 'Invalid signature type'
+                ], 422);
+            }
+
+            $signatureField = $type . '_signature';
+            $signatureData = $checklist->$signatureField;
+
+            if (!$signatureData) {
+                return response()->json([
+                    'success' => false,
+                    'error' => 'Signature not found'
+                ], 404);
+            }
+
+            return response()->json([
+                'success' => true,
+                'signature_data' => $signatureData,
+                'signature_type' => $type
+            ]);
+
+        } catch (Exception $e) {
+            Log::error('Failed to get signature', [
+                'checklist_id' => $checklist->id,
+                'signature_type' => $type,
+                'error' => $e->getMessage()
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'error' => 'Failed to get signature'
+            ], 500);
+        }
+    }
+
+    /**
+     * Delete signature
+     */
+    public function deleteSignature(Checklist $checklist, string $type)
+    {
+        try {
+            $this->authorize('update', $checklist);
+
+            if (!in_array($type, ['tenant', 'agent'])) {
+                return response()->json([
+                    'success' => false,
+                    'error' => 'Invalid signature type'
+                ], 422);
+            }
+
+            $signatureField = $type . '_signature';
+            
+            $checklist->update([
+                $signatureField => null
+            ]);
+
+            Log::info('Signature deleted', [
+                'checklist_id' => $checklist->id,
+                'signature_type' => $type,
+                'user_id' => auth()->id()
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Signature deleted successfully'
+            ]);
+
+        } catch (Exception $e) {
+            Log::error('Failed to delete signature', [
+                'checklist_id' => $checklist->id,
+                'signature_type' => $type,
+                'error' => $e->getMessage()
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'error' => 'Failed to delete signature'
+            ], 500);
+        }
+    }
+
+    /**
+     * Create signature thumbnail
+     */
+    public function createThumbnail(Request $request)
+    {
+        try {
+            $request->validate([
+                'signature_data' => 'required|string',
+                'width' => 'integer|min:50|max:500',
+                'height' => 'integer|min:25|max:250'
+            ]);
+
+            $width = $request->input('width', 200);
+            $height = $request->input('height', 100);
+
+            $thumbnail = $this->signatureValidationService->createSignatureThumbnail(
+                $request->signature_data,
+                $width,
+                $height
+            );
+
+            return response()->json([
+                'success' => true,
+                'thumbnail' => $thumbnail,
+                'dimensions' => ['width' => $width, 'height' => $height]
+            ]);
+
+        } catch (Exception $e) {
+            Log::error('Failed to create signature thumbnail', [
+                'error' => $e->getMessage()
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'error' => 'Failed to create thumbnail'
+            ], 500);
+        }
+    }
+
+    /**
+     * Verify signature integrity
+     */
+    public function verifyIntegrity(Request $request, Checklist $checklist)
+    {
+        try {
+            $this->authorize('view', $checklist);
+
+            $request->validate([
+                'signature_type' => 'required|in:tenant,agent',
+                'expected_hash' => 'required|string'
+            ]);
+
+            $signatureField = $request->signature_type . '_signature';
+            $signatureData = $checklist->$signatureField;
+
+            if (!$signatureData) {
+                return response()->json([
+                    'success' => false,
+                    'error' => 'Signature not found'
+                ], 404);
+            }
+
+            $isValid = $this->signatureValidationService->verifySignatureIntegrity(
+                $signatureData,
+                $request->expected_hash
+            );
+
+            return response()->json([
+                'success' => true,
+                'is_valid' => $isValid,
+                'signature_type' => $request->signature_type
+            ]);
+
+        } catch (Exception $e) {
+            Log::error('Failed to verify signature integrity', [
+                'checklist_id' => $checklist->id,
+                'error' => $e->getMessage()
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'error' => 'Failed to verify signature integrity'
             ], 500);
         }
     }

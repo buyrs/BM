@@ -566,4 +566,178 @@ class AuditService
             ->limit($limit)
             ->get();
     }
+
+    /**
+     * Log mission status change
+     */
+    public function logStatusChange($mission, string $oldStatus, string $newStatus, User $user, ?string $notes = null): AuditLog
+    {
+        return self::logAction(
+            'mission_status_change',
+            'status_updated',
+            $mission,
+            $user,
+            ['status' => $oldStatus],
+            ['status' => $newStatus],
+            [
+                'mission_id' => $mission->id,
+                'old_status' => $oldStatus,
+                'new_status' => $newStatus,
+                'notes' => $notes,
+                'mission_address' => $mission->address,
+                'mission_type' => $mission->mission_type,
+                'agent_id' => $mission->agent_id,
+                'scheduled_at' => $mission->scheduled_at?->toISOString()
+            ],
+            'info',
+            false
+        );
+    }
+
+    /**
+     * Log mission assignment
+     */
+    public function logAssignment($mission, User $agent, User $assignedBy): AuditLog
+    {
+        return self::logAction(
+            'mission_assignment',
+            'mission_assigned',
+            $mission,
+            $assignedBy,
+            ['agent_id' => null],
+            ['agent_id' => $agent->id, 'agent_name' => $agent->name],
+            [
+                'mission_id' => $mission->id,
+                'assigned_agent_id' => $agent->id,
+                'assigned_agent_name' => $agent->name,
+                'mission_address' => $mission->address,
+                'mission_type' => $mission->mission_type,
+                'scheduled_at' => $mission->scheduled_at?->toISOString()
+            ],
+            'info',
+            false
+        );
+    }
+
+    /**
+     * Log mission reassignment
+     */
+    public function logReassignment($mission, ?User $oldAgent, User $newAgent, User $reassignedBy): AuditLog
+    {
+        return self::logAction(
+            'mission_reassignment',
+            'mission_reassigned',
+            $mission,
+            $reassignedBy,
+            [
+                'agent_id' => $oldAgent?->id,
+                'agent_name' => $oldAgent?->name
+            ],
+            [
+                'agent_id' => $newAgent->id,
+                'agent_name' => $newAgent->name
+            ],
+            [
+                'mission_id' => $mission->id,
+                'old_agent_id' => $oldAgent?->id,
+                'old_agent_name' => $oldAgent?->name,
+                'new_agent_id' => $newAgent->id,
+                'new_agent_name' => $newAgent->name,
+                'mission_address' => $mission->address,
+                'mission_type' => $mission->mission_type,
+                'reassignment_reason' => $mission->reassignment_reason
+            ],
+            'info',
+            false
+        );
+    }
+
+    /**
+     * Get status history for a mission
+     */
+    public function getStatusHistory($mission): array
+    {
+        return AuditLog::where('auditable_type', get_class($mission))
+            ->where('auditable_id', $mission->id)
+            ->where('event_type', 'mission_status_change')
+            ->orderBy('occurred_at', 'desc')
+            ->get()
+            ->map(function($log) {
+                return [
+                    'id' => $log->id,
+                    'old_status' => $log->old_values['status'] ?? null,
+                    'new_status' => $log->new_values['status'] ?? null,
+                    'changed_by' => $log->user_email,
+                    'changed_at' => $log->occurred_at->format('d/m/Y H:i'),
+                    'notes' => $log->metadata['notes'] ?? null,
+                    'ip_address' => $log->ip_address
+                ];
+            })
+            ->toArray();
+    }
+
+    /**
+     * Get assignment history for a mission
+     */
+    public function getAssignmentHistory($mission): array
+    {
+        return AuditLog::where('auditable_type', get_class($mission))
+            ->where('auditable_id', $mission->id)
+            ->whereIn('event_type', ['mission_assignment', 'mission_reassignment'])
+            ->orderBy('occurred_at', 'desc')
+            ->get()
+            ->map(function($log) {
+                return [
+                    'id' => $log->id,
+                    'event_type' => $log->event_type,
+                    'old_agent' => $log->old_values['agent_name'] ?? null,
+                    'new_agent' => $log->new_values['agent_name'] ?? null,
+                    'changed_by' => $log->user_email,
+                    'changed_at' => $log->occurred_at->format('d/m/Y H:i'),
+                    'reason' => $log->metadata['reassignment_reason'] ?? null
+                ];
+            })
+            ->toArray();
+    }
+
+    /**
+     * Get comprehensive mission audit trail
+     */
+    public function getMissionAuditTrail($mission): array
+    {
+        return AuditLog::where('auditable_type', get_class($mission))
+            ->where('auditable_id', $mission->id)
+            ->orderBy('occurred_at', 'desc')
+            ->get()
+            ->map(function($log) {
+                return [
+                    'id' => $log->id,
+                    'event_type' => $log->event_type,
+                    'action' => $log->action,
+                    'description' => $this->getEventDescription($log),
+                    'user' => $log->user_email,
+                    'occurred_at' => $log->occurred_at->format('d/m/Y H:i'),
+                    'ip_address' => $log->ip_address,
+                    'metadata' => $log->metadata
+                ];
+            })
+            ->toArray();
+    }
+
+    /**
+     * Get human-readable event description
+     */
+    private function getEventDescription(AuditLog $log): string
+    {
+        $descriptions = [
+            'mission_status_change' => 'Statut modifié',
+            'mission_assignment' => 'Mission assignée',
+            'mission_reassignment' => 'Mission réassignée',
+            'mission_created' => 'Mission créée',
+            'mission_updated' => 'Mission mise à jour',
+            'mission_deleted' => 'Mission supprimée'
+        ];
+
+        return $descriptions[$log->event_type] ?? $log->action;
+    }
 }
