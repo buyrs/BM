@@ -234,7 +234,6 @@ class DashboardController extends Controller
             $completedMissions = Mission::where('status', 'completed')->count();
             $inProgressMissions = Mission::where('status', 'in_progress')->count();
             $unassignedMissions = Mission::where('status', 'unassigned')->count();
-            $pendingMissions = Mission::where('status', 'unassigned')->count(); // For compatibility
 
             $recentMissions = Mission::with('agent')
                 ->latest()
@@ -276,7 +275,7 @@ class DashboardController extends Controller
                         'name' => $checker->name,
                         'email' => $checker->email,
                         'phone' => $checker->phone ?? null,
-                        'status' => 'active', // Default status, could be enhanced with actual status field
+                        'status' => 'active',
                         'is_online' => $checker->updated_at >= now()->subMinutes(15),
                         'assigned_missions_count' => $checker->assigned_missions_count,
                         'completed_missions_count' => $checker->completed_missions_count,
@@ -299,12 +298,9 @@ class DashboardController extends Controller
                     'completedMissions' => $completedMissions,
                     'inProgressMissions' => $inProgressMissions,
                     'unassignedMissions' => $unassignedMissions,
-                    'pendingMissions' => $pendingMissions, // For compatibility with super admin views
                     'totalCheckers' => $totalCheckers,
                     'activeCheckers' => $activeCheckers,
                     'onlineCheckers' => $onlineCheckers,
-                    'missionTrend' => 12, // This would be calculated from historical data
-                    'incidentTrend' => -8, // This would be calculated from historical data
                 ],
                 'recentMissions' => $recentMissions,
                 'checkers' => $checkers,
@@ -312,27 +308,20 @@ class DashboardController extends Controller
                 'systemHealth' => $systemHealth,
             ];
 
-            \Log::info('Admin Dashboard Data:', $data);
-
-            return Inertia::render('Admin/Dashboard', $data);
+            return view('admin.dashboard', $data);
         } catch (\Exception $e) {
             \Log::error('Admin Dashboard Error: ' . $e->getMessage());
-            \Log::error('Stack trace: ' . $e->getTraceAsString());
             
-            // Return a simple response for debugging
-            return Inertia::render('Admin/Dashboard', [
+            return view('admin.dashboard', [
                 'stats' => [
                     'totalMissions' => 0,
                     'assignedMissions' => 0,
                     'completedMissions' => 0,
                     'inProgressMissions' => 0,
                     'unassignedMissions' => 0,
-                    'pendingMissions' => 0,
                     'totalCheckers' => 0,
                     'activeCheckers' => 0,
                     'onlineCheckers' => 0,
-                    'missionTrend' => 0,
-                    'incidentTrend' => 0,
                 ],
                 'recentMissions' => [],
                 'checkers' => [],
@@ -342,10 +331,7 @@ class DashboardController extends Controller
                     'api' => ['status' => 'unknown'],
                     'storage' => ['status' => 'unknown'],
                     'queue' => ['status' => 'unknown'],
-                    'recent_errors' => [],
-                    'performance' => null
                 ],
-                'error' => 'Dashboard loading error: ' . $e->getMessage(),
             ]);
         }
     }

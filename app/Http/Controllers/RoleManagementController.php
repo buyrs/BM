@@ -36,10 +36,20 @@ class RoleManagementController extends Controller
             ];
         });
 
-        return Inertia::render('Admin/RoleManagement', [
+        $stats = [
+            'total_users' => User::count(),
+            'users_by_role' => [],
+        ];
+
+        foreach (Role::all() as $role) {
+            $stats['users_by_role'][$role->name] = User::role($role->name)->count();
+        }
+
+        return view('admin.role-management', [
             'roles' => $roles,
             'permissions' => $permissions,
             'users' => $users,
+            'stats' => $stats,
         ]);
     }
 
