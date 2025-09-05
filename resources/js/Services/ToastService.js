@@ -3,11 +3,11 @@
  * Manages toast notifications throughout the application
  */
 
-import { reactive } from 'vue'
+// import { reactive } from 'vue'
 
 class ToastService {
   constructor() {
-    this.toasts = reactive([])
+    this.toasts = []
     this.nextId = 1
   }
 

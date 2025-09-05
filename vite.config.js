@@ -14,7 +14,6 @@ export default defineConfig({
             ],
             refresh: true,
         }),
-        splitVendorChunkPlugin(),
         VitePWA({
             registerType: 'autoUpdate',
             includeAssets: ['favicon.ico', 'robots.txt', 'icons/*.png', 'assets/*.css', 'assets/*.js'],
@@ -72,8 +71,6 @@ export default defineConfig({
                 manualChunks: {
                     // Vendor chunks
                     'alpine-vendor': ['alpinejs', '@alpinejs/focus', '@alpinejs/collapse'],
-                    'chart-vendor': ['chart.js'],
-                    'date-vendor': ['date-fns'],
                     'flowbite-vendor': ['flowbite']
                 }
             }
@@ -93,8 +90,6 @@ export default defineConfig({
             'alpinejs',
             '@alpinejs/focus', 
             '@alpinejs/collapse',
-            'chart.js',
-            'date-fns',
             'flowbite'
         ]
     },

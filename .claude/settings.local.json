@@ -21,7 +21,8 @@
       "Bash(docker-compose build:*)",
       "Bash(docker:*)",
       "Bash(npm uninstall:*)",
-      "Bash(find:*)"
+      "Bash(find:*)",
+      "Bash(npm test)"
     ],
     "deny": [],
     "ask": []
