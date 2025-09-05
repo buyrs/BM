@@ -1,16 +1,101 @@
 version: '3.8'
 
 services:
-  # Frontend development only (Vite)
-  frontend:
-    build: .
+  # PHP Application
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: bm-app
+    restart: unless-stopped
+    working_dir: /var/www/html
+    volumes:
+      - .:/var/www/html
+      - ./docker/php.ini:/usr/local/etc/php/conf.d/custom.ini
+    environment:
+      - APP_ENV=local
+      - APP_DEBUG=true
+      - APP_URL=http://localhost:8000
+      - DB_CONNECTION=mysql
+      - DB_HOST=mysql
+      - DB_PORT=3306
+      - DB_DATABASE=bm_app
+      - DB_USERNAME=bm_user
+      - DB_PASSWORD=bm_password
+      - REDIS_HOST=redis
+    depends_on:
+      - mysql
+      - redis
+    networks:
+      - bm-network
+
+  # Nginx Web Server
+  nginx:
+    image: nginx:alpine
+    container_name: bm-nginx
+    restart: unless-stopped
+    ports:
+      - "8000:80"
+    volumes:
+      - .:/var/www/html
+      - ./docker/nginx.conf:/etc/nginx/conf.d/default.conf
+    depends_on:
+      - app
+    networks:
+      - bm-network
+
+  # MySQL Database
+  mysql:
+    image: mysql:8.0
+    container_name: bm-mysql
+    restart: unless-stopped
+    environment:
+      - MYSQL_DATABASE=bm_app
+      - MYSQL_USER=bm_user
+      - MYSQL_PASSWORD=bm_password
+      - MYSQL_ROOT_PASSWORD=root_password
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./docker/mysql:/docker-entrypoint-initdb.d
+    ports:
+      - "3306:3306"
+    networks:
+      - bm-network
+
+  # Redis Cache
+  redis:
+    image: redis:alpine
+    container_name: bm-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    networks:
+      - bm-network
+
+  # Node.js for development (hot reload)
+  node:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    container_name: bm-node
+    restart: unless-stopped
+    working_dir: /var/www/html
+    volumes:
+      - .:/var/www/html
+      - /var/www/html/node_modules
     ports:
       - "5173:5173"
-    volumes:
-      - .:/app
-      - /app/node_modules
     environment:
-      - NODE_ENV=development
-    stdin_open: true
-    tty: true
-    command: npm run dev
+      - VITE_APP_NAME="BM App"
+      - VITE_APP_URL=http://localhost:8000
+    command: npm run dev -- --host
+    networks:
+      - bm-network
+
+volumes:
+  mysql_data:
+    driver: local
+
+networks:
+  bm-network:
+    driver: bridge
