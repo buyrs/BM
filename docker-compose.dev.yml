@@ -1,0 +1,66 @@
+version: '3.8'
+
+services:
+  # PHP Application with Laravel development server
+  app:
+    build:
+      context: .
+      dockerfile: deploy/Dockerfile
+    container_name: bm-dev-app
+    restart: unless-stopped
+    working_dir: /var/www/html
+    volumes:
+      - .:/var/www/html
+      - ./storage:/var/www/html/storage
+      - ./bootstrap/cache:/var/www/html/bootstrap/cache
+    ports:
+      - "8000:8000"  # Laravel development server
+      - "5173:5173"  # Vite dev server
+    environment:
+      - APP_ENV=local
+      - APP_DEBUG=true
+      - APP_URL=http://0.0.0.0:8000
+    command: >
+      sh -c "php artisan serve --host=0.0.0.0 --port=8000 & 
+             npm run dev"
+    networks:
+      - bm-dev-network
+
+  # MySQL Database
+  db:
+    image: mysql:8.0
+    container_name: bm-dev-db
+    restart: unless-stopped
+    environment:
+      - MYSQL_DATABASE=${DB_DATABASE:-laravel}
+      - MYSQL_ROOT_PASSWORD=${DB_ROOT_PASSWORD:-secret}
+      - MYSQL_USER=${DB_USERNAME:-laravel}
+      - MYSQL_PASSWORD=${DB_PASSWORD:-secret}
+    volumes:
+      - dbdata:/var/lib/mysql
+    ports:
+      - "3306:3306"
+    networks:
+      - bm-dev-network
+
+  # Redis Cache
+  redis:
+    image: redis:7-alpine
+    container_name: bm-dev-redis
+    restart: unless-stopped
+    volumes:
+      - redisdata:/data
+    ports:
+      - "6379:6379"
+    networks:
+      - bm-dev-network
+
+volumes:
+  dbdata:
+    driver: local
+  redisdata:
+    driver: local
+
+networks:
+  bm-dev-network:
+    driver: bridge

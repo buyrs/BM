@@ -1,0 +1,28 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(composer create-project:*)",
+      "Bash(php artisan:*)",
+      "Bash(cp:*)",
+      "Bash(touch:*)",
+      "Bash(dir:*)",
+      "Bash(npm run dev)",
+      "Bash(npm install)",
+      "Bash(where:*)",
+      "Bash(winget install:*)",
+      "Bash(choco install:*)",
+      "Bash(npm install:*)",
+      "Bash(npm run build)",
+      "Bash(pkill:*)",
+      "Bash(taskkill:*)",
+      "Bash(npm run dev:*)",
+      "Bash(php:*)",
+      "Bash(Get-Command:*)",
+      "Bash(docker-compose build:*)",
+      "Bash(docker:*)",
+      "Bash(npm uninstall:*)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}

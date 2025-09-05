@@ -11,7 +11,6 @@ use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\PdfController;
 use App\Http\Controllers\InstallerController;
 use Illuminate\Support\Facades\Route;
-use Inertia\Inertia;
 
 /*
 |--------------------------------------------------------------------------
@@ -35,7 +34,7 @@ Route::prefix('install')->group(function () {
 Route::get('/api/health', [App\Http\Controllers\CalendarController::class, 'health'])->name('health');
 
 Route::get('/', function () {
-    return Inertia::render('Welcome', [
+    return view('welcome', [
         'canLogin' => Route::has('login'),
         'canRegister' => Route::has('register'),
         'laravelVersion' => app()->version(),

@@ -1,6 +1,5 @@
 import { defineConfig } from 'vite';
 import laravel from 'laravel-vite-plugin';
-import vue from '@vitejs/plugin-vue';
 import { VitePWA } from 'vite-plugin-pwa';
 import { splitVendorChunkPlugin } from 'vite';
 
@@ -14,14 +13,6 @@ export default defineConfig({
                 'resources/js/blade.js'     // New JS for Blade + Alpine.js
             ],
             refresh: true,
-        }),
-        vue({
-            template: {
-                transformAssetUrls: {
-                    base: null,
-                    includeAbsolute: false,
-                },
-            },
         }),
         splitVendorChunkPlugin(),
         VitePWA({
@@ -80,22 +71,10 @@ export default defineConfig({
             output: {
                 manualChunks: {
                     // Vendor chunks
-                    'vue-vendor': ['vue', '@inertiajs/vue3'],
+                    'alpine-vendor': ['alpinejs', '@alpinejs/focus', '@alpinejs/collapse'],
                     'chart-vendor': ['chart.js'],
                     'date-vendor': ['date-fns'],
-                    'editor-vendor': ['@tiptap/vue-3', '@tiptap/starter-kit'],
-                    
-                    // Feature chunks
-                    'dashboard': [
-                        './resources/js/Pages/Admin/Dashboard.vue',
-                        './resources/js/Pages/Ops/Dashboard.vue',
-                        './resources/js/Pages/Checker/Dashboard.vue'
-                    ],
-                    'components': [
-                        './resources/js/Components/KanbanBoard.vue',
-                        './resources/js/Components/SignaturePad.vue',
-                        './resources/js/Components/ContractTemplateManager.vue'
-                    ]
+                    'flowbite-vendor': ['flowbite']
                 }
             }
         },
@@ -111,12 +90,12 @@ export default defineConfig({
     },
     optimizeDeps: {
         include: [
-            'vue',
-            '@inertiajs/vue3',
+            'alpinejs',
+            '@alpinejs/focus', 
+            '@alpinejs/collapse',
             'chart.js',
             'date-fns',
-            '@tiptap/vue-3',
-            '@tiptap/starter-kit'
+            'flowbite'
         ]
     },
     server: {

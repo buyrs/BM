@@ -3,10 +3,10 @@
 namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
-use Inertia\Inertia;
 use App\Models\Mission;
 use App\Models\User;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\View;
 
 class DashboardController extends Controller
 {
@@ -14,7 +14,7 @@ class DashboardController extends Controller
     {
         // This is the default dashboard accessible to all authenticated users.
         // It will redirect to role-specific dashboards based on middleware.
-        return Inertia::render('Dashboard');
+        return view('dashboard');
     }
 
     public function checkers()
@@ -28,7 +28,7 @@ class DashboardController extends Controller
             }])
             ->get();
 
-        return Inertia::render('Admin/Checkers', [
+        return view('admin.checkers', [
             'checkers' => $checkers
         ]);
     }
@@ -74,7 +74,7 @@ class DashboardController extends Controller
                 ];
             });
 
-        return Inertia::render('Admin/Analytics', [
+        return view('admin.analytics', [
             'stats' => [
                 'totalMissions' => $totalMissions,
                 'completedMissions' => $completedMissions,
@@ -162,7 +162,7 @@ class DashboardController extends Controller
         $onTimeRate = $this->calculateOnTimeRate($user->id);
         $averageRating = $this->calculateAverageRating($user->id);
 
-        return Inertia::render('Checker/Dashboard', [
+        return view('checker.dashboard', [
             'assignedMissions' => $assignedMissions,
             'completedMissions' => $completedMissions,
             'completedMissionsCount' => $completedMissionsCount,
@@ -221,7 +221,7 @@ class DashboardController extends Controller
             ->latest()
             ->paginate(10);
 
-        return Inertia::render('Checker/Missions', [
+        return view('checker.missions', [
             'missions' => $missions
         ]);
     }

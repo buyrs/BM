@@ -23,6 +23,7 @@ This document outlines the **complete replacement strategy** for transitioning t
 - **Component Library**: Flowbite 1.x
 - **UI Kit**: Tailwind Elements 1.x
 - **JavaScript**: Alpine.js (minimal client-side interactivity)
+- **Enhanced Interactions**: HTMX (server-side component updates)
 - **Charts**: Chart.js (for analytics)
 - **Build Tool**: Vite (CSS/JS bundling only)
 
@@ -46,6 +47,8 @@ npm uninstall vue
 npm uninstall @headlessui/vue
 npm uninstall @tiptap/vue-3
 npm uninstall @vue/test-utils
+# Install HTMX for enhanced server-side interactions
+npm install htmx.org
 ```
 
 #### Files/Directories Being Deleted

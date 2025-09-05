@@ -1,75 +1,60 @@
 import './bootstrap';
 import '../css/app.css';
 
-import { createApp, h } from 'vue';
-import { createInertiaApp } from '@inertiajs/vue3';
-import { resolvePageComponent } from 'laravel-vite-plugin/inertia-helpers';
-import { ZiggyVue } from 'ziggy-js';
-import { Ziggy } from './ziggy';
-import errorHandler from './utils/errorHandler';
-import { preloadCriticalComponents, vLazyLoad } from './utils/lazyLoading';
-import { vLazyImage } from './utils/imageOptimization';
-import offlineService from './Services/OfflineService';
-import performanceService from './Services/PerformanceService';
-import GlobalLoadingIndicator from './Components/GlobalLoadingIndicator.vue';
-import GlobalToastContainer from './Components/GlobalToastContainer.vue';
-import OfflineIndicator from './Components/OfflineIndicator.vue';
+// Import Alpine.js and plugins
+import Alpine from 'alpinejs';
+import focus from '@alpinejs/focus';
+import collapse from '@alpinejs/collapse';
 
-const appName = window.document.getElementsByTagName('title')[0]?.innerText || 'Laravel';
+// Initialize Alpine.js
+Alpine.plugin(focus);
+Alpine.plugin(collapse);
+window.Alpine = Alpine;
 
-createInertiaApp({
-    title: (title) => `${title} - ${appName}`,
-    resolve: (name) => resolvePageComponent(`./Pages/${name}.vue`, import.meta.glob('./Pages/**/*.vue', { eager: false })),
-    setup({ el, App, props, plugin }) {
-        const app = createApp({ 
-            render: () => h('div', [
-                h(App, props),
-                h(GlobalLoadingIndicator),
-                h(GlobalToastContainer),
-                h(OfflineIndicator)
-            ])
-        })
-            .use(plugin)
-            .use(ZiggyVue, Ziggy);
-
-        // Global error handling
-        app.config.errorHandler = (error, instance, info) => {
-            errorHandler.handleVueError(error, instance, info);
-        };
-
-        // Global properties for error handling
-        app.config.globalProperties.$errorHandler = errorHandler;
-
-        // Global loading state
-        app.provide('globalLoading', { value: false });
-
-        // Provide services
-        app.provide('offlineService', offlineService);
-        app.provide('performanceService', performanceService);
-
-        // Register lazy loading directives
-        app.directive('lazy-load', vLazyLoad);
-        app.directive('lazy-image', vLazyImage);
-
-        // Preload critical components
-        preloadCriticalComponents();
-
-        return app.mount(el);
-    },
-    progress: {
-        color: '#4B5563',
-    },
+// Start Alpine.js when the DOM is loaded
+document.addEventListener('DOMContentLoaded', () => {
+    Alpine.start();
 });
 
-// Register service worker for PWA
-if ('serviceWorker' in navigator) {
-    window.addEventListener('load', () => {
-        navigator.serviceWorker.register('/service-worker.js')
-            .then(registration => {
-                console.log('ServiceWorker registration successful');
-            })
-            .catch(err => {
-                console.log('ServiceWorker registration failed: ', err);
-            });
-    });
-}
+// Import Flowbite for interactive components
+import 'flowbite';
+
+// Global error handling
+window.handleError = (error, context = 'global') => {
+    console.error(`Error in ${context}:`, error);
+    
+    // Show user-friendly error message
+    const toast = document.createElement('div');
+    toast.className = 'fixed top-4 right-4 bg-red-500 text-white px-4 py-2 rounded-lg shadow-lg z-50';
+    toast.textContent = 'An error occurred. Please try again.';
+    document.body.appendChild(toast);
+    
+    setTimeout(() => {
+        toast.remove();
+    }, 5000);
+};
+
+// Global loading state
+window.showLoading = () => {
+    const loader = document.createElement('div');
+    loader.id = 'global-loader';
+    loader.className = 'fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50';
+    loader.innerHTML = `
+        <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-white"></div>
+    `;
+    document.body.appendChild(loader);
+};
+
+window.hideLoading = () => {
+    const loader = document.getElementById('global-loader');
+    if (loader) {
+        loader.remove();
+    }
+};
+
+// Add global event listeners for AJAX requests
+document.addEventListener('ajaxStart', window.showLoading);
+document.addEventListener('ajaxStop', window.hideLoading);
+document.addEventListener('ajaxError', (event) => {
+    window.handleError(event.detail.error, 'ajax');
+});
