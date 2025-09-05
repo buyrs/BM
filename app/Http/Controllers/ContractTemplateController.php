@@ -9,7 +9,6 @@ use App\Services\ContractGenerationService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Validation\Rule;
-use Inertia\Inertia;
 use Illuminate\Support\Facades\Storage;
 use Carbon\Carbon;
 
@@ -34,7 +33,7 @@ class ContractTemplateController extends Controller
             ->latest()
             ->paginate(10);
 
-        return Inertia::render('Admin/ContractTemplates/Index', [
+        return view('admin.contract-templates.index', [
             'templates' => $templates
         ]);
     }
@@ -44,7 +43,7 @@ class ContractTemplateController extends Controller
      */
     public function create()
     {
-        return Inertia::render('Admin/ContractTemplates/Create');
+        return view('admin.contract-templates.create');
     }
 
     /**
@@ -69,7 +68,7 @@ class ContractTemplateController extends Controller
     {
         $contractTemplate->load('creator');
 
-        return Inertia::render('Admin/ContractTemplates/Show', [
+        return view('admin.contract-templates.show', [
             'template' => $contractTemplate
         ]);
     }
@@ -85,7 +84,7 @@ class ContractTemplateController extends Controller
                 ->with('error', 'Cannot edit a signed contract template. Create a new version instead.');
         }
 
-        return Inertia::render('Admin/ContractTemplates/Edit', [
+        return view('admin.contract-templates.edit', [
             'template' => $contractTemplate
         ]);
     }

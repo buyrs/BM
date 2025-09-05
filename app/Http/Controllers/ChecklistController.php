@@ -10,7 +10,6 @@ use App\Services\PhotoUploadService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Log;
-use Inertia\Inertia;
 use Exception;
 
 class ChecklistController extends Controller
@@ -36,7 +35,7 @@ class ChecklistController extends Controller
 
             // Check if request expects JSON (AJAX) or wants Blade view
             if (request()->expectsJson() || request()->wantsJson()) {
-                return Inertia::render('Checklists/Edit', [
+                return view('checklists.edit', [
                     'mission' => $mission->load('agent'),
                     'checklist' => $checklist->load('items.photos'),
                 ]);
@@ -173,7 +172,7 @@ class ChecklistController extends Controller
     {
         $this->authorize('view', $checklist);
 
-        return Inertia::render('Checklists/Show', [
+        return view('checklists.show', [
             'mission' => $mission->load('agent'),
             'checklist' => $checklist->load('items.photos'),
         ]);
@@ -183,7 +182,7 @@ class ChecklistController extends Controller
     {
         $this->authorize('view', $checklist);
 
-        return Inertia::render('Checklists/Review', [
+        return view('checklists.review', [
             'mission' => $mission->load('agent'),
             'checklist' => $checklist->load('items.photos'),
         ]);

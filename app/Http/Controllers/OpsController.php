@@ -14,7 +14,6 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Carbon;
-use Inertia\Inertia;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class OpsController extends Controller
@@ -88,7 +87,7 @@ class OpsController extends Controller
                 ];
             });
 
-        return Inertia::render('Ops/Dashboard', [
+        return view('ops.dashboard', [
             'metrics' => $metrics,
             'kanbanData' => $kanbanData,
             'pendingNotifications' => $pendingNotifications,
@@ -124,7 +123,7 @@ class OpsController extends Controller
 
         $notifications = $query->paginate($perPage);
 
-        return Inertia::render('Ops/Notifications', [
+        return view('ops.notifications', [
             'notifications' => $notifications,
             'filters' => [
                 'status' => $status,
@@ -510,7 +509,7 @@ class OpsController extends Controller
             ]);
         }
 
-        return Inertia::render('Ops/Dashboard', [
+        return view('ops.dashboard', [
             'kanbanData' => $kanbanData,
             'filters' => $filters,
         ]);

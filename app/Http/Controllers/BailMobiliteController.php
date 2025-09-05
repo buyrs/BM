@@ -11,7 +11,6 @@ use App\Services\IncidentDetectionService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
-use Inertia\Inertia;
 use Illuminate\Validation\Rule;
 use Carbon\Carbon;
 
@@ -64,7 +63,7 @@ class BailMobiliteController extends Controller
         // Get available checkers for assignment
         $checkers = User::role('checker')->get();
 
-        return Inertia::render('BailMobilites/Index', [
+        return view('bail-mobilites.index', [
             'kanbanData' => $kanbanData,
             'checkers' => $checkers,
             'filters' => $request->only(['status', 'checker_id', 'date_from', 'date_to'])
@@ -76,7 +75,7 @@ class BailMobiliteController extends Controller
      */
     public function create()
     {
-        return Inertia::render('BailMobilites/Create');
+        return view('bail-mobilites.create');
     }
 
     /**
@@ -165,7 +164,7 @@ class BailMobiliteController extends Controller
             'notifications'
         ]);
 
-        return Inertia::render('BailMobilites/Show', [
+        return view('bail-mobilites.show', [
             'bailMobilite' => $bailMobilite
         ]);
     }
@@ -175,7 +174,7 @@ class BailMobiliteController extends Controller
      */
     public function edit(BailMobilite $bailMobilite)
     {
-        return Inertia::render('BailMobilites/Edit', [
+        return view('bail-mobilites.edit', [
             'bailMobilite' => $bailMobilite
         ]);
     }

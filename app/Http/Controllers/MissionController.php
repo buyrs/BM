@@ -6,7 +6,7 @@ use App\Models\Mission;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use Inertia\Inertia;
+use Illuminate\Support\Facades\View;
 use Illuminate\Validation\Rule;
 use App\Models\Agent;
 use Illuminate\Support\Carbon;
@@ -52,7 +52,7 @@ class MissionController extends Controller
                 ->paginate(10);
         }
 
-        return Inertia::render('Missions/Index', [
+        return view('missions.index', [
             'missions' => $missions
         ]);
     }
@@ -61,7 +61,7 @@ class MissionController extends Controller
     {
         $checkers = User::role('checker')->get();
         
-        return Inertia::render('Missions/Create', [
+        return view('missions.create', [
             'checkers' => $checkers
         ]);
     }
@@ -172,7 +172,7 @@ class MissionController extends Controller
                 ->get();
         }
 
-        return Inertia::render('Missions/Show', [
+        return view('missions.show', [
             'mission' => $mission,
             'contractTemplates' => $contractTemplates
         ]);
@@ -182,7 +182,7 @@ class MissionController extends Controller
     {
         $checkers = User::role('checker')->get();
         
-        return Inertia::render('Missions/Edit', [
+        return view('missions.edit', [
             'mission' => $mission,
             'checkers' => $checkers
         ]);
@@ -238,7 +238,7 @@ class MissionController extends Controller
             ->latest()
             ->paginate(10);
 
-        return Inertia::render('Missions/Assigned', [
+        return view('missions.assigned', [
             'missions' => $missions
         ]);
     }
@@ -250,7 +250,7 @@ class MissionController extends Controller
             ->latest()
             ->paginate(10);
 
-        return Inertia::render('Missions/Completed', [
+        return view('missions.completed', [
             'missions' => $missions
         ]);
     }
@@ -348,7 +348,7 @@ class MissionController extends Controller
             ->latest()
             ->paginate(10);
 
-        return Inertia::render('Missions/OpsAssigned', [
+        return view('missions.ops-assigned', [
             'missions' => $missions
         ]);
     }
@@ -650,7 +650,7 @@ class MissionController extends Controller
 
         $mission->load(['bailMobilite', 'agent', 'checklist.items.photos']);
 
-        return Inertia::render('Ops/MissionValidation', [
+        return view('ops.mission-validation', [
             'mission' => $mission
         ]);
     }

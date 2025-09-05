@@ -44,13 +44,21 @@
 ### Pending Tasks ⏳
 
 1. **View Templates Needed**
-   - [ ] resources/views/checker/dashboard.blade.php - Checker dashboard
-   - [ ] resources/views/checker/missions.blade.php - Checker missions list
-   - [ ] resources/views/admin/dashboard.blade.php - Admin dashboard
+   - [x] resources/views/checker/dashboard.blade.php - Checker dashboard
+   - [x] resources/views/checker/missions.blade.php - Checker missions list
+   - [x] resources/views/admin/dashboard.blade.php - Admin dashboard
 
 2. **Controller Updates**
-   - [ ] Update all other controllers to use Blade views
-   - [ ] Remove any remaining Inertia imports
+   - [x] MissionController updated to use Blade views
+   - [x] OpsController updated to use Blade views
+   - [x] CalendarController updated to use Blade views
+   - [x] IncidentController updated to use Blade views
+   - [x] ContractTemplateController updated to use Blade views
+   - [x] ChecklistController updated to use Blade views
+   - [x] BailMobiliteController updated to use Blade views
+   - [x] SignatureWorkflowController updated to use Blade views
+   - [x] RoleManagementController updated to use Blade views
+   - [x] All Inertia imports removed
    - [ ] Ensure proper data passing to Blade views
 
 3. **Alpine.js Integration**
@@ -103,6 +111,14 @@
 - routes/web.php
 - resources/views/app.blade.php
 - app/Http/Controllers/DashboardController.php
+- app/Http/Controllers/MissionController.php
+- app/Http/Controllers/OpsController.php
+- app/Http/Controllers/CalendarController.php
+- app/Http/Controllers/IncidentController.php
+- app/Http/Controllers/ContractTemplateController.php
+- app/Http/Controllers/ChecklistController.php
+- app/Http/Controllers/BailMobiliteController.php
+- app/Http/Controllers/SignatureWorkflowController.php
 - resources/views/dashboard.blade.php
 - resources/views/admin/checkers.blade.php
 - resources/views/admin/analytics.blade.php
@@ -111,6 +127,25 @@
 
 - resources/views/admin/checkers.blade.php
 - resources/views/admin/analytics.blade.php
+- resources/views/missions/assigned.blade.php
+- resources/views/missions/completed.blade.php
+- resources/views/missions/ops-assigned.blade.php
+- resources/views/ops/mission-validation.blade.php
+- resources/views/ops/dashboard.blade.php
+- resources/views/ops/notifications.blade.php
+- resources/views/ops/calendar.blade.php
+- resources/views/incidents/index.blade.php
+- resources/views/incidents/show.blade.php
+- resources/views/admin/contract-templates/index.blade.php
+- resources/views/admin/contract-templates/create.blade.php
+- resources/views/admin/contract-templates/show.blade.php
+- resources/views/admin/contract-templates/edit.blade.php
+- resources/views/signatures/workflow-status.blade.php
+- resources/views/signatures/invitation-expired.blade.php
+- resources/views/signatures/sign-invitation.blade.php
+- resources/views/signatures/completion.blade.php
+- resources/views/checker/dashboard.blade.php
+- resources/views/checker/missions.blade.php
 - rebuild/migration_progress.md (this file)
 
 ### Files Removed ➖

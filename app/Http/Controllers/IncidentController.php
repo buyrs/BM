@@ -10,7 +10,6 @@ use App\Services\IncidentDetectionService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
-use Inertia\Inertia;
 
 class IncidentController extends Controller
 {
@@ -67,7 +66,7 @@ class IncidentController extends Controller
         $bailMobilites = BailMobilite::select('id', 'tenant_name', 'address')->get();
         $users = User::role(['ops', 'admin'])->select('id', 'name')->get();
 
-        return Inertia::render('Incidents/Index', [
+        return view('incidents.index', [
             'incidents' => $incidents,
             'bailMobilites' => $bailMobilites,
             'users' => $users,
@@ -98,7 +97,7 @@ class IncidentController extends Controller
         // Get available users for assignment
         $users = User::role(['ops', 'admin', 'checker'])->select('id', 'name', 'email')->get();
 
-        return Inertia::render('Incidents/Show', [
+        return view('incidents.show', [
             'incident' => $incident,
             'users' => $users
         ]);

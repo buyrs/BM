@@ -13,8 +13,6 @@ use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
-use Inertia\Inertia;
-use Inertia\Response;
 use Carbon\Carbon;
 
 class CalendarController extends Controller
@@ -89,7 +87,7 @@ class CalendarController extends Controller
             ->select('id', 'name', 'email')
             ->get();
 
-        return Inertia::render('Ops/Calendar', [
+        return view('ops.calendar', [
             'missions' => $formattedMissions,
             'currentDate' => $currentDate,
             'viewMode' => $viewMode,

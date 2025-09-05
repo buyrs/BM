@@ -7,7 +7,6 @@ use App\Models\SignatureInvitation;
 use App\Services\MultiPartySignatureService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
-use Inertia\Inertia;
 
 class SignatureWorkflowController extends Controller
 {
@@ -24,7 +23,7 @@ class SignatureWorkflowController extends Controller
 
         $workflowStatus = $this->multiPartyService->getWorkflowStatus($signature);
 
-        return Inertia::render('Signatures/WorkflowStatus', [
+        return view('signatures.workflow-status', [
             'signature' => $signature->load(['bailMobilite', 'contractTemplate']),
             'workflowStatus' => $workflowStatus,
             'completedSignatures' => $signature->getCompletedSignatures()
@@ -107,7 +106,7 @@ class SignatureWorkflowController extends Controller
         }
 
         if ($invitation->isExpired()) {
-            return Inertia::render('Signatures/InvitationExpired', [
+            return view('signatures.invitation-expired', [
                 'invitation' => $invitation->load(['signatureParty', 'bailMobiliteSignature.bailMobilite'])
             ]);
         }
@@ -119,7 +118,7 @@ class SignatureWorkflowController extends Controller
             'user_agent' => request()->userAgent()
         ]);
 
-        return Inertia::render('Signatures/SignInvitation', [
+        return view('signatures.sign-invitation', [
             'invitation' => $invitation->load([
                 'signatureParty',
                 'bailMobiliteSignature.bailMobilite',
@@ -193,7 +192,7 @@ class SignatureWorkflowController extends Controller
                 ->with('error', 'Signature not completed yet');
         }
 
-        return Inertia::render('Signatures/Completion', [
+        return view('signatures.completion', [
             'invitation' => $invitation->load([
                 'signatureParty',
                 'bailMobiliteSignature.bailMobilite',
