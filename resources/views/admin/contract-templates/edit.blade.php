@@ -1,36 +1,37 @@
 @extends('layouts.app')
 
-@section('title', 'Modifier le Modèle de Contrat')
+@section('title', 'Edit Contract Template')
 
 @section('content')
-<div class="py-12">
-    <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
-        <!-- Header -->
-        <div class="bg-white dark:bg-gray-800 overflow-hidden shadow-sm sm:rounded-lg mb-6">
+<div class="py-12" x-data="{ previewContent: '{{ addslashes(old('content', $template->content)) }}' }">
+    <div class="max-w-4xl mx-auto sm:px-6 lg:px-8">
+        <div class="bg-white dark:bg-gray-800 overflow-hidden shadow-sm sm:rounded-lg">
             <div class="p-6 text-gray-900 dark:text-gray-100">
-                <div class="flex justify-between items-center">
-                    <div>
-                        <h1 class="text-2xl font-bold">
-                            Modifier le Modèle de Contrat
-                        </h1>
-                        <p class="text-gray-600 dark:text-gray-400 mt-1">
-                            {{ $contractTemplate->name }}
-                        </p>
-                    </div>
-                    <div class="flex space-x-3">
-                        <a href="{{ route('admin.contract-templates.show', $contractTemplate) }}" 
-                           class="bg-gray-500 hover:bg-gray-600 text-white px-4 py-2 rounded-md">
-                            Annuler
-                        </a>
-                    </div>
+                <div class="mb-6">
+                    <h2 class="text-2xl font-bold">Edit Contract Template</h2>
+                    <p class="text-gray-600 dark:text-gray-400 mt-1">
+                        Update the contract template details
+                    </p>
                 </div>
-            </div>
-        </div>
+
+                @if($template->isSignedByAdmin())
+                    <div class="bg-yellow-100 border border-yellow-400 text-yellow-700 px-4 py-3 rounded mb-6">
+                        <div class="flex justify-between items-center">
+                            <p>This template has been signed and cannot be edited. Please create a new version instead.</p>
+                            <form action="{{ route('admin.contract-templates.create-version', $template) }}" method="POST" class="ml-4">
+                                @csrf
+                                <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md text-sm">
+                                    Create New Version
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                @endif
 
         <!-- Edit Form -->
         <div class="bg-white dark:bg-gray-800 overflow-hidden shadow-sm sm:rounded-lg">
             <div class="p-6">
-                <form action="{{ route('admin.contract-templates.update', $contractTemplate) }}" method="POST">
+                <form action="{{ route('admin.contract-templates.update', $template) }}" method="POST" @if($template->isSignedByAdmin()) onsubmit="return false;" @endif>
                     @csrf
                     @method('PUT')
                     
@@ -42,7 +43,7 @@
                             </label>
                             <input type="text" id="name" name="name" required
                                    class="w-full border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-300 rounded-md shadow-sm focus:border-blue-500 focus:ring-blue-500"
-                                   value="{{ old('name', $contractTemplate->name) }}"
+                                   value="{{ old('name', $template->name) }}"
                                    placeholder="Ex: Contrat Standard d'Entrée">
                             @error('name')
                                 <p class="mt-1 text-sm text-red-600 dark:text-red-400">{{ $message }}</p>
@@ -56,9 +57,9 @@
                             </label>
                             <select id="type" name="type" required
                                     class="w-full border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-300 rounded-md shadow-sm focus:border-blue-500 focus:ring-blue-500">
-                                <option value="checkin" {{ old('type', $contractTemplate->type) == 'checkin' ? 'selected' : '' }}>Entrée</option>
-                                <option value="checkout" {{ old('type', $contractTemplate->type) == 'checkout' ? 'selected' : '' }}>Sortie</option>
-                                <option value="general" {{ old('type', $contractTemplate->type) == 'general' ? 'selected' : '' }}>Général</option>
+                                <option value="checkin" {{ old('type', $template->type) == 'checkin' ? 'selected' : '' }}>Entrée</option>
+                                <option value="checkout" {{ old('type', $template->type) == 'checkout' ? 'selected' : '' }}>Sortie</option>
+                                <option value="general" {{ old('type', $template->type) == 'general' ? 'selected' : '' }}>Général</option>
                             </select>
                             @error('type')
                                 <p class="mt-1 text-sm text-red-600 dark:text-red-400">{{ $message }}</p>
@@ -73,7 +74,7 @@
                         </label>
                         <textarea id="description" name="description" rows="3"
                                   class="w-full border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-300 rounded-md shadow-sm focus:border-blue-500 focus:ring-blue-500"
-                                  placeholder="Description du modèle de contrat...">{{ old('description', $contractTemplate->description) }}</textarea>
+                                  placeholder="Description du modèle de contrat...">{{ old('description', $template->description) }}</textarea>
                         @error('description')
                             <p class="mt-1 text-sm text-red-600 dark:text-red-400">{{ $message }}</p>
                         @enderror
@@ -86,7 +87,8 @@
                         </label>
                         <textarea id="content" name="content" rows="12" required
                                   class="w-full border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-300 rounded-md shadow-sm focus:border-blue-500 focus:ring-blue-500 font-mono text-sm"
-                                  placeholder="Contenu du modèle avec les variables {{ variable_name }}...">{{ old('content', $contractTemplate->content) }}</textarea>
+                                  placeholder="Contenu du modèle avec les variables {{ variable_name }}..."
+                                  x-model="previewContent">{{ old('content', $template->content) }}</textarea>
                         @error('content')
                             <p class="mt-1 text-sm text-red-600 dark:text-red-400">{{ $message }}</p>
                         @enderror
@@ -100,7 +102,7 @@
                         <div class="flex items-center">
                             <input type="checkbox" id="is_active" name="is_active" value="1" 
                                    class="focus:ring-blue-500 h-4 w-4 text-blue-600 border-gray-300 rounded"
-                                   {{ old('is_active', $contractTemplate->is_active) ? 'checked' : '' }}>
+                                   {{ old('is_active', $template->is_active) ? 'checked' : '' }}>
                             <label for="is_active" class="ml-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
                                 Modèle actif
                             </label>
@@ -112,11 +114,11 @@
 
                     <!-- Actions -->
                     <div class="flex justify-end space-x-3">
-                        <a href="{{ route('admin.contract-templates.show', $contractTemplate) }}" 
+                        <a href="{{ route('admin.contract-templates.show', $template) }}" 
                            class="bg-gray-500 hover:bg-gray-600 text-white px-4 py-2 rounded-md">
                             Annuler
                         </a>
-                        <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md">
+                        <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md @if($template->isSignedByAdmin()) opacity-50 cursor-not-allowed @endif" @if($template->isSignedByAdmin()) disabled @endif>
                             Mettre à jour
                         </button>
                     </div>
@@ -132,10 +134,10 @@
                 </h3>
                 
                 <div class="bg-gray-50 dark:bg-gray-700 p-4 rounded-lg mb-4">
-                    <pre class="text-sm text-gray-900 dark:text-gray-100 whitespace-pre-wrap font-mono" id="previewContent">{{ old('content', $contractTemplate->content) }}</pre>
+                    <pre class="text-sm text-gray-900 dark:text-gray-100 whitespace-pre-wrap font-mono" x-text="previewContent"></pre>
                 </div>
                 
-                <a href="{{ route('admin.contract-templates.preview', $contractTemplate) }}" 
+                <a href="{{ route('admin.contract-templates.preview', $template) }}" 
                    target="_blank"
                    class="inline-flex items-center px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600">
                     <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -173,11 +175,6 @@
 </div>
 
 <script>
-    // Update preview when content changes
-    document.getElementById('content').addEventListener('input', function() {
-        document.getElementById('previewContent').textContent = this.value;
-    });
-
     // Toggle variables help on click outside
     document.addEventListener('click', function(event) {
         const help = document.getElementById('variablesHelp');
