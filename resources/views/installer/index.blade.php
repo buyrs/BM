@@ -95,30 +95,56 @@
                 <div x-show="currentStep === 2">
                     <h2 class="text-xl font-semibold mb-4">Database Configuration</h2>
                     
+                    <div class="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
+                        <p class="text-blue-800">
+                            <strong>Recommended for your workflow:</strong> 
+                            Use SQLite for local development. For cloud production deployment with MariaDB, 
+                            configure your production database credentials in your cloud environment variables.
+                        </p>
+                    </div>
+                    
                     <form @submit.prevent="testDatabase()" class="space-y-4">
                         <div>
-                            <label class="block text-sm font-medium text-gray-700">Database Host</label>
-                            <input type="text" x-model="dbConfig.host" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm" required>
+                            <label class="block text-sm font-medium text-gray-700">Database Type</label>
+                            <select x-model="dbConfig.connection" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm">
+                                <option value="sqlite">SQLite (Recommended for Local Development)</option>
+                                <option value="mysql">MySQL/MariaDB (For Production)</option>
+                            </select>
                         </div>
 
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700">Database Port</label>
-                            <input type="text" x-model="dbConfig.port" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm" required>
-                        </div>
+                        <template x-if="dbConfig.connection === 'mysql'">
+                            <div>
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700">Database Host</label>
+                                    <input type="text" x-model="dbConfig.host" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm" required>
+                                </div>
+
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700">Database Port</label>
+                                    <input type="text" x-model="dbConfig.port" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm" required>
+                                </div>
+
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700">Database Username</label>
+                                    <input type="text" x-model="dbConfig.username" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm" required>
+                                </div>
+
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700">Database Password</label>
+                                    <input type="password" x-model="dbConfig.password" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm" required>
+                                </div>
+                            </div>
+                        </template>
 
                         <div>
                             <label class="block text-sm font-medium text-gray-700">Database Name</label>
                             <input type="text" x-model="dbConfig.database" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm" required>
-                        </div>
-
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700">Database Username</label>
-                            <input type="text" x-model="dbConfig.username" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm" required>
-                        </div>
-
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700">Database Password</label>
-                            <input type="password" x-model="dbConfig.password" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm" required>
+                            <p class="mt-1 text-sm text-gray-500" x-show="dbConfig.connection === 'sqlite'">
+                                For SQLite, this will be the filename (e.g., database.sqlite)
+                            </p>
+                            <p class="mt-1 text-sm text-gray-500" x-show="dbConfig.connection === 'mysql'">
+                                For MariaDB, this should be your production database name
+                            </p>
                         </div>
 
                         <div class="flex justify-between mt-6">
@@ -184,9 +210,10 @@
             return {
                 currentStep: 1,
                 dbConfig: {
+                    connection: 'sqlite',
                     host: 'localhost',
                     port: '3306',
-                    database: '',
+                    database: 'database.sqlite',
                     username: '',
                     password: ''
                 },

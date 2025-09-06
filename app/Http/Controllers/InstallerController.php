@@ -28,11 +28,12 @@ class InstallerController extends Controller
     public function database(Request $request)
     {
         $validator = Validator::make($request->all(), [
-            'db_host' => 'required',
-            'db_port' => 'required',
+            'db_connection' => 'required|in:mysql,sqlite',
+            'db_host' => 'required_if:db_connection,mysql',
+            'db_port' => 'required_if:db_connection,mysql',
             'db_database' => 'required',
-            'db_username' => 'required',
-            'db_password' => 'required',
+            'db_username' => 'required_if:db_connection,mysql',
+            'db_password' => 'required_if:db_connection,mysql',
         ]);
 
         if ($validator->fails()) {
@@ -40,28 +41,53 @@ class InstallerController extends Controller
         }
 
         try {
-            $connection = new PDO(
-                "mysql:host={$request->db_host};port={$request->db_port}",
-                $request->db_username,
-                $request->db_password
-            );
-            $connection->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+            if ($request->db_connection === 'mysql') {
+                // Test MySQL connection
+                $connection = new PDO(
+                    "mysql:host={$request->db_host};port={$request->db_port}",
+                    $request->db_username,
+                    $request->db_password
+                );
+                $connection->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
 
-            // Test database creation
-            $connection->exec("CREATE DATABASE IF NOT EXISTS `{$request->db_database}`");
+                // Test database creation
+                $connection->exec("CREATE DATABASE IF NOT EXISTS `{$request->db_database}`");
+            } else {
+                // Test SQLite connection
+                $databasePath = database_path($request->db_database);
+                $connection = new PDO("sqlite:{$databasePath}");
+                $connection->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+                
+                // Create directory if it doesn't exist
+                if (!file_exists(dirname($databasePath))) {
+                    mkdir(dirname($databasePath), 0755, true);
+                }
+            }
             
             // Update .env file
-            $this->updateEnvironmentFile([
-                'DB_HOST' => $request->db_host,
-                'DB_PORT' => $request->db_port,
-                'DB_DATABASE' => $request->db_database,
-                'DB_USERNAME' => $request->db_username,
-                'DB_PASSWORD' => $request->db_password,
-            ]);
+            $envData = [
+                'DB_CONNECTION' => $request->db_connection,
+            ];
+            
+            if ($request->db_connection === 'mysql') {
+                $envData['DB_HOST'] = $request->db_host;
+                $envData['DB_PORT'] = $request->db_port;
+                $envData['DB_DATABASE'] = $request->db_database;
+                $envData['DB_USERNAME'] = $request->db_username;
+                $envData['DB_PASSWORD'] = $request->db_password;
+            } else {
+                $envData['DB_DATABASE'] = $request->db_database;
+                // Remove MySQL specific entries if they exist
+                $this->removeEnvironmentVariables(['DB_HOST', 'DB_PORT', 'DB_USERNAME', 'DB_PASSWORD']);
+            }
+
+            $this->updateEnvironmentFile($envData);
 
             return response()->json(['message' => 'Database connection successful']);
         } catch (PDOException $e) {
             return response()->json(['error' => 'Database connection failed: ' . $e->getMessage()], 422);
+        } catch (\Exception $e) {
+            return response()->json(['error' => 'Database configuration failed: ' . $e->getMessage()], 422);
         }
     }
 
@@ -151,6 +177,19 @@ class InstallerController extends Controller
             } else {
                 $envContent .= "\n{$replacement}";
             }
+        }
+
+        file_put_contents($envFile, $envContent);
+    }
+
+    private function removeEnvironmentVariables($keys)
+    {
+        $envFile = base_path('.env');
+        $envContent = file_get_contents($envFile);
+
+        foreach ($keys as $key) {
+            $pattern = "/^{$key}=.*\n/m";
+            $envContent = preg_replace($pattern, '', $envContent);
         }
 
         file_put_contents($envFile, $envContent);
