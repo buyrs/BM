@@ -167,7 +167,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     // Signature routes
     Route::prefix('signatures')->name('signatures.')->group(function () {
-        Route::post('/validate', [\App\Http\Controllers\SignatureController::class, 'validateSignature'])->name('validate');
+        Route::post('/validate', [\App\Http\Controllers\SignatureController::class, 'validateSignature'])->name('validate-bulk');
         Route::post('/checklist/{checklist}/save', [\App\Http\Controllers\SignatureController::class, 'saveSignature'])->name('save');
         Route::get('/checklist/{checklist}/{type}', [\App\Http\Controllers\SignatureController::class, 'getSignature'])->name('get');
         Route::delete('/checklist/{checklist}/{type}', [\App\Http\Controllers\SignatureController::class, 'deleteSignature'])->name('delete');
@@ -275,7 +275,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
             Route::get('/{signature}', [\App\Http\Controllers\SignatureController::class, 'getSignature'])->name('show');
             Route::get('/{signature}/download', [\App\Http\Controllers\SignatureController::class, 'downloadContract'])->name('download');
             Route::get('/{signature}/preview', [\App\Http\Controllers\SignatureController::class, 'previewContract'])->name('preview');
-            Route::get('/{signature}/validate', [\App\Http\Controllers\SignatureController::class, 'validateSignature'])->name('validate');
+            Route::get('/{signature}/validate', [\App\Http\Controllers\SignatureController::class, 'validateSignature'])->name('validate-single');
             Route::get('/bail-mobilites/{bailMobilite}/signatures', [\App\Http\Controllers\SignatureController::class, 'getBailMobiliteSignatures'])->name('bail-mobilite');
             Route::post('/bail-mobilites/{bailMobilite}/archive', [\App\Http\Controllers\SignatureController::class, 'archiveSignatures'])->name('archive');
 

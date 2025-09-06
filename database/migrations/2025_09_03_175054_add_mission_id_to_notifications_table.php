@@ -12,7 +12,9 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('notifications', function (Blueprint $table) {
-            $table->foreignId('mission_id')->nullable()->after('bail_mobilite_id')->constrained('missions');
+            if (!Schema::hasColumn('notifications', 'mission_id')) {
+                $table->foreignId('mission_id')->nullable()->after('bail_mobilite_id')->constrained('missions');
+            }
         });
     }
 
@@ -22,8 +24,10 @@ return new class extends Migration
     public function down(): void
     {
         Schema::table('notifications', function (Blueprint $table) {
-            $table->dropForeign(['mission_id']);
-            $table->dropColumn('mission_id');
+            if (Schema::hasColumn('notifications', 'mission_id')) {
+                $table->dropForeign(['mission_id']);
+                $table->dropColumn('mission_id');
+            }
         });
     }
 };
