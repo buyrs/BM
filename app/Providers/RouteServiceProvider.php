@@ -35,6 +35,9 @@ class RouteServiceProvider extends ServiceProvider
 
             Route::middleware('web')
                 ->group(base_path('routes/web.php'));
+
+            // Health check routes (no middleware)
+            Route::group([], base_path('routes/health.php'));
         });
     }
 } 

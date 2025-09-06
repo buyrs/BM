@@ -18,9 +18,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'role_or_permission' => \Spatie\Permission\Middleware\RoleOrPermissionMiddleware::class,
             'role.redirect' => \App\Http\Middleware\RedirectBasedOnRole::class,
         ]);
-        $middleware->web(append: [
-            \App\Http\Middleware\HandleInertiaRequests::class,
-        ]);
+        // Middleware configuration
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         $exceptions->render(function (\Throwable $e, Request $request) {
@@ -30,11 +28,6 @@ return Application::configure(basePath: dirname(__DIR__))
                 ], 500);
             }
 
-            if ($request->header('X-Inertia')) {
-                return response()->json([
-                    'message' => $e->getMessage()
-                ], 500);
-            }
-        });
+            });
     })
     ->create();

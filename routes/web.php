@@ -9,14 +9,6 @@ use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\ChecklistController;
 use App\Http\Controllers\DashboardController;
 
-// Health check endpoint for Docker
-Route::get('/health', function () {
-    return response()->json([
-        'status' => 'healthy',
-        'timestamp' => now(),
-        'service' => 'BM Application'
-    ]);
-});
 use App\Http\Controllers\PdfController;
 use App\Http\Controllers\InstallerController;
 use Illuminate\Support\Facades\Route;

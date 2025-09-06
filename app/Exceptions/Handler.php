@@ -4,7 +4,6 @@ namespace App\Exceptions;
 
 use Illuminate\Foundation\Exceptions\Handler as ExceptionHandler;
 use Throwable;
-use Inertia\Inertia;
 
 class Handler extends ExceptionHandler
 {
@@ -35,12 +34,6 @@ class Handler extends ExceptionHandler
                 ], 500);
             }
 
-            if (request()->header('X-Inertia')) {
-                return Inertia::render('Error', [
-                    'status' => $e->getCode() ?: 500,
-                    'message' => $e->getMessage()
-                ]);
-            }
         });
     }
 } 
