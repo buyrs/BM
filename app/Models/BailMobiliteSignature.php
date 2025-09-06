@@ -19,6 +19,8 @@ class BailMobiliteSignature extends Model
         'tenant_signed_at',
         'contract_pdf_path',
         'signature_metadata',
+        'tenant_signature_encryption_metadata',
+        'signature_metadata_encryption_metadata',
         'additional_signatures',
         'signature_status',
         'signature_workflow_history',
@@ -29,6 +31,8 @@ class BailMobiliteSignature extends Model
     protected $casts = [
         'tenant_signed_at' => 'datetime',
         'signature_metadata' => 'array',
+        'tenant_signature_encryption_metadata' => 'array',
+        'signature_metadata_encryption_metadata' => 'array',
         'additional_signatures' => 'array',
         'signature_workflow_history' => 'array',
         'workflow_started_at' => 'datetime',

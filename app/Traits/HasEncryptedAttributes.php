@@ -71,7 +71,7 @@ trait HasEncryptedAttributes
                     );
 
                     $this->attributes[$attribute] = $encryptionResult['encrypted_data'];
-                    $this->attributes[$attribute . '_encryption_metadata'] = $encryptionResult['metadata'];
+                    $this->attributes[$attribute . '_encryption_metadata'] = json_encode($encryptionResult['metadata']);
 
                     // Create searchable hash if this is a searchable encrypted field
                     if (in_array($attribute, $this->getSearchableEncryptedAttributes())) {

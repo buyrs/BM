@@ -13,6 +13,9 @@ return new class extends Migration
     {
         Schema::table('bail_mobilite_signatures', function (Blueprint $table) {
             $table->json('signature_metadata')->nullable()->after('contract_pdf_path');
+            // Add encryption metadata columns for encrypted attributes
+            $table->json('tenant_signature_encryption_metadata')->nullable()->after('tenant_signature');
+            $table->json('signature_metadata_encryption_metadata')->nullable()->after('signature_metadata');
         });
     }
 
@@ -22,7 +25,11 @@ return new class extends Migration
     public function down(): void
     {
         Schema::table('bail_mobilite_signatures', function (Blueprint $table) {
-            $table->dropColumn('signature_metadata');
+            $table->dropColumn([
+                'signature_metadata',
+                'tenant_signature_encryption_metadata',
+                'signature_metadata_encryption_metadata'
+            ]);
         });
     }
 };
