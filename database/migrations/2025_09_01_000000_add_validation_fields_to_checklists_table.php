@@ -12,10 +12,17 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('checklists', function (Blueprint $table) {
-            $table->unsignedBigInteger('validated_by')->nullable()->after('ops_validation_comments');
-            $table->timestamp('validated_at')->nullable()->after('validated_by');
+            if (!Schema::hasColumn('checklists', 'validated_by')) {
+                $table->unsignedBigInteger('validated_by')->nullable()->after('ops_validation_comments');
+            }
+            if (!Schema::hasColumn('checklists', 'validated_at')) {
+                $table->timestamp('validated_at')->nullable()->after('validated_by');
+            }
             
-            $table->foreign('validated_by')->references('id')->on('users')->onDelete('set null');
+            // Only add foreign key if the column was just created
+            if (!Schema::hasColumn('checklists', 'validated_by')) {
+                $table->foreign('validated_by')->references('id')->on('users')->onDelete('set null');
+            }
         });
     }
 
@@ -25,8 +32,10 @@ return new class extends Migration
     public function down(): void
     {
         Schema::table('checklists', function (Blueprint $table) {
-            $table->dropForeign(['validated_by']);
-            $table->dropColumn(['validated_by', 'validated_at']);
+            if (Schema::hasColumn('checklists', 'validated_by')) {
+                $table->dropForeign(['validated_by']);
+                $table->dropColumn(['validated_by', 'validated_at']);
+            }
         });
     }
 };
