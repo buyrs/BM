@@ -26,8 +26,13 @@ return new class extends Migration
             }
             
             // Only add foreign key if the column was just created
-            if (Schema::hasColumn('checklists', 'validated_by') && !Schema::hasForeignKey('checklists', 'checklists_validated_by_foreign')) {
-                $table->foreign('validated_by')->references('id')->on('users')->onDelete('set null');
+            if (Schema::hasColumn('checklists', 'validated_by')) {
+                try {
+                    // Try to add the foreign key constraint
+                    $table->foreign('validated_by')->references('id')->on('users')->onDelete('set null');
+                } catch (\Exception $e) {
+                    // If it fails (e.g., constraint already exists), continue silently
+                }
             }
         });
     }
@@ -39,7 +44,11 @@ return new class extends Migration
     {
         Schema::table('checklists', function (Blueprint $table) {
             if (Schema::hasColumn('checklists', 'validated_by')) {
-                $table->dropForeign(['validated_by']);
+                try {
+                    $table->dropForeign(['validated_by']);
+                } catch (\Exception $e) {
+                    // If it fails (e.g., constraint doesn't exist), continue silently
+                }
                 $table->dropColumn(['validated_by', 'validated_at']);
             }
         });
