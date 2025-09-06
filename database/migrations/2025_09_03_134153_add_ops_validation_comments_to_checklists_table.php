@@ -12,7 +12,7 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('checklists', function (Blueprint $table) {
-            $table->text('ops_validation_comments')->nullable()->after('status');
+            $table->text('ops_validation_comments')->nullable();
         });
     }
 

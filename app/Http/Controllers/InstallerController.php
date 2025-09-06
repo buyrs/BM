@@ -53,22 +53,35 @@ class InstallerController extends Controller
                 $envData['DB_USERNAME'] = $request->db_username;
                 $envData['DB_PASSWORD'] = $request->db_password;
             } else {
+                // For SQLite, we just need the database name (path will be relative to database_path())
                 $envData['DB_DATABASE'] = $request->db_database;
                 // Remove MySQL specific entries if they exist
                 $this->removeEnvironmentVariables(['DB_HOST', 'DB_PORT', 'DB_USERNAME', 'DB_PASSWORD']);
             }
 
-            $this->updateEnvironmentFile($envData);
-
+            \Log::info("Attempting to update .env file with data", ['env_data' => $envData]);
+            
+            $result = $this->updateEnvironmentFile($envData);
+            
+            \Log::info("Environment file update result", ['result' => $result]);
+            
             return response()->json(['message' => 'Database configuration saved successfully']);
         } catch (\Exception $e) {
+            \Log::error("Database configuration failed", [
+                'exception' => $e->getMessage(),
+                'file' => $e->getFile(),
+                'line' => $e->getLine(),
+                'trace' => $e->getTraceAsString(),
+                'request_data' => $request->all()
+            ]);
+            
             return response()->json([
                 'error' => 'Database configuration failed: ' . $e->getMessage(), 
                 'exception' => $e->getMessage(),
                 'file' => $e->getFile(),
                 'line' => $e->getLine(),
                 'request_data' => $request->all()
-            ], 422);
+            ], 500);
         }
     }
 
@@ -147,30 +160,59 @@ class InstallerController extends Controller
     private function updateEnvironmentFile($data)
     {
         $envFile = base_path('.env');
+        \Log::info("Updating environment file", ['file_path' => $envFile, 'data_keys' => array_keys($data)]);
+        
+        if (!file_exists($envFile)) {
+            throw new \Exception("Environment file does not exist: " . $envFile);
+        }
+        
+        if (!is_writable($envFile)) {
+            throw new \Exception("Environment file is not writable: " . $envFile);
+        }
+        
         $envContent = file_get_contents($envFile);
-
+        \Log::info("Current .env content length", ['length' => strlen($envContent)]);
+        
         foreach ($data as $key => $value) {
             $pattern = "/^{$key}=.*/m";
             $replacement = "{$key}={$value}";
             
             if (preg_match($pattern, $envContent)) {
                 $envContent = preg_replace($pattern, $replacement, $envContent);
+                \Log::info("Updated existing key", ['key' => $key]);
             } else {
                 $envContent .= "\n{$replacement}";
+                \Log::info("Added new key", ['key' => $key]);
             }
         }
 
-        file_put_contents($envFile, $envContent);
+        $result = file_put_contents($envFile, $envContent);
+        \Log::info("File write result", ['bytes_written' => $result]);
+        
+        if ($result === false) {
+            throw new \Exception("Failed to write to environment file: " . $envFile);
+        }
+        
+        return $result;
     }
 
     private function removeEnvironmentVariables($keys)
     {
         $envFile = base_path('.env');
+        \Log::info("Removing environment variables", ['file_path' => $envFile, 'keys' => $keys]);
+        
+        if (!file_exists($envFile)) {
+            \Log::warning("Environment file does not exist when trying to remove variables", ['file_path' => $envFile]);
+            return;
+        }
+        
         $envContent = file_get_contents($envFile);
-
+        
         foreach ($keys as $key) {
             $pattern = "/^{$key}=.*\n/m";
-            $envContent = preg_replace($pattern, '', $envContent);
+            $count = 0;
+            $envContent = preg_replace($pattern, '', $envContent, -1, $count);
+            \Log::info("Removed environment variable", ['key' => $key, 'count' => $count]);
         }
 
         file_put_contents($envFile, $envContent);
