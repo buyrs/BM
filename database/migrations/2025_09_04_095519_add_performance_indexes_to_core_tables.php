@@ -11,8 +11,18 @@ return new class extends Migration
      */
     private function indexExists(string $table, string $index): bool
     {
-        $indexes = \DB::select("SHOW INDEX FROM {$table} WHERE Key_name = ?", [$index]);
-        return count($indexes) > 0;
+        if (\DB::getDriverName() === 'sqlite') {
+            $indexes = \DB::select("PRAGMA index_list({$table})");
+            foreach ($indexes as $idx) {
+                if ($idx->name === $index) {
+                    return true;
+                }
+            }
+            return false;
+        } else {
+            $indexes = \DB::select("SHOW INDEX FROM {$table} WHERE Key_name = ?", [$index]);
+            return count($indexes) > 0;
+        }
     }
 
     /**
@@ -58,11 +68,11 @@ return new class extends Migration
 
         // Add performance indexes to notifications table
         Schema::table('notifications', function (Blueprint $table) {
-            if (!$this->indexExists('notifications', 'notifications_user_read_idx')) {
-                $table->index(['user_id', 'read_at'], 'notifications_user_read_idx');
+            if (!$this->indexExists('notifications', 'notifications_recipient_status_idx')) {
+                $table->index(['recipient_id', 'status'], 'notifications_recipient_status_idx');
             }
-            if (!$this->indexExists('notifications', 'notifications_created_read_idx')) {
-                $table->index(['created_at', 'read_at'], 'notifications_created_read_idx');
+            if (!$this->indexExists('notifications', 'notifications_created_status_idx')) {
+                $table->index(['created_at', 'status'], 'notifications_created_status_idx');
             }
         });
 
@@ -116,11 +126,11 @@ return new class extends Migration
         });
 
         Schema::table('notifications', function (Blueprint $table) {
-            if ($this->indexExists('notifications', 'notifications_user_read_idx')) {
-                $table->dropIndex('notifications_user_read_idx');
+            if ($this->indexExists('notifications', 'notifications_recipient_status_idx')) {
+                $table->dropIndex('notifications_recipient_status_idx');
             }
-            if ($this->indexExists('notifications', 'notifications_created_read_idx')) {
-                $table->dropIndex('notifications_created_read_idx');
+            if ($this->indexExists('notifications', 'notifications_created_status_idx')) {
+                $table->dropIndex('notifications_created_status_idx');
             }
         });
 
