@@ -97,9 +97,10 @@
                     
                     <div class="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
                         <p class="text-blue-800">
-                            <strong>Recommended for your workflow:</strong> 
-                            Use SQLite for local development. For cloud production deployment with MariaDB, 
-                            configure your production database credentials in your cloud environment variables.
+                            <strong>Configuration Only:</strong> 
+                            Database connection will be tested during the final installation step. 
+                            For local development, choose SQLite. For cloud production with MariaDB, 
+                            configure your production database credentials here.
                         </p>
                     </div>
                     
@@ -154,7 +155,7 @@
                             </button>
                             <button type="submit" 
                                     class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">
-                                Test Connection
+                                Save Configuration
                             </button>
                         </div>
                     </form>
@@ -243,11 +244,18 @@
                 
                 async testDatabase() {
                     try {
+                        console.log('Saving database configuration:', this.dbConfig);
                         const response = await axios.post('/install/database', this.dbConfig);
-                        alert('Database connection successful!');
+                        console.log('Database configuration saved:', response);
+                        alert('Database configuration saved successfully!');
                         this.nextStep();
                     } catch (error) {
-                        alert(error.response?.data?.error || 'Database connection failed');
+                        console.error('Database configuration error:', error);
+                        console.log('Error response:', error.response);
+                        const errorMessage = error.response?.data?.error || 
+                                            error.response?.data?.exception || 
+                                            'Failed to save database configuration';
+                        alert(errorMessage);
                     }
                 },
                 

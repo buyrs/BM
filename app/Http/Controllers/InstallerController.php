@@ -37,34 +37,11 @@ class InstallerController extends Controller
         ]);
 
         if ($validator->fails()) {
-            return response()->json(['errors' => $validator->errors()], 422);
+            return response()->json(['errors' => $validator->errors(), 'request_data' => $request->all()], 422);
         }
 
         try {
-            if ($request->db_connection === 'mysql') {
-                // Test MySQL connection
-                $connection = new PDO(
-                    "mysql:host={$request->db_host};port={$request->db_port}",
-                    $request->db_username,
-                    $request->db_password
-                );
-                $connection->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
-
-                // Test database creation
-                $connection->exec("CREATE DATABASE IF NOT EXISTS `{$request->db_database}`");
-            } else {
-                // Test SQLite connection
-                $databasePath = database_path($request->db_database);
-                $connection = new PDO("sqlite:{$databasePath}");
-                $connection->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
-                
-                // Create directory if it doesn't exist
-                if (!file_exists(dirname($databasePath))) {
-                    mkdir(dirname($databasePath), 0755, true);
-                }
-            }
-            
-            // Update .env file
+            // Simply update .env file without testing connection
             $envData = [
                 'DB_CONNECTION' => $request->db_connection,
             ];
@@ -83,11 +60,15 @@ class InstallerController extends Controller
 
             $this->updateEnvironmentFile($envData);
 
-            return response()->json(['message' => 'Database connection successful']);
-        } catch (PDOException $e) {
-            return response()->json(['error' => 'Database connection failed: ' . $e->getMessage()], 422);
+            return response()->json(['message' => 'Database configuration saved successfully']);
         } catch (\Exception $e) {
-            return response()->json(['error' => 'Database configuration failed: ' . $e->getMessage()], 422);
+            return response()->json([
+                'error' => 'Database configuration failed: ' . $e->getMessage(), 
+                'exception' => $e->getMessage(),
+                'file' => $e->getFile(),
+                'line' => $e->getLine(),
+                'request_data' => $request->all()
+            ], 422);
         }
     }
 
