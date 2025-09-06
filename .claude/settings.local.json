@@ -22,7 +22,14 @@
       "Bash(docker:*)",
       "Bash(npm uninstall:*)",
       "Bash(find:*)",
-      "Bash(npm test)"
+      "Bash(npm test)",
+      "Bash(start:*)",
+      "Bash(timeout:*)",
+      "Bash(winpty docker run:*)",
+      "Bash(curl:*)",
+      "Bash(composer remove:*)",
+      "Bash(setx:*)",
+      "Bash(git add:*)"
     ],
     "deny": [],
     "ask": []
