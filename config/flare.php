@@ -1,6 +1,6 @@
 <?php
 
-use Spatie\LaravelFlare\FlareConfig;
+// use Spatie\LaravelFlare\FlareConfig;
 
 return [
         /*
@@ -27,10 +27,10 @@ return [
         |
         */
 
-        'collects' => FlareConfig::defaultCollects(
-            ignore: [],
-            extra: []
-        ),
+        // 'collects' => FlareConfig::defaultCollects(
+        //     ignore: [],
+        //     extra: []
+        // ),
 
         /*
         |--------------------------------------------------------------------------
