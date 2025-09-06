@@ -47,7 +47,7 @@
                             <span class="mr-2">Required: 8.1.0</span>
                             <span class="mr-2">Current: {{ $requirements['php']['current'] }}</span>
                             <span class="{{ $requirements['php']['status'] ? 'text-green-600' : 'text-red-600' }}">
-                                {{ $requirements['php']['status'] ? '✓' : '✗' }}
+                                {!! $requirements['php']['status'] ? '✓' : '✗' !!}
                             </span>
                         </div>
                     </div>
@@ -60,7 +60,7 @@
                                 <div class="flex items-center">
                                     <span class="mr-2">{{ $extension }}</span>
                                     <span class="{{ $installed ? 'text-green-600' : 'text-red-600' }}">
-                                        {{ $installed ? '✓' : '✗' }}
+                                        {!! $installed ? '✓' : '✗' !!}
                                     </span>
                                 </div>
                             @endforeach
@@ -75,7 +75,7 @@
                                 <div class="flex items-center">
                                     <span class="mr-2">{{ $path }}</span>
                                     <span class="{{ $permission['writable'] ? 'text-green-600' : 'text-red-600' }}">
-                                        {{ $permission['writable'] ? '✓' : '✗' }}
+                                        {!! $permission['writable'] ? '✓' : '✗' !!}
                                     </span>
                                 </div>
                             @endforeach
@@ -195,9 +195,9 @@
                 
                 get canProceed() {
                     if (this.currentStep === 1) {
-                        return {{ $requirements['php']['status'] ? 'true' : 'false' }} && 
-                               Object.values({{ json_encode($requirements['extensions']) }}).every(v => v) &&
-                               Object.values({{ json_encode($permissions) }}).every(p => p.writable);
+                        return @json($requirements['php']['status']) && 
+                               Object.values(@json($requirements['extensions'])).every(v => v) &&
+                               Object.values(@json($permissions)).every(p => p.writable);
                     }
                     return true;
                 },
