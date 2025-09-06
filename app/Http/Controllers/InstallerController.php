@@ -16,7 +16,7 @@ class InstallerController extends Controller
     {
         // Check if already installed
         if (file_exists(storage_path('installed'))) {
-            return redirect('/');
+            return redirect()->route('welcome');
         }
 
         $requirements = $this->checkRequirements();

@@ -34,14 +34,16 @@ Route::prefix('install')->group(function () {
 // Health check endpoint
 Route::get('/api/health', [App\Http\Controllers\CalendarController::class, 'health'])->name('health');
 
-Route::get('/', function () {
+Route::get('/welcome', function () {
     return view('welcome', [
         'canLogin' => Route::has('login'),
         'canRegister' => Route::has('register'),
         'laravelVersion' => app()->version(),
         'phpVersion' => PHP_VERSION,
     ]);
-});
+})->name('welcome');
+
+Route::get('/', [InstallerController::class, 'index']);
 
 // Routes for authenticated users
 Route::middleware(['auth', 'verified'])->group(function () {
