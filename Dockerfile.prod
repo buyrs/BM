@@ -1,0 +1,94 @@
+# Production Dockerfile for BM application
+
+# --- Builder Stage ---
+FROM php:8.2-fpm-alpine AS builder
+
+# Install system dependencies for building
+RUN apk update && apk add --no-cache \
+    curl \
+    git \
+    unzip \
+    libzip-dev \
+    libpng-dev \
+    libjpeg-turbo-dev \
+    freetype-dev \
+    libxml2-dev \
+    oniguruma-dev \
+    icu-dev \
+    nodejs \
+    npm
+
+# Install PHP extensions
+RUN docker-php-ext-configure gd --with-freetype --with-jpeg
+RUN docker-php-ext-install \
+    pdo_mysql \
+    zip \
+    gd \
+    xml \
+    mbstring \
+    intl \
+    opcache \
+    exif
+
+# Install Composer
+COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
+
+# Set up the application directory
+WORKDIR /var/www/html
+
+# Copy application files
+COPY . .
+
+# Install Composer dependencies
+RUN composer install --no-dev --optimize-autoloader --no-interaction
+RUN php artisan optimize
+
+# Install NPM dependencies and build assets
+RUN npm install
+RUN npm run build
+
+# --- Production Stage ---
+FROM php:8.2-fpm-alpine
+
+# Install production system dependencies
+RUN apk update && apk add --no-cache \
+    libzip \
+    libpng \
+    libjpeg-turbo \
+    freetype \
+    libxml2 \
+    oniguruma \
+    icu
+
+# Install PHP extensions
+RUN docker-php-ext-configure gd --with-freetype --with-jpeg
+RUN docker-php-ext-install \
+    pdo_mysql \
+    zip \
+    gd \
+    xml \
+    mbstring \
+    intl \
+    opcache \
+    exif
+
+# Set up the application directory
+WORKDIR /var/www/html
+
+# Copy vendor and built assets from the builder stage
+COPY --from=builder /var/www/html/vendor /var/www/html/vendor
+COPY --from=builder /var/www/html/public/build /var/www/html/public/build
+COPY --from=builder /var/www/html/.env.example /var/www/html/.env
+
+# Copy the rest of the application
+COPY . .
+
+# Set permissions
+RUN chown -R www-data:www-data /var/www/html/storage /var/www/html/bootstrap/cache && \
+    chmod -R 755 /var/www/html/storage /var/www/html/bootstrap/cache
+
+# Expose port
+EXPOSE 9000
+
+# Start PHP-FPM
+CMD ["php-fpm"]
