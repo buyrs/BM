@@ -43,7 +43,7 @@ Route::get('/welcome', function () {
     ]);
 })->name('welcome');
 
-Route::get('/', [InstallerController::class, 'index']);
+Route::get('/', [App\Http\Controllers\RoleRedirectController::class, 'index'])->name('role.selection');
 
 // Routes for authenticated users
 Route::middleware(['auth', 'verified'])->group(function () {

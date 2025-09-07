@@ -108,11 +108,20 @@
     </div>
 
     @if (Route::has('register'))
-        <p class="mt-10 text-center text-sm text-[var(--text-secondary)]">
-            Don't have an account?
-            <a class="font-medium text-[var(--primary-color)] hover:underline transition-colors duration-200" href="{{ route('register') }}">
-                Register here
-            </a>
-        </p>
+        @php
+            $canRegister = request()->is('admin/*');
+        @endphp
+        @if ($canRegister)
+            <p class="mt-10 text-center text-sm text-[var(--text-secondary)]">
+                Don't have an account?
+                <a class="font-medium text-[var(--primary-color)] hover:underline transition-colors duration-200" href="{{ route('admin.register') }}">
+                    Register as Admin
+                </a>
+            </p>
+        @else
+            <p class="mt-10 text-center text-sm text-[var(--text-secondary)]">
+                Need an account? Contact your administrator.
+            </p>
+        @endif
     @endif
 </x-guest-layout>

@@ -1,10 +1,10 @@
 <x-guest-layout>
     <div class="text-center">
-        <h2 class="text-3xl font-bold tracking-tight text-[var(--text-primary)]">Create Account</h2>
-        <p class="mt-2 text-sm text-[var(--text-secondary)]">Join the Bail Mobilité Management System.</p>
+        <h2 class="text-3xl font-bold tracking-tight text-[var(--text-primary)]">Create Admin Account</h2>
+        <p class="mt-2 text-sm text-[var(--text-secondary)]">Join the Bail Mobilité Management System as an Administrator.</p>
     </div>
 
-    <form method="POST" action="{{ route('register') }}" class="mt-8 space-y-6">
+    <form method="POST" action="{{ route('admin.register') }}" class="mt-8 space-y-6">
         @csrf
 
         <div class="space-y-4 rounded-md shadow-sm">
@@ -77,7 +77,7 @@
                 type="submit"
                 class="group relative flex w-full justify-center rounded-lg border border-transparent bg-[var(--primary-color)] py-3 px-4 text-sm font-semibold text-white hover:bg-[var(--accent-color)] hover:bg-opacity-90 focus:outline-none focus:ring-2 focus:ring-[var(--primary-color)] focus:ring-offset-2 transition-colors duration-200"
             >
-                Create Account
+                Create Admin Account
             </button>
         </div>
     </form>
@@ -111,7 +111,7 @@
 
     <p class="mt-10 text-center text-sm text-[var(--text-secondary)]">
         Already have an account?
-        <a class="font-medium text-[var(--primary-color)] hover:underline transition-colors duration-200" href="{{ route('login') }}">
+        <a class="font-medium text-[var(--primary-color)] hover:underline transition-colors duration-200" href="{{ route('admin.login') }}">
             Sign in here
         </a>
     </p>
