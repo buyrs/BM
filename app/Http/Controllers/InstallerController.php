@@ -16,7 +16,7 @@ class InstallerController extends Controller
     {
         // Check if already installed
         if (file_exists(storage_path('installed'))) {
-            return redirect()->route('welcome');
+            return redirect()->route('role.selection');
         }
 
         $requirements = $this->checkRequirements();
