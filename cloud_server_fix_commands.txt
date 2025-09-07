@@ -1,0 +1,27 @@
+# Commands to run on your cloud server to fix the duplicate migration issue
+
+# 1. Navigate to your project directory
+cd /path/to/your/bm/project
+
+# 2. Look for the duplicate migration file
+ls -la database/migrations/*2025_09_05*notifications*.php 2>/dev/null || echo "No duplicate migration file found with direct pattern"
+
+# 3. If found, remove it
+rm -f database/migrations/*2025_09_05*notifications*.php
+
+# 4. Search for any migration file containing "mission_id" and "notifications" in its content
+grep -l "mission_id.*notifications\|notifications.*mission_id" database/migrations/*.php 2>/dev/null || echo "No duplicate migration file found by content search"
+
+# 5. If found with content search, remove it (replace FILENAME with actual filename from above)
+# rm FILENAME
+
+# 6. Clear all caches
+php artisan config:clear
+php artisan route:clear
+php artisan view:clear
+
+# 7. Check migration status
+php artisan migrate:status
+
+# 8. Run migrations
+php artisan migrate --force
