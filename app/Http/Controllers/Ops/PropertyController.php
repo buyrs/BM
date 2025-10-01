@@ -90,6 +90,17 @@ class PropertyController extends Controller
     }
 
     /**
+     * Remove the specified resource from storage.
+     */
+    public function destroy(Property $property): RedirectResponse
+    {
+        $property->delete();
+
+        return redirect()->route('ops.properties.index')
+            ->with('success', 'Property deleted successfully.');
+    }
+
+    /**
      * Show the CSV upload form.
      */
     public function uploadForm(): View

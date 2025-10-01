@@ -1,3 +1,182 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* OriginUI Global Styles */
+@layer base {
+  :root {
+    --shadow-colored: 0 4px 25px -5px rgba(59, 130, 246, 0.1), 0 10px 30px -5px rgba(59, 130, 246, 0.05);
+  }
+  
+  * {
+    @apply border-secondary-200;
+  }
+  
+  body {
+    @apply text-secondary-900 antialiased;
+    font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';
+  }
+  
+  /* Smooth focus transitions */
+  input, textarea, select, button {
+    @apply transition-all duration-200;
+  }
+  
+  /* Custom scrollbar */
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  
+  ::-webkit-scrollbar-track {
+    @apply bg-secondary-100 rounded-full;
+  }
+  
+  ::-webkit-scrollbar-thumb {
+    @apply bg-secondary-300 rounded-full;
+  }
+  
+  ::-webkit-scrollbar-thumb:hover {
+    @apply bg-secondary-400;
+  }
+}
+
+@layer components {
+  /* Button hover effects */
+  .btn-hover-lift {
+    @apply transition-all duration-200;
+  }
+  
+  .btn-hover-lift:hover {
+    @apply -translate-y-0.5 shadow-medium;
+  }
+  
+  /* Card hover effects */
+  .card-hover {
+    @apply transition-all duration-300 cursor-pointer;
+  }
+  
+  .card-hover:hover {
+    @apply -translate-y-1 shadow-strong;
+  }
+  
+  /* Input focus states */
+  .input-focus {
+    @apply focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-all duration-200;
+  }
+  
+  /* Gradient backgrounds */
+  .bg-gradient-primary {
+    @apply bg-gradient-to-r from-primary-500 to-primary-600;
+  }
+  
+  .bg-gradient-success {
+    @apply bg-gradient-to-r from-success-500 to-success-600;
+  }
+  
+  .bg-gradient-warning {
+    @apply bg-gradient-to-r from-warning-500 to-warning-600;
+  }
+  
+  .bg-gradient-danger {
+    @apply bg-gradient-to-r from-danger-500 to-danger-600;
+  }
+  
+  /* Loading spinner */
+  .spinner {
+    @apply animate-spin rounded-full border-2 border-secondary-200;
+  }
+  
+  .spinner-primary {
+    @apply border-t-primary-600;
+  }
+  
+  .spinner-success {
+    @apply border-t-success-600;
+  }
+  
+  /* Pulse animation for loading states */
+  .pulse-primary {
+    @apply animate-pulse bg-primary-100;
+  }
+  
+  /* Glass morphism effect */
+  .glass {
+    @apply bg-white/80 backdrop-blur-md border border-white/20;
+  }
+  
+  /* Modern shadow variants */
+  .shadow-glass {
+    box-shadow: 0 8px 32px rgba(31, 38, 135, 0.15);
+  }
+  
+  .shadow-colorful {
+    box-shadow: 0 4px 25px -5px rgba(59, 130, 246, 0.2), 0 10px 30px -5px rgba(59, 130, 246, 0.1);
+  }
+}
+
+@layer utilities {
+  /* Animation utilities */
+  .animate-fade-in {
+    @apply animate-fade-in;
+  }
+  
+  .animate-slide-up {
+    @apply animate-slide-up;
+  }
+  
+  .animate-bounce-gentle {
+    @apply animate-bounce-gentle;
+  }
+  
+  /* Interaction states */
+  .interactive {
+    @apply transition-all duration-200 hover:scale-105 active:scale-95;
+  }
+  
+  .interactive-lift {
+    @apply transition-all duration-200 hover:-translate-y-1 hover:shadow-medium;
+  }
+  
+  /* Typography enhancements */
+  .text-balance {
+    text-wrap: balance;
+  }
+  
+  /* Focus visible improvements */
+  .focus-ring {
+    @apply focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 focus:ring-offset-white;
+  }
+  
+  /* Backdrop blur variants */
+  .backdrop-blur-xs {
+    backdrop-filter: blur(2px);
+  }
+  
+  /* Custom gradient text */
+  .text-gradient-primary {
+    @apply bg-gradient-to-r from-primary-600 to-primary-500 bg-clip-text text-transparent;
+  }
+  
+  .text-gradient-success {
+    @apply bg-gradient-to-r from-success-600 to-success-500 bg-clip-text text-transparent;
+  }
+}
+
+/* Dark mode adjustments (if needed in future) */
+@media (prefers-color-scheme: dark) {
+  .dark-mode {
+    /* Dark mode styles will go here when implemented */
+  }
+}
+
+/* Print styles */
+@media print {
+  .no-print {
+    @apply hidden;
+  }
+  
+  * {
+    @apply shadow-none;
+  }
+}

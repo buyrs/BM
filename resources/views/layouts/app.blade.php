@@ -27,7 +27,7 @@
 
         <!-- Fonts -->
         <link rel="preconnect" href="https://fonts.bunny.net">
-        <link href="https://fonts.bunny.net/css?family=figtree:400,500,600&display=swap" rel="stylesheet" />
+        <link href="https://fonts.bunny.net/css?family=inter:400,500,600,700&display=swap" rel="stylesheet" />
 
         <!-- Scripts -->
         @vite(['resources/css/app.css', 'resources/js/app.js'])
@@ -79,24 +79,148 @@
             }
         </style>
     </head>
-    <body class="font-sans antialiased">
-        <div class="min-h-screen bg-gray-100 pb-16 sm:pb-0">
-            @include('layouts.navigation')
+    <body class="font-sans antialiased bg-secondary-50">
+        @php
+            $userRole = 'guest';
+            if (Auth::guard('admin')->check()) {
+                $userRole = 'admin';
+            } elseif (Auth::guard('ops')->check()) {
+                $userRole = 'ops';
+            } elseif (Auth::guard('checker')->check()) {
+                $userRole = 'checker';
+            }
+        @endphp
+        
+        @if($userRole !== 'guest')
+            <!-- Modern Layout with Sidebar -->
+            <div class="flex h-screen bg-secondary-50" x-data="{ sidebarOpen: false }">
+                <!-- Sidebar -->
+                <div class="fixed inset-y-0 left-0 z-50 w-64 bg-white shadow-medium transform transition-transform duration-300 ease-in-out lg:translate-x-0 lg:static lg:inset-0" 
+                     :class="{ '-translate-x-full': !sidebarOpen, 'translate-x-0': sidebarOpen }">
+                    <div class="flex flex-col h-full">
+                        <!-- Logo -->
+                        <div class="flex items-center justify-between h-16 px-6 border-b border-secondary-200">
+                            <a href="{{ Auth::guard('admin')->check() ? route('admin.dashboard') : (Auth::guard('ops')->check() ? route('ops.dashboard') : route('checker.dashboard')) }}" 
+                               class="flex items-center space-x-3">
+                                <x-application-logo class="h-8 w-8 text-primary-600" />
+                                <span class="text-xl font-bold text-secondary-900">{{ config('app.name') }}</span>
+                            </a>
+                            <button @click="sidebarOpen = false" class="lg:hidden p-2 rounded-md text-secondary-400 hover:text-secondary-500 hover:bg-secondary-100">
+                                <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                                </svg>
+                            </button>
+                        </div>
 
-            <!-- Page Heading -->
-            @isset($header)
-                <header class="bg-white shadow">
-                    <div class="max-w-7xl mx-auto py-4 sm:py-6 px-4 sm:px-6 lg:px-8">
-                        {{ $header }}
+                        <!-- Navigation -->
+                        <nav class="flex-1 px-4 py-6 space-y-1 overflow-y-auto scrollbar-thin">
+                            @include('layouts.navigation')
+                        </nav>
+
+                        <!-- User Profile -->
+                        <div class="border-t border-secondary-200 p-4">
+                            <div class="flex items-center space-x-3">
+                                <div class="flex-shrink-0">
+                                    <div class="h-8 w-8 bg-primary-500 rounded-full flex items-center justify-center">
+                                        <span class="text-sm font-medium text-white">
+                                            {{ strtoupper(substr(Auth::guard('admin')->check() ? Auth::guard('admin')->user()->name : (Auth::guard('ops')->check() ? Auth::guard('ops')->user()->name : Auth::guard('checker')->user()->name), 0, 1)) }}
+                                        </span>
+                                    </div>
+                                </div>
+                                <div class="flex-1 min-w-0">
+                                    <p class="text-sm font-medium text-secondary-900 truncate">
+                                        {{ Auth::guard('admin')->check() ? Auth::guard('admin')->user()->name : (Auth::guard('ops')->check() ? Auth::guard('ops')->user()->name : Auth::guard('checker')->user()->name) }}
+                                    </p>
+                                    <p class="text-xs text-secondary-500 truncate">
+                                        {{ ucfirst($userRole) }}
+                                    </p>
+                                </div>
+                                <x-dropdown align="right" width="48">
+                                    <x-slot name="trigger">
+                                        <button class="flex text-secondary-400 hover:text-secondary-500 focus:outline-none focus:text-secondary-500 transition duration-150 ease-in-out">
+                                            <svg class="h-5 w-5" fill="currentColor" viewBox="0 0 20 20">
+                                                <path d="M10 6a2 2 0 110-4 2 2 0 010 4zM10 12a2 2 0 110-4 2 2 0 010 4zM10 18a2 2 0 110-4 2 2 0 010 4z"></path>
+                                            </svg>
+                                        </button>
+                                    </x-slot>
+                                    <x-slot name="content">
+                                        <form method="POST" action="{{ route(Auth::guard('admin')->check() ? 'admin.logout' : (Auth::guard('ops')->check() ? 'ops.logout' : 'checker.logout')) }}">
+                                            @csrf
+                                            <x-dropdown-link href="#" onclick="event.preventDefault(); this.closest('form').submit();" class="flex items-center px-4 py-2 text-sm text-secondary-700 hover:bg-secondary-100">
+                                                <svg class="mr-3 h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                                                </svg>
+                                                {{ __('Log Out') }}
+                                            </x-dropdown-link>
+                                        </form>
+                                    </x-slot>
+                                </x-dropdown>
+                            </div>
+                        </div>
                     </div>
-                </header>
-            @endisset
+                </div>
 
-            <!-- Page Content -->
-            <main class="pb-safe">
-                {{ $slot ?? '' }}
-                @yield('content')
-            </main>
+                <!-- Main Content -->
+                <div class="flex-1 flex flex-col overflow-hidden">
+                    <!-- Top Header -->
+                    <header class="bg-white border-b border-secondary-200 lg:border-none">
+                        <div class="flex items-center justify-between h-16 px-4 sm:px-6 lg:px-8">
+                            <div class="flex items-center">
+                                <button @click="sidebarOpen = true" class="lg:hidden p-2 rounded-md text-secondary-400 hover:text-secondary-500 hover:bg-secondary-100">
+                                    <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
+                                    </svg>
+                                </button>
+                                <!-- Page Title -->
+                                @isset($header)
+                                    <div class="ml-4 lg:ml-0">
+                                        {{ $header }}
+                                    </div>
+                                @endisset
+                            </div>
+                            
+                            <div class="flex items-center space-x-4">
+                                <!-- Notification Bell -->
+                                <button class="p-2 text-secondary-400 hover:text-secondary-500 hover:bg-secondary-100 rounded-lg">
+                                    <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-3.5-3.5L21 9a9 9 0 11-9 9l4.5-4.5z" />
+                                    </svg>
+                                </button>
+                            </div>
+                        </div>
+                    </header>
+
+                    <!-- Page Content -->
+                    <main class="flex-1 overflow-x-hidden overflow-y-auto">
+                        <div class="p-4 sm:p-6 lg:p-8">
+                            {{ $slot ?? '' }}
+                            @yield('content')
+                        </div>
+                    </main>
+                </div>
+
+                <!-- Mobile sidebar backdrop -->
+                <div x-show="sidebarOpen" 
+                     x-transition:enter="transition-opacity ease-linear duration-300"
+                     x-transition:enter-start="opacity-0"
+                     x-transition:enter-end="opacity-100"
+                     x-transition:leave="transition-opacity ease-linear duration-300"
+                     x-transition:leave-start="opacity-100"
+                     x-transition:leave-end="opacity-0"
+                     @click="sidebarOpen = false"
+                     class="fixed inset-0 z-40 bg-secondary-900 bg-opacity-75 lg:hidden"
+                     style="display: none;"></div>
+            </div>
+        @else
+            <!-- Guest Layout -->
+            <div class="min-h-screen bg-secondary-50">
+                <!-- Page Content for Guests -->
+                <main>
+                    {{ $slot ?? '' }}
+                    @yield('content')
+                </main>
+            </div>
+        @endif
 
             <!-- Mobile Navigation -->
             @php

@@ -13,13 +13,13 @@ class UserController extends Controller
     {
         // Admins can view all Ops and Checkers
         if (auth()->guard('admin')->check()) {
-            $users = User::whereIn('role', ['ops', 'checker'])->get();
+            $users = User::whereIn('role', ['ops', 'checker'])->paginate(15);
             return view('admin.users.index', compact('users'));
         }
 
         // Ops can view all Checkers
         if (auth()->guard('ops')->check()) {
-            $users = User::where('role', 'checker')->get();
+            $users = User::where('role', 'checker')->paginate(15);
             return view('ops.users.index', compact('users'));
         }
 

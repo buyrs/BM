@@ -5,6 +5,8 @@ namespace App\Http\Controllers;
 use App\Models\Mission;
 use App\Models\User;
 use App\Models\Checklist;
+use App\Models\ChecklistItem;
+use App\Models\Amenity;
 use App\Models\Property;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
@@ -14,7 +16,7 @@ class MissionController extends Controller
     public function index()
     {
         if (auth()->guard('admin')->check()) {
-            $missions = Mission::with(['admin', 'ops', 'checker'])->get();
+            $missions = Mission::with(['admin', 'ops', 'checker'])->orderBy('created_at', 'desc')->paginate(15);
             return view('admin.missions.index', compact('missions'));
         }
 
@@ -22,7 +24,8 @@ class MissionController extends Controller
             $missions = Mission::where('ops_id', auth()->id())
                                 ->orWhere('admin_id', auth()->id())
                                 ->with(['admin', 'ops', 'checker'])
-                                ->get();
+                                ->orderBy('created_at', 'desc')
+                                ->paginate(15);
             return view('ops.missions.index', compact('missions'));
         }
 
@@ -40,7 +43,7 @@ class MissionController extends Controller
     }
 
     /**
-     * Search properties by address for mission creation
+     * Search properties by address and internal code for mission creation
      */
     public function searchProperties(Request $request)
     {
@@ -50,14 +53,42 @@ class MissionController extends Controller
 
         $query = $request->input('query');
         
-        if (strlen($query) < 2) {
+        if (strlen($query) < 1) {
             return response()->json(['data' => []]);
         }
 
-        $properties = Property::where('property_address', 'like', '%' . $query . '%')
-            ->select('id', 'property_address as name')
-            ->limit(10)
-            ->get();
+        // Search by property address, internal code, or owner name
+        $properties = Property::where(function($q) use ($query) {
+                $q->where('property_address', 'like', '%' . $query . '%')
+                  ->orWhere('internal_code', 'like', '%' . $query . '%')
+                  ->orWhere('owner_name', 'like', '%' . $query . '%');
+            })
+            ->select('id', 'property_address', 'internal_code', 'owner_name')
+            ->limit(15)
+            ->orderByRaw("CASE 
+                WHEN internal_code LIKE ? THEN 1 
+                WHEN property_address LIKE ? THEN 2 
+                WHEN owner_name LIKE ? THEN 3 
+                ELSE 4 
+            END", [$query.'%', $query.'%', $query.'%'])
+            ->get()
+            ->map(function($property) {
+                $displayName = $property->property_address;
+                if ($property->internal_code) {
+                    $displayName = "[{$property->internal_code}] {$property->property_address}";
+                }
+                if ($property->owner_name) {
+                    $displayName .= " - {$property->owner_name}";
+                }
+                
+                return [
+                    'id' => $property->id,
+                    'name' => $displayName,
+                    'address' => $property->property_address,
+                    'code' => $property->internal_code,
+                    'owner' => $property->owner_name
+                ];
+            });
 
         return response()->json(['data' => $properties]);
     }
@@ -85,17 +116,9 @@ class MissionController extends Controller
                 'status' => 'pending',
             ]);
 
-            // Create check-in and check-out checklists
-            Checklist::create([
-                'mission_id' => $mission->id,
-                'type' => 'checkin',
-                'status' => 'pending',
-            ]);
-            Checklist::create([
-                'mission_id' => $mission->id,
-                'type' => 'checkout',
-                'status' => 'pending',
-            ]);
+            // Create check-in and check-out checklists with items
+            $this->createChecklistWithItems($mission->id, 'checkin');
+            $this->createChecklistWithItems($mission->id, 'checkout');
 
             return redirect()->route('ops.missions.index')->with('success', 'Mission created successfully and awaiting admin approval.');
         }
@@ -165,5 +188,33 @@ class MissionController extends Controller
         }
 
         abort(403);
+    }
+
+    /**
+     * Create a checklist with all amenity items
+     */
+    private function createChecklistWithItems($missionId, $type)
+    {
+        // Create the checklist
+        $checklist = Checklist::create([
+            'mission_id' => $missionId,
+            'type' => $type,
+            'status' => 'pending',
+        ]);
+
+        // Get all amenities to create checklist items
+        $amenities = Amenity::with('amenityType')->get();
+        
+        foreach ($amenities as $amenity) {
+            ChecklistItem::create([
+                'checklist_id' => $checklist->id,
+                'amenity_id' => $amenity->id,
+                'state' => null,
+                'comment' => null,
+                'photo_path' => null,
+            ]);
+        }
+
+        return $checklist;
     }
 }

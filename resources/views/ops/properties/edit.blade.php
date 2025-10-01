@@ -12,6 +12,14 @@
             @csrf
             @method('PUT')
             <div class="mb-4">
+                <label for="internal_code" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Internal Code</label>
+                <input type="text" name="internal_code" id="internal_code" class="block w-full px-3 py-2 mt-1 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white" value="{{ old('internal_code', $property->internal_code) }}" placeholder="e.g., Rosier, MainSt, etc.">
+                <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">Optional short code to identify this property (letters, numbers, dash, underscore only)</p>
+                @error('internal_code')
+                    <p class="text-red-500 text-xs mt-1">{{ $message }}</p>
+                @enderror
+            </div>
+            <div class="mb-4">
                 <label for="owner_name" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Owner Name</label>
                 <input type="text" name="owner_name" id="owner_name" class="block w-full px-3 py-2 mt-1 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white" value="{{ old('owner_name', $property->owner_name) }}" required>
                 @error('owner_name')

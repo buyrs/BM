@@ -200,7 +200,7 @@ Route::middleware('auth:ops')->group(function () {
     Route::get('/ops/missions/search-properties', [MissionController::class, 'searchProperties'])->name('ops.missions.search-properties');
     
     // Ops Property Management
-    Route::resource('/ops/properties', OpsPropertyController::class)->only(['index', 'show', 'create', 'store', 'edit', 'update'])->names('ops.properties');
+    Route::resource('/ops/properties', OpsPropertyController::class)->only(['index', 'show', 'create', 'store', 'edit', 'update', 'destroy'])->names('ops.properties');
     Route::get('/ops/properties-upload', [OpsPropertyController::class, 'uploadForm'])->name('ops.properties.upload.form');
     Route::post('/ops/properties-upload', [OpsPropertyController::class, 'upload'])->name('ops.properties.upload');
     Route::get('/ops/properties-template', [OpsPropertyController::class, 'template'])->name('ops.properties.template');

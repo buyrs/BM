@@ -11,6 +11,7 @@ class Property extends Model
     use HasFactory;
 
     protected $fillable = [
+        'internal_code',
         'owner_name',
         'owner_address', 
         'property_address',
@@ -19,6 +20,7 @@ class Property extends Model
     ];
 
     protected $casts = [
+        'internal_code' => 'string',
         'owner_name' => 'string',
         'owner_address' => 'string',
         'property_address' => 'string',

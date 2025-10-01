@@ -22,6 +22,7 @@ class StorePropertyRequest extends FormRequest
     public function rules(): array
     {
         return [
+            'internal_code' => 'nullable|string|max:50|unique:properties,internal_code|regex:/^[a-zA-Z0-9_-]+$/',
             'property_address' => 'required|string|max:255|unique:properties,property_address',
             'owner_name' => 'nullable|string|max:255',
             'owner_address' => 'nullable|string|max:1000',

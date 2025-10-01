@@ -73,14 +73,14 @@
         </div>
 
         <div class="mt-4 sm:mt-6 flex flex-col sm:flex-row justify-between gap-3 sm:gap-0">
-            <!-- Save for later (with offline capability) -->
-            <button type="button" onclick="saveChecklistOffline()" class="px-4 py-2 sm:px-6 sm:py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition duration-300 w-full sm:w-auto">
+            <!-- Save for later -->
+            <button type="submit" class="px-4 py-2 sm:px-6 sm:py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition duration-300 w-full sm:w-auto">
                 <span id="save-btn-text">Save Checklist</span>
                 <span id="save-indicator" class="ml-2 hidden">💾</span>
             </button>
             
             <!-- Submit form (with offline queuing if needed) -->
-            <button type="button" onclick="submitChecklist()" class="px-4 py-2 sm:px-6 sm:py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition duration-300 w-full sm:w-auto">
+            <button type="submit" formaction="{{ route('checklists.submit', $checklist->id) }}" formmethod="POST" class="px-4 py-2 sm:px-6 sm:py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition duration-300 w-full sm:w-auto">
                 <span id="submit-btn-text">Submit Checklist</span>
                 <span id="submit-indicator" class="ml-2 hidden">📤</span>
             </button>
@@ -88,144 +88,32 @@
     </form>
     
     <script>
-        // Function to save checklist data for offline use
-        function saveChecklistOffline() {
-            const formData = new FormData(document.querySelector('form'));
-            const checklistData = {};
-            
-            // Extract form data
-            for (let [key, value] of formData.entries()) {
-                checklistData[key] = value;
-            }
-            
-            // Save to local storage with a timestamp
-            const saveData = {
-                id: {{ $checklist->id }},
-                checklistId: {{ $checklist->id }},
-                data: checklistData,
-                savedAt: new Date().toISOString(),
-                missionTitle: "{{ $checklist->mission->title }}",
-                checklistType: "{{ $checklist->type }}"
-            };
-            
-            localStorage.setItem('offline-checklist-{{ $checklist->id }}', JSON.stringify(saveData));
-            
-            // Update UI to show saved status
-            document.getElementById('save-btn-text').textContent = 'Saved Offline!';
-            document.getElementById('save-indicator').classList.remove('hidden');
-            
-            setTimeout(() => {
-                document.getElementById('save-btn-text').textContent = 'Save Checklist';
-                document.getElementById('save-indicator').classList.add('hidden');
-            }, 2000);
-            
-            // Show success message
-            const alertDiv = document.createElement('div');
-            alertDiv.className = 'bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded relative mb-4';
-            alertDiv.innerHTML = '<span>Checklist saved offline and will sync when online.</span>';
-            document.querySelector('form').prepend(alertDiv);
-            
-            // Auto-remove after 3 seconds
-            setTimeout(() => {
-                if (alertDiv.parentNode) {
-                    alertDiv.parentNode.removeChild(alertDiv);
-                }
-            }, 3000);
-        }
-        
-        // Function to submit checklist with offline capability
-        function submitChecklist() {
-            if (navigator.onLine) {
-                // If online, submit normally
-                document.getElementById('submit-indicator').classList.remove('hidden');
-                document.getElementById('submit-btn-text').textContent = 'Submitting...';
+        // Simple form validation before submission
+        document.querySelector('form').addEventListener('submit', function(e) {
+            // Check if submitting (not just saving)
+            if (e.submitter && e.submitter.getAttribute('formaction')) {
+                // This is a submit action, validate all required fields
+                const selects = this.querySelectorAll('select[required]');
+                let hasEmptyFields = false;
                 
-                // Try to submit the form
-                try {
-                    document.getElementById('submit-checklist-form').submit();
-                } catch (e) {
-                    // If submission fails, store for later sync
-                    queueChecklistSubmission();
-                }
-            } else {
-                // If offline, queue for later submission
-                queueChecklistSubmission();
-            }
-        }
-        
-        // Function to queue checklist for later submission
-        function queueChecklistSubmission() {
-            const formData = new FormData(document.querySelector('form'));
-            const checklistData = {};
-            
-            // Extract form data
-            for (let [key, value] of formData.entries()) {
-                checklistData[key] = value;
-            }
-            
-            // Queue the submission
-            const submissionData = {
-                id: Date.now(),
-                url: "{{ route('checklists.submit', $checklist->id) }}",
-                method: 'POST',
-                csrfToken: document.querySelector('input[name="_token"]').value,
-                data: checklistData,
-                queuedAt: new Date().toISOString(),
-                missionTitle: "{{ $checklist->mission->title }}",
-                checklistType: "{{ $checklist->type }}"
-            };
-            
-            // Add to submission queue
-            const queue = JSON.parse(localStorage.getItem('checklist-submission-queue') || '[]');
-            queue.push(submissionData);
-            localStorage.setItem('checklist-submission-queue', JSON.stringify(queue));
-            
-            // Update UI
-            document.getElementById('submit-btn-text').textContent = 'Queued!';
-            document.getElementById('submit-indicator').classList.remove('hidden');
-            
-            setTimeout(() => {
-                document.getElementById('submit-btn-text').textContent = 'Submit Checklist';
-                document.getElementById('submit-indicator').classList.add('hidden');
-            }, 2000);
-            
-            // Show queued message
-            const alertDiv = document.createElement('div');
-            alertDiv.className = 'bg-blue-100 border border-blue-400 text-blue-700 px-4 py-3 rounded relative mb-4';
-            alertDiv.innerHTML = '<span>Checklist queued for submission. Will submit when online.</span>';
-            document.querySelector('form').prepend(alertDiv);
-            
-            // Auto-remove after 3 seconds
-            setTimeout(() => {
-                if (alertDiv.parentNode) {
-                    alertDiv.parentNode.removeChild(alertDiv);
-                }
-            }, 3000);
-            
-            // Trigger service worker to sync when back online
-            if (navigator.serviceWorker && navigator.serviceWorker.controller) {
-                navigator.serviceWorker.controller.postMessage({ type: 'SYNC_DATA' });
-            }
-        }
-        
-        // Auto-sync when page loads and user comes online
-        window.addEventListener('load', function() {
-            if (navigator.onLine) {
-                // Check for any queued submissions
-                const queue = JSON.parse(localStorage.getItem('checklist-submission-queue') || '[]');
-                if (queue.length > 0) {
-                    // Trigger service worker to process queued items
-                    if (navigator.serviceWorker && navigator.serviceWorker.controller) {
-                        navigator.serviceWorker.controller.postMessage({ type: 'SYNC_DATA' });
+                selects.forEach(function(select) {
+                    if (!select.value) {
+                        hasEmptyFields = true;
+                        select.style.borderColor = '#ef4444'; // red border
+                    } else {
+                        select.style.borderColor = ''; // reset border
                     }
+                });
+                
+                if (hasEmptyFields) {
+                    e.preventDefault();
+                    alert('Please fill in all required fields before submitting.');
+                    return false;
                 }
             }
         });
     </script>
 
-    <form id="submit-checklist-form" action="{{ route('checklists.submit', $checklist->id) }}" method="POST" class="hidden">
-        @csrf
-    </form>
 </div>
 
 @push('scripts')
