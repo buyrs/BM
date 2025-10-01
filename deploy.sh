@@ -1,204 +1,139 @@
 #!/bin/bash
 
-# Laravel Production Deployment Script
-# This script handles the deployment of a Laravel application to production
+# Bail Mobilite Deployment Script
+# Usage: ./deploy.sh [environment]
+# Example: ./deploy.sh production
 
-set -e  # Exit on any error
+set -e  # Exit immediately if a command exits with a non-zero status
 
-echo "🚀 Starting Laravel deployment..."
+ENVIRONMENT=${1:-staging}
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+DEPLOY_DIR="/var/www/bail-mobilite"
 
-# Configuration
-APP_DIR=$(pwd)
-BACKUP_DIR="$APP_DIR/backups"
-TIMESTAMP=$(date +%Y%m%d_%H%M%S)
-
-# Colors for output
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-NC='\033[0m' # No Color
-
-# Function to print colored output
-print_status() {
-    echo -e "${GREEN}[INFO]${NC} $1"
+# Log function
+log() {
+    echo "[$(date +'%Y-%m-%d %H:%M:%S')] $1"
 }
 
-print_warning() {
-    echo -e "${YELLOW}[WARNING]${NC} $1"
-}
+# Check if running as root (or with sudo)
+if [[ $EUID -eq 0 ]]; then
+   log "This script should not be run as root"
+   exit 1
+fi
 
-print_error() {
-    echo -e "${RED}[ERROR]${NC} $1"
-}
+# Check if environment is valid
+if [[ "$ENVIRONMENT" != "staging" && "$ENVIRONMENT" != "production" ]]; then
+    log "Invalid environment. Use 'staging' or 'production'"
+    exit 1
+fi
 
-# Function to create backup
-create_backup() {
-    print_status "Creating backup..."
-    mkdir -p "$BACKUP_DIR"
-    
-    # Backup database
-    if [ -f ".env" ]; then
-        DB_CONNECTION=$(grep DB_CONNECTION .env | cut -d '=' -f2)
-        if [ "$DB_CONNECTION" = "sqlite" ]; then
-            DB_DATABASE=$(grep DB_DATABASE .env | cut -d '=' -f2)
-            if [ -f "$DB_DATABASE" ]; then
-                cp "$DB_DATABASE" "$BACKUP_DIR/database_$TIMESTAMP.sqlite"
-                print_status "Database backup created"
-            fi
-        fi
+log "Starting deployment for $ENVIRONMENT environment"
+
+# Backup current version
+log "Creating backup of current version..."
+TIMESTAMP=$(date +"%Y%m%d_%H%M%S")
+BACKUP_DIR="/backups/bail-mobilite_${TIMESTAMP}"
+mkdir -p "$BACKUP_DIR"
+
+# If application directory exists, backup important files
+if [ -d "$DEPLOY_DIR" ]; then
+    cp -r "$DEPLOY_DIR" "$BACKUP_DIR/"
+    log "Backup created at $BACKUP_DIR"
+else
+    log "No previous installation found, creating new directory"
+    sudo mkdir -p "$DEPLOY_DIR"
+fi
+
+# Get the latest code
+log "Pulling latest code from repository..."
+if [ -d "$DEPLOY_DIR/.git" ]; then
+    cd "$DEPLOY_DIR"
+    git fetch origin
+    if [ "$ENVIRONMENT" = "production" ]; then
+        git checkout main
+        git pull origin main
+    else
+        git checkout develop
+        git pull origin develop
     fi
-    
-    # Backup storage directory
-    if [ -d "storage" ]; then
-        tar -czf "$BACKUP_DIR/storage_$TIMESTAMP.tar.gz" storage/
-        print_status "Storage backup created"
+else
+    if [ "$ENVIRONMENT" = "production" ]; then
+        git clone -b main https://github.com/your-username/bail-mobilite.git "$DEPLOY_DIR"
+    else
+        git clone -b develop https://github.com/your-username/bail-mobilite.git "$DEPLOY_DIR"
     fi
-}
+    cd "$DEPLOY_DIR"
+fi
 
-# Function to check prerequisites
-check_prerequisites() {
-    print_status "Checking prerequisites..."
-    
-    # Check if composer is installed
-    if ! command -v composer &> /dev/null; then
-        print_error "Composer is not installed"
-        exit 1
-    fi
-    
-    # Check if PHP is installed
-    if ! command -v php &> /dev/null; then
-        print_error "PHP is not installed"
-        exit 1
-    fi
-    
-    # Check PHP version
-    PHP_VERSION=$(php -r "echo PHP_VERSION;")
-    print_status "PHP version: $PHP_VERSION"
-    
-    print_status "Prerequisites check passed"
-}
+# Set proper ownership
+log "Setting proper file permissions..."
+sudo chown -R $USER:$USER "$DEPLOY_DIR"
+sudo chmod -R 755 "$DEPLOY_DIR"
+sudo chmod -R 775 "$DEPLOY_DIR/storage"
+sudo chmod -R 775 "$DEPLOY_DIR/bootstrap/cache"
 
-# Function to update dependencies
-update_dependencies() {
-    print_status "Updating dependencies..."
-    
-    # Update Composer dependencies
-    composer install --no-dev --optimize-autoloader --no-interaction
-    
-    # Update NPM dependencies if package.json exists
-    if [ -f "package.json" ]; then
-        if command -v npm &> /dev/null; then
-            npm ci --production
-            if [ -f "package.json" ] && grep -q '"build"' package.json; then
-                npm run build
-            fi
-        else
-            print_warning "NPM not found, skipping asset compilation"
-        fi
-    fi
-}
+# Install PHP dependencies
+log "Installing PHP dependencies..."
+composer install --no-dev --optimize-autoloader
 
-# Function to run migrations
-run_migrations() {
-    print_status "Running database migrations..."
-    php artisan migrate --force
-}
+# Install and build frontend assets
+log "Installing and building frontend assets..."
+npm install --production
+npm run build
 
-# Function to optimize application
-optimize_application() {
-    print_status "Optimizing application..."
-    
-    # Clear caches
-    php artisan cache:clear
-    php artisan config:clear
-    php artisan route:clear
-    php artisan view:clear
-    
-    # Cache for production
-    php artisan config:cache
-    php artisan route:cache
-    php artisan view:cache
-    
-    # Optimize autoloader
-    composer dump-autoload --optimize
-}
+# Copy environment file based on environment
+log "Setting up environment configuration..."
+if [ -f ".env.$ENVIRONMENT" ]; then
+    cp ".env.$ENVIRONMENT" .env
+else
+    log "Environment file .env.$ENVIRONMENT not found. Using .env.example"
+    cp .env.example .env
+    log "Please configure your .env file before proceeding"
+    exit 1
+fi
 
-# Function to set permissions
-set_permissions() {
-    print_status "Setting file permissions..."
-    
-    # Set storage permissions
-    chmod -R 775 storage/
-    chmod -R 775 bootstrap/cache/
-    
-    # Set ownership (uncomment and modify as needed)
-    # chown -R www-data:www-data storage/
-    # chown -R www-data:www-data bootstrap/cache/
-}
+# Generate application key if not exists
+if ! grep -q "APP_KEY=" .env; then
+    log "Generating application key..."
+    php artisan key:generate --force
+fi
 
-# Function to restart services
-restart_services() {
-    print_status "Restarting services..."
-    
-    # Restart queue workers
-    php artisan queue:restart
-    
-    # Restart web server (uncomment as needed)
-    # sudo systemctl reload nginx
-    # sudo systemctl reload php8.1-fpm
-}
+# Run database migrations
+log "Running database migrations..."
+php artisan migrate --force
 
-# Function to run health checks
-run_health_checks() {
-    print_status "Running health checks..."
-    
-    # Check if application is responding
-    if command -v curl &> /dev/null; then
-        if curl -f -s http://localhost/health > /dev/null; then
-            print_status "Health check passed"
-        else
-            print_warning "Health check failed - application may not be responding"
-        fi
-    fi
-}
+# Clear and cache configuration for performance
+log "Optimizing application..."
+php artisan config:clear
+php artisan cache:clear
+php artisan route:clear
+php artisan view:clear
 
-# Main deployment process
-main() {
-    print_status "Laravel Production Deployment Started"
-    
-    # Enable maintenance mode
-    php artisan down --message="Deploying new version..." --retry=60
-    
-    # Create backup
-    create_backup
-    
-    # Check prerequisites
-    check_prerequisites
-    
-    # Update dependencies
-    update_dependencies
-    
-    # Run migrations
-    run_migrations
-    
-    # Optimize application
-    optimize_application
-    
-    # Set permissions
-    set_permissions
-    
-    # Restart services
-    restart_services
-    
-    # Disable maintenance mode
-    php artisan up
-    
-    # Run health checks
-    run_health_checks
-    
-    print_status "✅ Deployment completed successfully!"
-    print_status "Backup created at: $BACKUP_DIR"
-}
+php artisan config:cache
+php artisan route:cache
+php artisan view:cache
+php artisan event:cache
 
-# Run main function
-main "$@"
+# Restart services
+log "Restarting services..."
+if command -v supervisorctl &> /dev/null; then
+    sudo supervisorctl restart bail-mobilite-worker:*
+    log "Supervisor queue workers restarted"
+fi
+
+if command -v systemctl &> /dev/null; then
+    sudo systemctl reload nginx
+    log "Nginx configuration reloaded"
+fi
+
+# Run tests to verify deployment
+log "Running post-deployment tests..."
+php artisan test --parallel --exclude-group=integration
+
+log "Deployment completed successfully for $ENVIRONMENT environment!"
+log "Application is now running at: $(grep APP_URL .env | cut -d '=' -f2)"
+
+# Optional: Send deployment notification (requires configuration)
+# curl -X POST -H 'Content-type: application/json' \
+#   --data '{"text":"Deployment to '$ENVIRONMENT' completed successfully!"}' \
+#   $SLACK_WEBHOOK_URL

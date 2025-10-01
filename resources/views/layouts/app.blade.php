@@ -146,6 +146,11 @@
                     navigator.serviceWorker.register('/sw.js')
                         .then(function(registration) {
                             console.log('ServiceWorker registration successful');
+                            
+                            // Listen for messages from service worker
+                            if (navigator.serviceWorker.controller) {
+                                navigator.serviceWorker.controller.postMessage({type: 'SKIP_WAITING'});
+                            }
                         })
                         .catch(function(err) {
                             console.log('ServiceWorker registration failed: ', err);
@@ -194,6 +199,56 @@
                 installPrompt.classList.add('hidden');
             });
 
+            // Offline data storage functions
+            const OfflineData = {
+                // Store data to be synced when online
+                storeForSync: function(key, data) {
+                    const id = Date.now().toString();
+                    const item = {
+                        id: id,
+                        timestamp: new Date().toISOString(),
+                        data: data
+                    };
+                    
+                    const existingData = JSON.parse(localStorage.getItem(key) || '[]');
+                    existingData.push(item);
+                    localStorage.setItem(key, JSON.stringify(existingData));
+                    
+                    return id;
+                },
+                
+                // Get stored offline data
+                getStoredForSync: function(key) {
+                    return JSON.parse(localStorage.getItem(key) || '[]');
+                },
+                
+                // Remove synced data
+                removeStoredSync: function(key, id) {
+                    const existingData = JSON.parse(localStorage.getItem(key) || '[]');
+                    const updatedData = existingData.filter(item => item.id !== id);
+                    localStorage.setItem(key, JSON.stringify(updatedData));
+                },
+                
+                // Attempt to sync data when back online
+                syncWhenOnline: function() {
+                    if (navigator.onLine) {
+                        // Try to sync any stored offline data
+                        this.processStoredData();
+                    }
+                },
+                
+                processStoredData: function() {
+                    const checklistSubmissions = this.getStoredForSync('checklist-submissions');
+                    
+                    if (checklistSubmissions.length > 0) {
+                        // Trigger service worker to sync data
+                        if (navigator.serviceWorker && navigator.serviceWorker.controller) {
+                            navigator.serviceWorker.controller.postMessage({ type: 'SYNC_DATA' });
+                        }
+                    }
+                }
+            };
+
             // Mobile-specific enhancements
             document.addEventListener('DOMContentLoaded', function() {
                 // Prevent double-tap zoom on buttons
@@ -228,6 +283,11 @@
                 if ('scrollBehavior' in document.documentElement.style) {
                     document.documentElement.style.scrollBehavior = 'smooth';
                 }
+                
+                // Process any stored offline data when page loads
+                if (navigator.onLine) {
+                    OfflineData.processStoredData();
+                }
             });
 
             // Network status handling
@@ -235,12 +295,15 @@
                 const statusIndicator = document.getElementById('network-status');
                 if (navigator.onLine) {
                     if (statusIndicator) statusIndicator.classList.add('hidden');
+                    
+                    // Process offline data when back online
+                    OfflineData.syncWhenOnline();
                 } else {
                     if (!statusIndicator) {
                         const indicator = document.createElement('div');
                         indicator.id = 'network-status';
                         indicator.className = 'fixed top-0 left-0 right-0 bg-red-600 text-white text-center py-2 text-sm z-50';
-                        indicator.textContent = 'You are offline. Some features may be limited.';
+                        indicator.textContent = 'You are offline. Data will sync when connection is restored.';
                         document.body.appendChild(indicator);
                     } else {
                         statusIndicator.classList.remove('hidden');

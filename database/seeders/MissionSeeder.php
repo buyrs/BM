@@ -16,10 +16,16 @@ class MissionSeeder extends Seeder
      */
     public function run(): void
     {
-        // Get users by role
-        $admin = User::where('role', 'admin')->first();
-        $ops = User::where('role', 'ops')->first();
-        $checker = User::where('role', 'checker')->first();
+        // Get users by role using Spatie permissions
+        $admin = User::role('administrators')->first();
+        $ops = User::role('ops-staff')->first();
+        $checker = User::role('controllers')->first();
+
+        // Check if required users exist
+        if (!$admin || !$ops || !$checker) {
+            echo "Required users not found. Skipping mission seeding.\n";
+            return;
+        }
 
         // Sample missions data
         $missions = [
@@ -74,9 +80,9 @@ class MissionSeeder extends Seeder
                 'checkin_date' => $missionData['checkin_date'],
                 'checkout_date' => $missionData['checkout_date'],
                 'status' => $missionData['status'],
-                'admin_id' => $admin->id,
-                'ops_id' => $ops->id,
-                'checker_id' => $checker->id,
+                'admin_id' => $admin ? $admin->id : null,
+                'ops_id' => $ops ? $ops->id : null,
+                'checker_id' => $checker ? $checker->id : null,
             ]);
 
             // Create checklists for each mission
@@ -125,9 +131,9 @@ class MissionSeeder extends Seeder
                 'checkin_date' => now()->addDays(rand(1, 30)),
                 'checkout_date' => now()->addDays(rand(31, 60)),
                 'status' => $status,
-                'admin_id' => $admin->id,
-                'ops_id' => $ops->id,
-                'checker_id' => $checker->id,
+                'admin_id' => $admin ? $admin->id : null,
+                'ops_id' => $ops ? $ops->id : null,
+                'checker_id' => $checker ? $checker->id : null,
             ]);
 
             // Create checklists

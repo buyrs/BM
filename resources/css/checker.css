@@ -1,0 +1,46 @@
+/* Checker-specific styles */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Additional checker custom styles */
+.checker-dashboard {
+    @apply bg-gray-50 min-h-screen;
+}
+
+.checker-content {
+    @apply p-6 max-w-4xl mx-auto;
+}
+
+/* Checker-specific utility classes */
+.checker-card {
+    @apply bg-white rounded-lg shadow-md p-6 mb-4;
+}
+
+.checker-form {
+    @apply space-y-4;
+}
+
+.checker-item {
+    @apply border rounded-lg p-4 mb-4;
+}
+
+.checker-item.bad {
+    @apply border-red-500 bg-red-50;
+}
+
+.checker-item.average {
+    @apply border-yellow-500 bg-yellow-50;
+}
+
+.checker-item.good {
+    @apply border-green-500 bg-green-50;
+}
+
+.checker-item.excellent {
+    @apply border-green-700 bg-green-100;
+}
+
+.checker-item.need_a_fix {
+    @apply border-orange-500 bg-orange-50;
+}

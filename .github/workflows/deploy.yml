@@ -1,0 +1,84 @@
+name: Deployment Pipeline
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment: production
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup PHP
+      uses: shivammathur/setup-php@v2
+      with:
+        php-version: '8.2'
+        extensions: dom, curl, libxml, mbstring, zip, pcntl, pdo, sqlite, pdo_sqlite, bcmath, soap, intl, gd, exif, iconv, imagick
+        coverage: none
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+
+    - name: Install Composer dependencies
+      run: composer install --no-dev --optimize-autoloader
+
+    - name: Install NPM dependencies
+      run: npm install --production
+
+    - name: Build assets
+      run: npm run build
+
+    - name: Copy environment file
+      run: php -r "file_exists('.env') || copy('.env.production', '.env');"
+
+    - name: Generate application key
+      run: php artisan key:generate --force
+
+    - name: Run database migrations
+      run: php artisan migrate --force
+      env:
+        DB_HOST: ${{ secrets.DB_HOST }}
+        DB_PORT: ${{ secrets.DB_PORT }}
+        DB_DATABASE: ${{ secrets.DB_DATABASE }}
+        DB_USERNAME: ${{ secrets.DB_USERNAME }}
+        DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
+
+    - name: Clear and cache configuration
+      run: |
+        php artisan config:clear
+        php artisan cache:clear
+        php artisan config:cache
+        php artisan route:cache
+        php artisan view:cache
+
+    - name: Deploy to production server
+      uses: appleboy/ssh-action@v1.0.0
+      with:
+        host: ${{ secrets.HOST }}
+        username: ${{ secrets.USERNAME }}
+        key: ${{ secrets.SSH_PRIVATE_KEY }}
+        script: |
+          cd /var/www/bail-mobilite
+          git pull origin main
+          /usr/local/bin/composer install --no-dev --optimize-autoloader --working-dir=/var/www/bail-mobilite
+          npm install --production --prefix /var/www/bail-mobilite
+          npm run build --prefix /var/www/bail-mobilite
+          php /var/www/bail-mobilite/artisan migrate --force
+          php /var/www/bail-mobilite/artisan config:cache
+          php /var/www/bail-mobilite/artisan route:cache
+          php /var/www/bail-mobilite/artisan view:cache
+          sudo systemctl reload nginx
+          sudo supervisorctl restart bail-mobilite-worker:*
+
+    - name: Run deployment tests
+      run: php artisan test --env=testing
+      env:
+        DB_CONNECTION: sqlite
+        DB_DATABASE: ':memory:'

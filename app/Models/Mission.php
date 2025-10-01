@@ -10,7 +10,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 class Mission extends Model
 {
     use HasFactory;
-{
+
     protected $fillable = [
         'title',
         'description',
@@ -41,5 +41,13 @@ class Mission extends Model
     public function checklists(): HasMany
     {
         return $this->hasMany(Checklist::class);
+    }
+
+    /**
+     * Get the property associated with this mission.
+     */
+    public function property(): BelongsTo
+    {
+        return $this->belongsTo(Property::class, 'property_address', 'property_address');
     }
 }

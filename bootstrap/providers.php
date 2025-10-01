@@ -4,4 +4,5 @@ return [
     App\Providers\AppServiceProvider::class,
     App\Providers\EmailServiceProvider::class,
     App\Providers\AuditServiceProvider::class,
+    \Spatie\Permission\PermissionServiceProvider::class,
 ];

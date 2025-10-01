@@ -5,6 +5,7 @@ use App\Http\Controllers\Auth\OpsLoginController;
 use App\Http\Controllers\Auth\CheckerLoginController;
 use App\Http\Controllers\Auth\TwoFactorController;
 use App\Http\Controllers\Auth\TwoFactorChallengeController;
+use App\Http\Controllers\Auth\SocialiteController;
 use App\Http\Controllers\SecureFileController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\ChecklistController;
@@ -21,8 +22,21 @@ Route::get('/', function () {
     return view('welcome');
 });
 
-// Public Dashboard Route (fixes RouteNotFoundException)
+// Public Dashboard Route (redirects to appropriate dashboard based on user role)
 Route::get('/dashboard', function () {
+    if (auth()->check()) {
+        // Redirect to appropriate dashboard based on user roles
+        $user = auth()->user();
+        
+        if ($user->hasRole('super-admin') || $user->hasRole('administrators')) {
+            return redirect()->route('admin.dashboard');
+        } elseif ($user->hasRole('ops-staff')) {
+            return redirect()->route('ops.dashboard');
+        } elseif ($user->hasRole('controllers')) {
+            return redirect()->route('checker.dashboard');
+        }
+    }
+    
     return view('dashboard');
 })->name('dashboard');
 
@@ -183,6 +197,7 @@ Route::middleware('auth:ops')->group(function () {
 
     // Ops Mission Management
     Route::resource('/ops/missions', MissionController::class)->names('ops.missions');
+    Route::get('/ops/missions/search-properties', [MissionController::class, 'searchProperties'])->name('ops.missions.search-properties');
     
     // Ops Property Management
     Route::resource('/ops/properties', OpsPropertyController::class)->only(['index', 'show', 'create', 'store', 'edit', 'update'])->names('ops.properties');
@@ -215,6 +230,10 @@ Route::middleware('auth:checker')->group(function () {
 
 // Guest Checklist Access
 Route::get('/guest/checklists/{checklist}/{token}', [GuestChecklistController::class, 'show'])->name('guest.checklists.show');
+
+// Google OAuth Routes
+Route::get('/auth/google', [SocialiteController::class, 'redirectToGoogle'])->name('auth.google');
+Route::get('/auth/google/callback', [SocialiteController::class, 'handleGoogleCallback'])->name('auth.google.callback');
 
 // Two-Factor Authentication Routes
 Route::middleware('auth')->group(function () {

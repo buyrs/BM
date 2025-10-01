@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Mission;
 use App\Models\User;
 use App\Models\Checklist;
+use App\Models\Property;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 
@@ -36,6 +37,29 @@ class MissionController extends Controller
         }
 
         abort(403);
+    }
+
+    /**
+     * Search properties by address for mission creation
+     */
+    public function searchProperties(Request $request)
+    {
+        if (!auth()->guard('ops')->check()) {
+            abort(403);
+        }
+
+        $query = $request->input('query');
+        
+        if (strlen($query) < 2) {
+            return response()->json(['data' => []]);
+        }
+
+        $properties = Property::where('property_address', 'like', '%' . $query . '%')
+            ->select('id', 'property_address as name')
+            ->limit(10)
+            ->get();
+
+        return response()->json(['data' => $properties]);
     }
 
     public function store(Request $request)

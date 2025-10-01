@@ -67,6 +67,9 @@ class ChecklistController extends Controller
         // Only checkers can submit their assigned checklists
         if (auth()->guard('checker')->check() && $checklist->mission->checker_id === auth()->id()) {
             // Ensure all items are filled before submission
+            // Eager load checklist items to avoid N+1 queries
+            $checklist->load('checklistItems');
+            
             foreach ($checklist->checklistItems as $item) {
                 if (empty($item->state)) {
                     return back()->withErrors(['message' => 'Please fill all checklist items before submitting.']);

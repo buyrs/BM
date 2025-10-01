@@ -2,328 +2,203 @@
 
 namespace App\Services;
 
-use App\Models\FileMetadata;
-use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
-use Intervention\Image\ImageManager;
-use Intervention\Image\Drivers\Gd\Driver;
+use Intervention\Image\Facades\Image;
+use Illuminate\Support\Facades\Log;
 
-class ImageOptimizationService extends BaseService
+class ImageOptimizationService
 {
-    protected ImageManager $imageManager;
-    
-    protected array $thumbnailSizes = [
-        'small' => ['width' => 150, 'height' => 150],
-        'medium' => ['width' => 300, 'height' => 300],
-        'large' => ['width' => 800, 'height' => 600],
-    ];
-
-    public function __construct()
-    {
-        $this->imageManager = new ImageManager(new Driver());
-    }
-
     /**
-     * Optimize an uploaded image file.
+     * Optimize an image file
+     *
+     * @param string $filePath Path to the original image
+     * @param string|null $outputPath Path for the optimized image (optional)
+     * @param int $quality Quality percentage (1-100)
+     * @param int|null $maxWidth Maximum width in pixels
+     * @param int|null $maxHeight Maximum height in pixels
+     * @return string Path to the optimized image
      */
-    public function optimizeImage(UploadedFile $file, int $quality = 85): string
+    public function optimizeImage(string $filePath, ?string $outputPath = null, int $quality = 80, ?int $maxWidth = null, ?int $maxHeight = null): string
     {
-        if (!$this->isImage($file)) {
-            throw new \InvalidArgumentException('File is not an image');
-        }
+        try {
+            // If no output path is provided, create one based on the input
+            if (!$outputPath) {
+                $pathInfo = pathinfo($filePath);
+                $outputPath = $pathInfo['dirname'] . '/' . $pathInfo['filename'] . '_optimized.' . $pathInfo['extension'];
+            }
 
-        $image = $this->imageManager->read($file->getRealPath());
-        
-        // Auto-orient based on EXIF data
-        $image = $image->orient();
-        
-        // Resize if too large (max 2048px on longest side)
-        $maxDimension = 2048;
-        if ($image->width() > $maxDimension || $image->height() > $maxDimension) {
-            if ($image->width() > $image->height()) {
-                $image = $image->resize($maxDimension, null, function ($constraint) {
+            // Load the image using Intervention Image
+            $image = Image::make($filePath);
+            
+            // Resize if dimensions are specified
+            if ($maxWidth || $maxHeight) {
+                $image->resize($maxWidth, $maxHeight, function ($constraint) {
                     $constraint->aspectRatio();
-                });
-            } else {
-                $image = $image->resize(null, $maxDimension, function ($constraint) {
-                    $constraint->aspectRatio();
+                    $constraint->upsize();
                 });
             }
+            
+            // Save with specified quality
+            $image->save($outputPath, $quality);
+            
+            // Clean up memory
+            $image->destroy();
+            
+            return $outputPath;
+        } catch (\Exception $e) {
+            Log::error('Image optimization failed: ' . $e->getMessage());
+            return $filePath; // Return original if optimization fails
         }
-        
-        // Create temporary file for optimized image
-        $tempPath = tempnam(sys_get_temp_dir(), 'optimized_');
-        
-        // Save with compression
-        $image->save($tempPath, $quality);
-        
-        return $tempPath;
     }
 
     /**
-     * Generate thumbnails for an image.
+     * Generate multiple image sizes for responsive loading
+     *
+     * @param string $originalPath
+     * @param array $sizes Array of [width, height] pairs
+     * @param string $basePath Base path for output files
+     * @param int $quality
+     * @return array Array of generated file paths
      */
-    public function generateThumbnails(FileMetadata $fileMetadata): array
+    public function generateResponsiveImages(string $originalPath, array $sizes, string $basePath, int $quality = 80): array
     {
-        if (!$fileMetadata->isImage() || !$fileMetadata->exists()) {
-            return [];
-        }
-
-        $thumbnails = [];
-        $originalPath = Storage::disk($fileMetadata->storage_disk)->path($fileMetadata->path);
-        $image = $this->imageManager->read($originalPath);
+        $generatedPaths = [];
         
-        foreach ($this->thumbnailSizes as $size => $dimensions) {
-            $thumbnail = clone $image;
+        foreach ($sizes as $index => $size) {
+            $width = $size[0];
+            $height = $size[1] ?? null;
             
-            // Resize maintaining aspect ratio
-            $thumbnail = $thumbnail->resize(
-                $dimensions['width'], 
-                $dimensions['height'], 
-                function ($constraint) {
-                    $constraint->aspectRatio();
-                    $constraint->upsize(); // Don't upscale small images
-                }
+            $sizeName = $width . ($height ? 'x' . $height : '');
+            $outputPath = $basePath . '/size_' . $sizeName . '_' . basename($originalPath);
+            
+            $optimizedPath = $this->optimizeImage(
+                $originalPath,
+                $outputPath,
+                $quality,
+                $width,
+                $height
             );
             
-            // Generate thumbnail path
-            $pathInfo = pathinfo($fileMetadata->path);
-            $thumbnailPath = $pathInfo['dirname'] . '/thumbnails/' . 
-                           $pathInfo['filename'] . '_' . $size . '.' . $pathInfo['extension'];
-            
-            // Save thumbnail
-            $thumbnailFullPath = Storage::disk($fileMetadata->storage_disk)->path($thumbnailPath);
-            
-            // Ensure directory exists
-            $thumbnailDir = dirname($thumbnailFullPath);
-            if (!is_dir($thumbnailDir)) {
-                mkdir($thumbnailDir, 0755, true);
-            }
-            
-            $thumbnail->save($thumbnailFullPath, 85);
-            
-            $thumbnails[$size] = [
-                'path' => $thumbnailPath,
-                'url' => Storage::disk($fileMetadata->storage_disk)->url($thumbnailPath),
-                'width' => $thumbnail->width(),
-                'height' => $thumbnail->height(),
-            ];
+            $generatedPaths[$sizeName] = $optimizedPath;
         }
         
-        // Update file metadata with thumbnail info
-        $metadata = $fileMetadata->metadata ?? [];
-        $metadata['thumbnails'] = $thumbnails;
-        $fileMetadata->update(['metadata' => $metadata]);
-        
-        return $thumbnails;
+        return $generatedPaths;
     }
 
     /**
-     * Extract comprehensive image metadata.
+     * Optimize and store an uploaded image
+     *
+     * @param \Illuminate\Http\UploadedFile $file
+     * @param string $directory
+     * @param string|null $fileName
+     * @param int $quality
+     * @param int|null $maxWidth
+     * @param int|null $maxHeight
+     * @return string Path to the stored optimized image
      */
-    public function extractImageMetadata(string $imagePath): array
+    public function storeOptimizedImage($file, string $directory, ?string $fileName = null, int $quality = 80, ?int $maxWidth = 1920, ?int $maxHeight = 1080): string
     {
-        $metadata = [];
+        if (!$fileName) {
+            $fileName = time() . '_' . $file->getClientOriginalName();
+        }
         
+        // Store the original file temporarily
+        $tempPath = $file->storeAs('temp', $fileName, 'local');
+        $tempFullPath = Storage::disk('local')->path($tempPath);
+        
+        // Optimize the image
+        $optimizedTempPath = $this->optimizeImage($tempFullPath, null, $quality, $maxWidth, $maxHeight);
+        
+        // Move to the final destination
+        $finalPath = $directory . '/' . $fileName;
+        $finalFullPath = Storage::disk('public')->putFileAs($directory, new \Illuminate\Http\UploadedFile($optimizedTempPath, $fileName), $fileName);
+        
+        // Clean up temporary files
+        unlink($tempFullPath);
+        if ($optimizedTempPath !== $tempFullPath) {
+            unlink($optimizedTempPath);
+        }
+        
+        return $finalPath;
+    }
+
+    /**
+     * Get optimized image URL with query parameters for different sizes
+     *
+     * @param string $imagePath
+     * @param int|null $width
+     * @param int|null $height
+     * @param int $quality
+     * @return string
+     */
+    public function getOptimizedImageUrl(string $imagePath, ?int $width = null, ?int $height = null, int $quality = 80): string
+    {
+        $url = Storage::url($imagePath);
+        
+        $params = [];
+        if ($width) $params['w'] = $width;
+        if ($height) $params['h'] = $height;
+        if ($quality != 80) $params['q'] = $quality; // Only add if not default
+        
+        if (!empty($params)) {
+            $separator = strpos($url, '?') !== false ? '&' : '?';
+            $url .= $separator . http_build_query($params);
+        }
+        
+        return $url;
+    }
+
+    /**
+     * Generate WebP version of an image for better compression
+     *
+     * @param string $imagePath
+     * @param int $quality
+     * @return string|null Path to WebP version, or null if not supported
+     */
+    public function generateWebPVersion(string $imagePath, int $quality = 80): ?string
+    {
         try {
-            $image = $this->imageManager->read($imagePath);
+            $pathInfo = pathinfo($imagePath);
+            $webPPath = $pathInfo['dirname'] . '/' . $pathInfo['filename'] . '.webp';
             
-            $metadata['width'] = $image->width();
-            $metadata['height'] = $image->height();
-            $metadata['aspect_ratio'] = round($image->width() / $image->height(), 2);
+            // Load and convert to WebP
+            $image = Image::make(Storage::disk('public')->path($imagePath));
+            $webPPathFull = Storage::disk('public')->path($webPPath);
+            $image->encode('webp', $quality)->save($webPPathFull);
+            $image->destroy();
             
-            // Get EXIF data if available
-            $exifData = @exif_read_data($imagePath);
-            if ($exifData) {
-                $metadata['exif'] = [
-                    'camera_make' => $exifData['Make'] ?? null,
-                    'camera_model' => $exifData['Model'] ?? null,
-                    'date_taken' => $exifData['DateTime'] ?? null,
-                    'orientation' => $exifData['Orientation'] ?? null,
-                    'flash' => $exifData['Flash'] ?? null,
-                    'focal_length' => $exifData['FocalLength'] ?? null,
-                    'iso' => $exifData['ISOSpeedRatings'] ?? null,
-                    'aperture' => $exifData['COMPUTED']['ApertureFNumber'] ?? null,
-                    'exposure_time' => $exifData['ExposureTime'] ?? null,
-                ];
-                
-                // GPS coordinates if available
-                if (isset($exifData['GPSLatitude']) && isset($exifData['GPSLongitude'])) {
-                    $metadata['gps'] = [
-                        'latitude' => $this->convertGpsCoordinate($exifData['GPSLatitude'], $exifData['GPSLatitudeRef']),
-                        'longitude' => $this->convertGpsCoordinate($exifData['GPSLongitude'], $exifData['GPSLongitudeRef']),
-                    ];
-                }
-            }
-            
-            // Color analysis
-            $metadata['colors'] = $this->extractDominantColors($image);
-            
+            return $webPPath;
         } catch (\Exception $e) {
-            $metadata['error'] = 'Failed to extract metadata: ' . $e->getMessage();
-        }
-        
-        return $metadata;
-    }
-
-    /**
-     * Convert image to different format.
-     */
-    public function convertFormat(FileMetadata $fileMetadata, string $targetFormat, int $quality = 85): ?FileMetadata
-    {
-        if (!$fileMetadata->isImage() || !$fileMetadata->exists()) {
+            Log::error('WebP conversion failed: ' . $e->getMessage());
             return null;
         }
-
-        $supportedFormats = ['jpg', 'jpeg', 'png', 'gif', 'webp'];
-        if (!in_array(strtolower($targetFormat), $supportedFormats)) {
-            throw new \InvalidArgumentException('Unsupported target format');
-        }
-
-        $originalPath = Storage::disk($fileMetadata->storage_disk)->path($fileMetadata->path);
-        $image = $this->imageManager->read($originalPath);
-        
-        // Generate new filename
-        $pathInfo = pathinfo($fileMetadata->path);
-        $newPath = $pathInfo['dirname'] . '/' . $pathInfo['filename'] . '_converted.' . $targetFormat;
-        $newFullPath = Storage::disk($fileMetadata->storage_disk)->path($newPath);
-        
-        // Convert and save
-        $image->save($newFullPath, $quality);
-        
-        // Create new file metadata record
-        $newFileMetadata = $fileMetadata->replicate();
-        $newFileMetadata->filename = $pathInfo['filename'] . '_converted.' . $targetFormat;
-        $newFileMetadata->path = $newPath;
-        $newFileMetadata->mime_type = 'image/' . ($targetFormat === 'jpg' ? 'jpeg' : $targetFormat);
-        $newFileMetadata->size = filesize($newFullPath);
-        $newFileMetadata->file_hash = hash_file('sha256', $newFullPath);
-        $newFileMetadata->save();
-        
-        return $newFileMetadata;
     }
 
     /**
-     * Batch optimize images.
+     * Create image with multiple formats (original + WebP) for modern browsers
+     *
+     * @param \Illuminate\Http\UploadedFile $file
+     * @param string $directory
+     * @param string|null $fileName
+     * @param int $quality
+     * @param int|null $maxWidth
+     * @param int|null $maxHeight
+     * @return array Array with paths for different formats
      */
-    public function batchOptimizeImages(array $fileMetadataIds, int $quality = 85): array
+    public function storeMultipleFormats($file, string $directory, ?string $fileName = null, int $quality = 80, ?int $maxWidth = 1920, ?int $maxHeight = 1080): array
     {
-        $results = [];
+        $result = [];
         
-        foreach ($fileMetadataIds as $id) {
-            $fileMetadata = FileMetadata::find($id);
-            if (!$fileMetadata || !$fileMetadata->isImage()) {
-                $results[$id] = ['success' => false, 'message' => 'File not found or not an image'];
-                continue;
-            }
-            
-            try {
-                // Generate thumbnails
-                $thumbnails = $this->generateThumbnails($fileMetadata);
-                
-                // Extract metadata
-                $originalPath = Storage::disk($fileMetadata->storage_disk)->path($fileMetadata->path);
-                $metadata = $this->extractImageMetadata($originalPath);
-                
-                // Update file metadata
-                $existingMetadata = $fileMetadata->metadata ?? [];
-                $fileMetadata->update(['metadata' => array_merge($existingMetadata, $metadata)]);
-                
-                $results[$id] = [
-                    'success' => true,
-                    'thumbnails' => $thumbnails,
-                    'metadata' => $metadata
-                ];
-            } catch (\Exception $e) {
-                $results[$id] = ['success' => false, 'message' => $e->getMessage()];
-            }
+        // Store original format
+        $originalPath = $this->storeOptimizedImage($file, $directory, $fileName, $quality, $maxWidth, $maxHeight);
+        $result['original'] = $originalPath;
+        
+        // Generate WebP version
+        $webPPath = $this->generateWebPVersion($originalPath, $quality);
+        if ($webPPath) {
+            $result['webp'] = $webPPath;
         }
         
-        return $results;
-    }
-
-    /**
-     * Check if file is an image.
-     */
-    protected function isImage(UploadedFile $file): bool
-    {
-        return str_starts_with($file->getMimeType(), 'image/');
-    }
-
-    /**
-     * Convert GPS coordinates from EXIF format to decimal degrees.
-     */
-    protected function convertGpsCoordinate(array $coordinate, string $hemisphere): float
-    {
-        $degrees = count($coordinate) > 0 ? $this->gpsToDecimal($coordinate[0]) : 0;
-        $minutes = count($coordinate) > 1 ? $this->gpsToDecimal($coordinate[1]) : 0;
-        $seconds = count($coordinate) > 2 ? $this->gpsToDecimal($coordinate[2]) : 0;
-        
-        $decimal = $degrees + ($minutes / 60) + ($seconds / 3600);
-        
-        if ($hemisphere === 'S' || $hemisphere === 'W') {
-            $decimal *= -1;
-        }
-        
-        return $decimal;
-    }
-
-    /**
-     * Convert GPS fraction to decimal.
-     */
-    protected function gpsToDecimal(string $fraction): float
-    {
-        $parts = explode('/', $fraction);
-        if (count($parts) === 2 && $parts[1] != 0) {
-            return $parts[0] / $parts[1];
-        }
-        return (float) $fraction;
-    }
-
-    /**
-     * Extract dominant colors from image.
-     */
-    protected function extractDominantColors($image, int $colorCount = 5): array
-    {
-        // This is a simplified color extraction
-        // In production, you might want to use a more sophisticated algorithm
-        try {
-            // Resize image for faster processing
-            $smallImage = clone $image;
-            $smallImage = $smallImage->resize(100, 100);
-            
-            // For now, return a placeholder
-            // A real implementation would analyze pixel colors
-            return [
-                'dominant' => '#' . dechex(rand(0, 16777215)),
-                'palette' => array_map(fn() => '#' . dechex(rand(0, 16777215)), range(1, $colorCount))
-            ];
-        } catch (\Exception $e) {
-            return ['error' => 'Color extraction failed'];
-        }
-    }
-
-    /**
-     * Clean up old thumbnails.
-     */
-    public function cleanupThumbnails(FileMetadata $fileMetadata): bool
-    {
-        if (!isset($fileMetadata->metadata['thumbnails'])) {
-            return true;
-        }
-        
-        $success = true;
-        foreach ($fileMetadata->metadata['thumbnails'] as $thumbnail) {
-            if (!Storage::disk($fileMetadata->storage_disk)->delete($thumbnail['path'])) {
-                $success = false;
-            }
-        }
-        
-        // Remove thumbnail info from metadata
-        $metadata = $fileMetadata->metadata;
-        unset($metadata['thumbnails']);
-        $fileMetadata->update(['metadata' => $metadata]);
-        
-        return $success;
+        return $result;
     }
 }

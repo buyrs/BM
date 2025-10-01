@@ -23,8 +23,8 @@ class FileManagerController extends Controller
      */
     public function index(Request $request)
     {
-        $properties = Property::select('id', 'name')->get();
-        $missions = Mission::select('id', 'title', 'property_id')->with('property:id,name')->get();
+        $properties = Property::select('id', 'property_address as name')->get();
+        $missions = Mission::select('id', 'title', 'property_address')->get();
 
         return view('admin.file-manager.index', compact('properties', 'missions'));
     }

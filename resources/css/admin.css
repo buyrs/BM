@@ -1,0 +1,34 @@
+/* Admin-specific styles */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Additional admin custom styles */
+.admin-dashboard {
+    @apply bg-gray-50 min-h-screen;
+}
+
+.admin-sidebar {
+    @apply bg-white shadow-md w-64 min-h-screen;
+}
+
+.admin-content {
+    @apply ml-64 p-6;
+}
+
+/* Admin-specific utility classes */
+.admin-card {
+    @apply bg-white rounded-lg shadow-md p-6 mb-4;
+}
+
+.admin-table {
+    @apply min-w-full divide-y divide-gray-200;
+}
+
+.admin-table th {
+    @apply px-6 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider;
+}
+
+.admin-table td {
+    @apply px-6 py-4 whitespace-nowrap text-sm text-gray-500;
+}

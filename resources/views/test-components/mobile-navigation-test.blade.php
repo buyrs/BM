@@ -1,0 +1,1 @@
+<x-mobile-navigation :userRole="$userRole" />

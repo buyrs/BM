@@ -10,7 +10,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 class Checklist extends Model
 {
     use HasFactory;
-{
+
     protected $fillable = [
         'mission_id',
         'type',

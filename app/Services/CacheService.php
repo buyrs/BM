@@ -3,312 +3,443 @@
 namespace App\Services;
 
 use Illuminate\Support\Facades\Cache;
-use Illuminate\Support\Facades\Log;
-use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\Redis;
 
-class CacheService extends BaseService implements \App\Contracts\CacheServiceInterface
+class CacheService
 {
-    protected array $taggedCacheKeys = [];
-
-    protected function getDefaultConfig(): array
+    /**
+     * Cache frequently accessed data
+     *
+     * @param string $key
+     * @param mixed $data
+     * @param int $ttl Time to live in seconds (default: 3600 seconds = 1 hour)
+     * @return mixed
+     */
+    public function put(string $key, mixed $data, int $ttl = 3600): mixed
     {
-        return config('cache');
+        return Cache::put($key, $data, now()->addSeconds($ttl));
     }
 
     /**
-     * Get cached data or execute callback and cache result
+     * Put data in cache using configuration
+     *
+     * @param string $type Cache type defined in CacheConfig
+     * @param array $params Parameters to replace in key pattern
+     * @param mixed $data Data to cache
+     * @return mixed
      */
-    public function remember(string $key, $ttl, callable $callback, array $tags = [])
+    public function putWithConfig(string $type, array $params, mixed $data): mixed
     {
-        try {
-            if (!empty($tags)) {
-                return Cache::tags($tags)->remember($key, $ttl, $callback);
-            }
-
-            return Cache::remember($key, $ttl, $callback);
-        } catch (\Exception $e) {
-            Log::error('Cache remember failed', [
-                'key' => $key,
-                'tags' => $tags,
-                'error' => $e->getMessage()
-            ]);
-
-            // Fallback to executing callback without caching
-            return $callback();
-        }
-    }
-
-    /**
-     * Store data in cache
-     */
-    public function put(string $key, $value, $ttl = null, array $tags = []): bool
-    {
-        try {
-            $ttl = $ttl ?? config('cache.default_ttl', 3600);
-
-            if (!empty($tags)) {
-                return Cache::tags($tags)->put($key, $value, $ttl);
-            }
-
-            return Cache::put($key, $value, $ttl);
-        } catch (\Exception $e) {
-            Log::error('Cache put failed', [
-                'key' => $key,
-                'tags' => $tags,
-                'error' => $e->getMessage()
-            ]);
-            return false;
-        }
-    }
-
-    /**
-     * Get data from cache
-     */
-    public function get(string $key, $default = null, array $tags = [])
-    {
-        try {
-            if (!empty($tags)) {
-                return Cache::tags($tags)->get($key, $default);
-            }
-
-            return Cache::get($key, $default);
-        } catch (\Exception $e) {
-            Log::error('Cache get failed', [
-                'key' => $key,
-                'tags' => $tags,
-                'error' => $e->getMessage()
-            ]);
-            return $default;
-        }
-    }
-
-    /**
-     * Remove data from cache
-     */
-    public function forget(string $key, array $tags = []): bool
-    {
-        try {
-            if (!empty($tags)) {
-                return Cache::tags($tags)->forget($key);
-            }
-
-            return Cache::forget($key);
-        } catch (\Exception $e) {
-            Log::error('Cache forget failed', [
-                'key' => $key,
-                'tags' => $tags,
-                'error' => $e->getMessage()
-            ]);
-            return false;
-        }
-    }
-
-    /**
-     * Flush cache by tags
-     */
-    public function flushTags(array $tags): bool
-    {
-        try {
-            Cache::tags($tags)->flush();
-            return true;
-        } catch (\Exception $e) {
-            Log::error('Cache flush tags failed', [
-                'tags' => $tags,
-                'error' => $e->getMessage()
-            ]);
-            return false;
-        }
-    }
-
-    /**
-     * Generate cache key for model
-     */
-    public function modelKey(Model $model, string $suffix = ''): string
-    {
-        $key = strtolower(class_basename($model)) . ':' . $model->getKey();
-        return $suffix ? $key . ':' . $suffix : $key;
-    }
-
-    /**
-     * Generate cache key for collection
-     */
-    public function collectionKey(string $model, array $params = []): string
-    {
-        $key = strtolower($model) . ':collection';
+        $keyPattern = CacheConfig::getKeyPattern($type);
+        $key = $this->replaceKeyPattern($keyPattern, $params);
+        $ttl = CacheConfig::getTtl($type);
         
-        if (!empty($params)) {
-            ksort($params);
-            $key .= ':' . md5(serialize($params));
-        }
+        return $this->put($key, $data, $ttl);
+    }
 
+    /**
+     * Get cached data
+     *
+     * @param string $key
+     * @param mixed $default
+     * @return mixed
+     */
+    public function get(string $key, mixed $default = null): mixed
+    {
+        return Cache::get($key, $default);
+    }
+
+    /**
+     * Get cached data using configuration
+     *
+     * @param string $type Cache type defined in CacheConfig
+     * @param array $params Parameters to replace in key pattern
+     * @param mixed $default Default value
+     * @return mixed
+     */
+    public function getWithConfig(string $type, array $params, mixed $default = null): mixed
+    {
+        $keyPattern = CacheConfig::getKeyPattern($type);
+        $key = $this->replaceKeyPattern($keyPattern, $params);
+        
+        return $this->get($key, $default);
+    }
+
+    /**
+     * Get cached data or store if not exists
+     *
+     * @param string $key
+     * @param int $ttl
+     * @param callable $callback
+     * @return mixed
+     */
+    public function remember(string $key, int $ttl, callable $callback): mixed
+    {
+        return Cache::remember($key, now()->addSeconds($ttl), $callback);
+    }
+
+    /**
+     * Get cached data or store if not exists using configuration
+     *
+     * @param string $type Cache type defined in CacheConfig
+     * @param array $params Parameters to replace in key pattern
+     * @param callable $callback
+     * @return mixed
+     */
+    public function rememberWithConfig(string $type, array $params, callable $callback): mixed
+    {
+        $keyPattern = CacheConfig::getKeyPattern($type);
+        $key = $this->replaceKeyPattern($keyPattern, $params);
+        $ttl = CacheConfig::getTtl($type);
+        
+        return $this->remember($key, $ttl, $callback);
+    }
+
+    /**
+     * Get cached data or store forever if not exists
+     *
+     * @param string $key
+     * @param callable $callback
+     * @return mixed
+     */
+    public function rememberForever(string $key, callable $callback): mixed
+    {
+        return Cache::rememberForever($key, $callback);
+    }
+
+    /**
+     * Remove item from cache
+     *
+     * @param string $key
+     * @return bool
+     */
+    public function forget(string $key): bool
+    {
+        return Cache::forget($key);
+    }
+
+    /**
+     * Remove item from cache using configuration
+     *
+     * @param string $type Cache type defined in CacheConfig
+     * @param array $params Parameters to replace in key pattern
+     * @return bool
+     */
+    public function forgetWithConfig(string $type, array $params): bool
+    {
+        $keyPattern = CacheConfig::getKeyPattern($type);
+        $key = $this->replaceKeyPattern($keyPattern, $params);
+        
+        return $this->forget($key);
+    }
+
+    /**
+     * Check if key exists in cache
+     *
+     * @param string $key
+     * @return bool
+     */
+    public function has(string $key): bool
+    {
+        return Cache::has($key);
+    }
+
+    /**
+     * Check if key exists in cache using configuration
+     *
+     * @param string $type Cache type defined in CacheConfig
+     * @param array $params Parameters to replace in key pattern
+     * @return bool
+     */
+    public function hasWithConfig(string $type, array $params): bool
+    {
+        $keyPattern = CacheConfig::getKeyPattern($type);
+        $key = $this->replaceKeyPattern($keyPattern, $params);
+        
+        return $this->has($key);
+    }
+
+    /**
+     * Increment cached value
+     *
+     * @param string $key
+     * @param int $value
+     * @return int|bool
+     */
+    public function increment(string $key, int $value = 1): int|bool
+    {
+        return Cache::increment($key, $value);
+    }
+
+    /**
+     * Decrement cached value
+     *
+     * @param string $key
+     * @param int $value
+     * @return int|bool
+     */
+    public function decrement(string $key, int $value = 1): int|bool
+    {
+        return Cache::decrement($key, $value);
+    }
+
+    /**
+     * Get Redis connection instance
+     *
+     * @return \Illuminate\Redis\Connections\Connection
+     */
+    public function redis(): \Illuminate\Redis\Connections\Connection
+    {
+        return Redis::connection();
+    }
+
+    /**
+     * Cache user permissions for faster lookup
+     *
+     * @param int $userId
+     * @param array $permissions
+     * @return void
+     */
+    public function cacheUserPermissions(int $userId, array $permissions): void
+    {
+        $this->putWithConfig('user_permissions', ['id' => $userId], $permissions);
+    }
+
+    /**
+     * Get cached user permissions
+     *
+     * @param int $userId
+     * @return array|null
+     */
+    public function getCachedUserPermissions(int $userId): ?array
+    {
+        return $this->getWithConfig('user_permissions', ['id' => $userId]);
+    }
+
+    /**
+     * Cache user roles
+     *
+     * @param int $userId
+     * @param array $roles
+     * @return void
+     */
+    public function cacheUserRoles(int $userId, array $roles): void
+    {
+        $this->putWithConfig('user_roles', ['id' => $userId], $roles);
+    }
+
+    /**
+     * Get cached user roles
+     *
+     * @param int $userId
+     * @return array|null
+     */
+    public function getCachedUserRoles(int $userId): ?array
+    {
+        return $this->getWithConfig('user_roles', ['id' => $userId]);
+    }
+
+    /**
+     * Cache role permissions
+     *
+     * @param string $roleName
+     * @param array $permissions
+     * @return void
+     */
+    public function cacheRolePermissions(string $roleName, array $permissions): void
+    {
+        $this->putWithConfig('role_permissions', ['name' => $roleName], $permissions);
+    }
+
+    /**
+     * Get cached role permissions
+     *
+     * @param string $roleName
+     * @return array|null
+     */
+    public function getCachedRolePermissions(string $roleName): ?array
+    {
+        return $this->getWithConfig('role_permissions', ['name' => $roleName]);
+    }
+
+    /**
+     * Cache frequently accessed configuration data
+     *
+     * @param string $configKey
+     * @param mixed $configValue
+     * @return void
+     */
+    public function cacheConfig(string $configKey, mixed $configValue): void
+    {
+        $this->putWithConfig('config', ['key' => $configKey], $configValue);
+    }
+
+    /**
+     * Get cached configuration data
+     *
+     * @param string $configKey
+     * @return mixed
+     */
+    public function getCachedConfig(string $configKey): mixed
+    {
+        return $this->getWithConfig('config', ['key' => $configKey]);
+    }
+
+    /**
+     * Cache query results
+     *
+     * @param string $queryKey
+     * @param mixed $results
+     * @param int $ttl
+     * @return void
+     */
+    public function cacheQuery(string $queryKey, mixed $results, int $ttl = 1800): void
+    {
+        $key = "query_{$queryKey}";
+        $this->put($key, $results, $ttl);
+    }
+
+    /**
+     * Get cached query results
+     *
+     * @param string $queryKey
+     * @return mixed
+     */
+    public function getCachedQuery(string $queryKey): mixed
+    {
+        $key = "query_{$queryKey}";
+        return $this->get($key);
+    }
+
+    /**
+     * Cache dashboard statistics
+     *
+     * @param int $userId
+     * @param string $type
+     * @param mixed $stats
+     * @return void
+     */
+    public function cacheDashboardStats(int $userId, string $type, mixed $stats): void
+    {
+        $this->putWithConfig('dashboard_stats', ['type' => $type, 'user_id' => $userId], $stats);
+    }
+
+    /**
+     * Get cached dashboard statistics
+     *
+     * @param int $userId
+     * @param string $type
+     * @return mixed
+     */
+    public function getCachedDashboardStats(int $userId, string $type): mixed
+    {
+        return $this->getWithConfig('dashboard_stats', ['type' => $type, 'user_id' => $userId]);
+    }
+
+    /**
+     * Cache dropdown data
+     *
+     * @param string $type
+     * @param mixed $data
+     * @return void
+     */
+    public function cacheDropdownData(string $type, mixed $data): void
+    {
+        $this->putWithConfig('dropdown_data', ['type' => $type], $data);
+    }
+
+    /**
+     * Get cached dropdown data
+     *
+     * @param string $type
+     * @return mixed
+     */
+    public function getCachedDropdownData(string $type): mixed
+    {
+        return $this->getWithConfig('dropdown_data', ['type' => $type]);
+    }
+
+    /**
+     * Cache mission summary for user
+     *
+     * @param int $userId
+     * @param mixed $summary
+     * @return void
+     */
+    public function cacheMissionSummary(int $userId, mixed $summary): void
+    {
+        $this->putWithConfig('mission_summary', ['user_id' => $userId], $summary);
+    }
+
+    /**
+     * Get cached mission summary for user
+     *
+     * @param int $userId
+     * @return mixed
+     */
+    public function getCachedMissionSummary(int $userId): mixed
+    {
+        return $this->getWithConfig('mission_summary', ['user_id' => $userId]);
+    }
+
+    /**
+     * Clear all cached permissions
+     *
+     * @return void
+     */
+    public function clearPermissionCache(): void
+    {
+        // In a real Redis implementation, you might use Redis patterns to delete keys
+        // For now, we'll just flush all cache (in production, be more specific)
+        Cache::flush();
+    }
+
+    /**
+     * Clear user-specific cached permissions
+     *
+     * @param int $userId
+     * @return void
+     */
+    public function clearUserPermissionCache(int $userId): void
+    {
+        $this->forgetWithConfig('user_permissions', ['id' => $userId]);
+    }
+
+    /**
+     * Clear user-specific cached roles
+     *
+     * @param int $userId
+     * @return void
+     */
+    public function clearUserRoleCache(int $userId): void
+    {
+        $this->forgetWithConfig('user_roles', ['id' => $userId]);
+    }
+
+    /**
+     * Clear role-specific cached permissions
+     *
+     * @param string $roleName
+     * @return void
+     */
+    public function clearRolePermissionCache(string $roleName): void
+    {
+        $this->forgetWithConfig('role_permissions', ['name' => $roleName]);
+    }
+
+    /**
+     * Replace placeholders in key pattern with actual values
+     *
+     * @param string $pattern
+     * @param array $params
+     * @return string
+     */
+    private function replaceKeyPattern(string $pattern, array $params): string
+    {
+        $key = $pattern;
+        foreach ($params as $param => $value) {
+            $key = str_replace("{{$param}}", $value, $key);
+        }
         return $key;
-    }
-
-    /**
-     * Cache model data with automatic invalidation
-     */
-    public function cacheModel(Model $model, $ttl = null): bool
-    {
-        $key = $this->modelKey($model);
-        $tags = $this->getModelTags($model);
-        
-        return $this->put($key, $model->toArray(), $ttl, $tags);
-    }
-
-    /**
-     * Get cached model data
-     */
-    public function getCachedModel(string $modelClass, $id)
-    {
-        $key = strtolower(class_basename($modelClass)) . ':' . $id;
-        $tags = [strtolower(class_basename($modelClass))];
-        
-        return $this->get($key, null, $tags);
-    }
-
-    /**
-     * Invalidate model cache
-     */
-    public function invalidateModel(Model $model): bool
-    {
-        $tags = $this->getModelTags($model);
-        return $this->flushTags($tags);
-    }
-
-    /**
-     * Get cache tags for model
-     */
-    protected function getModelTags(Model $model): array
-    {
-        $baseTag = strtolower(class_basename($model));
-        $tags = [$baseTag];
-
-        // Add relationship tags if model has specific relationships
-        if (method_exists($model, 'getCacheInvalidationTags')) {
-            $tags = array_merge($tags, $model->getCacheInvalidationTags());
-        }
-
-        return $tags;
-    }
-
-    /**
-     * Warm up frequently accessed cache data
-     */
-    public function warmCache(): void
-    {
-        try {
-            Log::info('Starting cache warming process');
-
-            // Warm up user data
-            $this->warmUserCache();
-
-            // Warm up property data
-            $this->warmPropertyCache();
-
-            // Warm up mission data
-            $this->warmMissionCache();
-
-            Log::info('Cache warming completed successfully');
-        } catch (\Exception $e) {
-            Log::error('Cache warming failed', [
-                'error' => $e->getMessage()
-            ]);
-        }
-    }
-
-    /**
-     * Warm up user cache
-     */
-    protected function warmUserCache(): void
-    {
-        $this->remember('users:active', 3600, function () {
-            return \App\Models\User::where('created_at', '>', now()->subDays(30))->count();
-        }, ['users']);
-
-        $this->remember('users:by_role', 3600, function () {
-            return \App\Models\User::selectRaw('role, count(*) as count')
-                ->groupBy('role')
-                ->pluck('count', 'role')
-                ->toArray();
-        }, ['users']);
-    }
-
-    /**
-     * Warm up property cache
-     */
-    protected function warmPropertyCache(): void
-    {
-        $this->remember('properties:count', 3600, function () {
-            return \App\Models\Property::count();
-        }, ['properties']);
-
-        $this->remember('properties:by_type', 3600, function () {
-            return \App\Models\Property::selectRaw('property_type, count(*) as count')
-                ->groupBy('property_type')
-                ->pluck('count', 'property_type')
-                ->toArray();
-        }, ['properties']);
-    }
-
-    /**
-     * Warm up mission cache
-     */
-    protected function warmMissionCache(): void
-    {
-        $this->remember('missions:active', 3600, function () {
-            return \App\Models\Mission::where('status', 'active')->count();
-        }, ['missions']);
-
-        $this->remember('missions:completion_rate', 3600, function () {
-            $total = \App\Models\Mission::count();
-            $completed = \App\Models\Mission::where('status', 'completed')->count();
-            
-            return $total > 0 ? round(($completed / $total) * 100, 2) : 0;
-        }, ['missions']);
-    }
-
-    /**
-     * Get cache statistics
-     */
-    public function getStats(): array
-    {
-        try {
-            // This would depend on the Redis driver being used
-            $redis = Cache::getRedis();
-            $info = $redis->info();
-
-            return [
-                'memory_used' => $info['used_memory_human'] ?? 'unknown',
-                'connected_clients' => $info['connected_clients'] ?? 'unknown',
-                'total_commands_processed' => $info['total_commands_processed'] ?? 'unknown',
-                'keyspace_hits' => $info['keyspace_hits'] ?? 'unknown',
-                'keyspace_misses' => $info['keyspace_misses'] ?? 'unknown',
-                'hit_rate' => $this->calculateHitRate($info),
-            ];
-        } catch (\Exception $e) {
-            Log::error('Failed to get cache stats', [
-                'error' => $e->getMessage()
-            ]);
-
-            return [
-                'error' => 'Unable to retrieve cache statistics'
-            ];
-        }
-    }
-
-    /**
-     * Calculate cache hit rate
-     */
-    protected function calculateHitRate(array $info): string
-    {
-        $hits = $info['keyspace_hits'] ?? 0;
-        $misses = $info['keyspace_misses'] ?? 0;
-        $total = $hits + $misses;
-
-        if ($total === 0) {
-            return '0%';
-        }
-
-        return round(($hits / $total) * 100, 2) . '%';
     }
 }
