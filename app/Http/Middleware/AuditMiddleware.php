@@ -2,320 +2,231 @@
 
 namespace App\Http\Middleware;
 
-use App\Services\AuditService;
+use App\Services\AuditLogger;
 use Closure;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Symfony\Component\HttpFoundation\Response;
 
 class AuditMiddleware
 {
+    protected AuditLogger $auditLogger;
+
+    protected array $excludedRoutes = [
+        'api/health',
+        'api/status',
+        '_debugbar',
+        'telescope',
+    ];
+
+    protected array $excludedMethods = [
+        'GET', // Generally don't audit read operations unless specifically needed
+    ];
+
+    protected array $sensitiveRoutes = [
+        'login',
+        'logout',
+        'password',
+        'two-factor',
+        'admin',
+        'users',
+    ];
+
+    public function __construct(AuditLogger $auditLogger)
+    {
+        $this->auditLogger = $auditLogger;
+    }
+
     /**
-     * Handle an incoming request and log the action
+     * Handle an incoming request.
      */
     public function handle(Request $request, Closure $next): Response
     {
-        $startTime = microtime(true);
-        
-        // Process the request
         $response = $next($request);
-        
-        $endTime = microtime(true);
-        $duration = round(($endTime - $startTime) * 1000, 2); // Duration in milliseconds
 
-        // Log the request after processing
-        $this->logRequest($request, $response, $duration);
+        // Skip audit logging for excluded routes and methods
+        if ($this->shouldSkipAudit($request)) {
+            return $response;
+        }
+
+        try {
+            $this->logRequest($request, $response);
+        } catch (\Exception $e) {
+            // Don't let audit logging break the application
+            \Log::error('Audit logging failed', [
+                'error' => $e->getMessage(),
+                'route' => $request->route()?->getName(),
+                'url' => $request->url(),
+            ]);
+        }
 
         return $response;
     }
 
     /**
-     * Log the request details
+     * Determine if audit logging should be skipped
      */
-    private function logRequest(Request $request, Response $response, float $duration): void
+    protected function shouldSkipAudit(Request $request): bool
     {
-        // Skip logging for certain routes to avoid noise
-        if ($this->shouldSkipLogging($request)) {
-            return;
+        // Skip excluded methods
+        if (in_array($request->method(), $this->excludedMethods)) {
+            return true;
         }
 
-        $user = auth()->user();
-        $routeName = $request->route()?->getName();
-        $method = $request->method();
-        $url = $request->fullUrl();
-        $statusCode = $response->getStatusCode();
-
-        // Determine event type based on HTTP method and route
-        $eventType = $this->determineEventType($method, $routeName, $statusCode);
-        
-        // Determine severity based on status code
-        $severity = $this->determineSeverity($statusCode);
-        
-        // Check if this is a sensitive operation
-        $isSensitive = $this->isSensitiveOperation($request, $routeName);
-
-        // Prepare metadata
-        $metadata = [
-            'duration_ms' => $duration,
-            'response_size' => $response->headers->get('Content-Length'),
-            'request_size' => $request->header('Content-Length'),
-            'route_parameters' => $request->route()?->parameters() ?? [],
-            'query_parameters' => $request->query(),
-            'has_files' => $request->hasFile('*'),
-            'is_ajax' => $request->ajax(),
-            'is_json' => $request->expectsJson(),
-            'accept_header' => $request->header('Accept'),
-            'content_type' => $request->header('Content-Type')
-        ];
-
-        // Add request body for sensitive operations (sanitized)
-        if ($isSensitive && in_array($method, ['POST', 'PUT', 'PATCH'])) {
-            $metadata['request_data'] = $this->sanitizeRequestData($request->all());
+        // Skip excluded routes
+        $path = $request->path();
+        foreach ($this->excludedRoutes as $excludedRoute) {
+            if (str_contains($path, $excludedRoute)) {
+                return true;
+            }
         }
 
-        // Log the action
-        AuditService::logAction(
-            $eventType,
-            $this->generateActionDescription($method, $routeName, $url),
-            null, // No specific model for general requests
-            $user,
-            [], // No old values for general requests
-            [], // No new values for general requests
-            $metadata,
-            $severity,
-            $isSensitive
+        return false;
+    }
+
+    /**
+     * Log the request
+     */
+    protected function logRequest(Request $request, Response $response): void
+    {
+        $action = $this->determineAction($request);
+        $changes = $this->extractChanges($request, $response);
+
+        // Determine if this is a sensitive operation
+        $isSensitive = $this->isSensitiveRoute($request);
+
+        $this->auditLogger->log(
+            $action,
+            null, // Resource will be determined by the specific controller if needed
+            $changes,
+            Auth::user(),
+            $request
         );
 
-        // Log additional details for API endpoints
-        if ($request->is('api/*')) {
-            AuditService::logApiAccess(
-                $request->path(),
-                $method,
-                $statusCode,
-                $user,
-                [
-                    'duration_ms' => $duration,
-                    'route_name' => $routeName
-                ]
+        // Log sensitive data access separately
+        if ($isSensitive) {
+            $this->auditLogger->logSensitiveAccess(
+                $this->getSensitiveDataType($request),
+                null,
+                Auth::user()
             );
         }
     }
 
     /**
-     * Determine if logging should be skipped for this request
+     * Determine the action based on the request
      */
-    private function shouldSkipLogging(Request $request): bool
+    protected function determineAction(Request $request): string
     {
-        $skipRoutes = [
-            'debugbar.*',
-            'horizon.*',
-            'telescope.*',
-            '_ignition.*',
-            'livewire.*'
-        ];
-
-        $skipPaths = [
-            'favicon.ico',
-            'robots.txt',
-            'health',
-            'ping',
-            'status'
-        ];
-
-        $routeName = $request->route()?->getName();
+        $method = strtolower($request->method());
+        $route = $request->route();
+        $routeName = $route?->getName() ?? '';
         $path = $request->path();
 
-        // Skip based on route name patterns
-        foreach ($skipRoutes as $pattern) {
-            if ($routeName && fnmatch($pattern, $routeName)) {
-                return true;
-            }
-        }
-
-        // Skip based on path patterns
-        foreach ($skipPaths as $skipPath) {
-            if (str_contains($path, $skipPath)) {
-                return true;
-            }
-        }
-
-        // Skip asset requests
-        if (preg_match('/\.(css|js|png|jpg|jpeg|gif|svg|ico|woff|woff2|ttf|eot)$/i', $path)) {
-            return true;
-        }
-
-        // Skip OPTIONS requests
-        if ($request->method() === 'OPTIONS') {
-            return true;
-        }
-
-        return false;
-    }
-
-    /**
-     * Determine event type based on request details
-     */
-    private function determineEventType(string $method, ?string $routeName, int $statusCode): string
-    {
         // Handle authentication routes
-        if ($routeName && str_contains($routeName, 'login')) {
-            return $statusCode < 400 ? 'login_success' : 'login_failed';
+        if (str_contains($path, 'login')) {
+            return 'login_attempt';
         }
-
-        if ($routeName && str_contains($routeName, 'logout')) {
-            return 'logout';
+        if (str_contains($path, 'logout')) {
+            return 'logout_attempt';
         }
-
-        if ($routeName && str_contains($routeName, 'register')) {
-            return $statusCode < 400 ? 'registration_success' : 'registration_failed';
+        if (str_contains($path, 'password')) {
+            return 'password_change_attempt';
+        }
+        if (str_contains($path, 'two-factor')) {
+            return 'two_factor_action';
         }
 
         // Handle CRUD operations
         switch ($method) {
-            case 'GET':
-                return $statusCode < 400 ? 'view_request' : 'view_failed';
-            case 'POST':
-                return $statusCode < 400 ? 'create_request' : 'create_failed';
-            case 'PUT':
-            case 'PATCH':
-                return $statusCode < 400 ? 'update_request' : 'update_failed';
-            case 'DELETE':
-                return $statusCode < 400 ? 'delete_request' : 'delete_failed';
+            case 'post':
+                return str_contains($path, 'bulk') ? 'bulk_create' : 'create_attempt';
+            case 'put':
+            case 'patch':
+                return str_contains($path, 'bulk') ? 'bulk_update' : 'update_attempt';
+            case 'delete':
+                return str_contains($path, 'bulk') ? 'bulk_delete' : 'delete_attempt';
             default:
-                return 'http_request';
+                return 'request_' . $method;
         }
     }
 
     /**
-     * Determine severity based on status code
+     * Extract relevant changes from the request
      */
-    private function determineSeverity(int $statusCode): string
+    protected function extractChanges(Request $request, Response $response): array
     {
-        if ($statusCode >= 500) {
-            return 'critical';
-        } elseif ($statusCode >= 400) {
-            return 'error';
-        } elseif ($statusCode >= 300) {
-            return 'warning';
-        } else {
-            return 'info';
-        }
-    }
-
-    /**
-     * Check if this is a sensitive operation
-     */
-    private function isSensitiveOperation(Request $request, ?string $routeName): bool
-    {
-        $sensitiveRoutes = [
-            'login',
-            'logout',
-            'register',
-            'password',
-            'signature',
-            'contract',
-            'admin',
-            'user',
-            'permission',
-            'role'
+        $changes = [
+            'method' => $request->method(),
+            'url' => $request->url(),
+            'route' => $request->route()?->getName(),
+            'status_code' => $response->getStatusCode(),
+            'timestamp' => now()->toISOString(),
         ];
 
-        $sensitivePaths = [
-            'admin',
-            'signature',
-            'contract',
-            'user',
-            'auth',
-            'password'
-        ];
+        // Add request data for non-GET requests (excluding sensitive fields)
+        if (!in_array($request->method(), ['GET', 'HEAD', 'OPTIONS'])) {
+            $requestData = $request->except([
+                'password',
+                'password_confirmation',
+                'current_password',
+                'two_factor_secret',
+                '_token',
+                '_method',
+            ]);
 
-        // Check route name
-        if ($routeName) {
-            foreach ($sensitiveRoutes as $sensitive) {
-                if (str_contains(strtolower($routeName), $sensitive)) {
-                    return true;
-                }
+            if (!empty($requestData)) {
+                $changes['request_data'] = $requestData;
             }
         }
 
-        // Check path
-        $path = strtolower($request->path());
-        foreach ($sensitivePaths as $sensitive) {
-            if (str_contains($path, $sensitive)) {
+        // Add response data for API requests
+        if ($request->expectsJson() && $response->getStatusCode() >= 400) {
+            $changes['response_data'] = [
+                'status' => $response->getStatusCode(),
+                'error' => true,
+            ];
+        }
+
+        return $changes;
+    }
+
+    /**
+     * Check if this is a sensitive route
+     */
+    protected function isSensitiveRoute(Request $request): bool
+    {
+        $path = $request->path();
+        
+        foreach ($this->sensitiveRoutes as $sensitiveRoute) {
+            if (str_contains($path, $sensitiveRoute)) {
                 return true;
             }
-        }
-
-        // Check for authentication failures
-        if ($request->method() === 'POST' && str_contains($path, 'login')) {
-            return true;
-        }
-
-        // Check for admin panel access
-        if (str_contains($path, 'admin')) {
-            return true;
         }
 
         return false;
     }
 
     /**
-     * Generate action description
+     * Get the type of sensitive data being accessed
      */
-    private function generateActionDescription(string $method, ?string $routeName, string $url): string
+    protected function getSensitiveDataType(Request $request): string
     {
-        if ($routeName) {
-            return "{$method} {$routeName}";
+        $path = $request->path();
+
+        if (str_contains($path, 'users')) {
+            return 'user_data';
+        }
+        if (str_contains($path, 'admin')) {
+            return 'admin_panel';
+        }
+        if (str_contains($path, 'password')) {
+            return 'password_data';
+        }
+        if (str_contains($path, 'two-factor')) {
+            return 'two_factor_data';
         }
 
-        // Extract meaningful part of URL
-        $path = parse_url($url, PHP_URL_PATH);
-        $pathParts = array_filter(explode('/', $path));
-        
-        if (count($pathParts) > 0) {
-            $resource = end($pathParts);
-            return "{$method} /{$resource}";
-        }
-
-        return "{$method} {$url}";
-    }
-
-    /**
-     * Sanitize request data to remove sensitive information
-     */
-    private function sanitizeRequestData(array $data): array
-    {
-        $sensitiveFields = [
-            'password',
-            'password_confirmation',
-            'current_password',
-            'new_password',
-            'token',
-            'api_key',
-            'secret',
-            'private_key',
-            'signature_data',
-            'credit_card',
-            'ssn',
-            'social_security'
-        ];
-
-        $sanitized = [];
-
-        foreach ($data as $key => $value) {
-            $lowerKey = strtolower($key);
-            
-            if (in_array($lowerKey, $sensitiveFields) || str_contains($lowerKey, 'password')) {
-                $sanitized[$key] = '[REDACTED]';
-            } elseif (is_array($value)) {
-                $sanitized[$key] = $this->sanitizeRequestData($value);
-            } elseif (is_string($value) && strlen($value) > 500) {
-                // Truncate very long strings
-                $sanitized[$key] = substr($value, 0, 500) . '... [TRUNCATED]';
-            } else {
-                $sanitized[$key] = $value;
-            }
-        }
-
-        return $sanitized;
+        return 'sensitive_data';
     }
 }

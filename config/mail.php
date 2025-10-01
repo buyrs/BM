@@ -46,7 +46,7 @@ return [
             'username' => env('MAIL_USERNAME'),
             'password' => env('MAIL_PASSWORD'),
             'timeout' => null,
-            'local_domain' => env('MAIL_EHLO_DOMAIN', parse_url(env('APP_URL', 'http://localhost'), PHP_URL_HOST)),
+            'local_domain' => env('MAIL_EHLO_DOMAIN', parse_url((string) env('APP_URL', 'http://localhost'), PHP_URL_HOST)),
         ],
 
         'ses' => [
@@ -114,5 +114,22 @@ return [
         'address' => env('MAIL_FROM_ADDRESS', 'hello@example.com'),
         'name' => env('MAIL_FROM_NAME', 'Example'),
     ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Production Email Configuration
+    |--------------------------------------------------------------------------
+    |
+    | Configuration for production email settings
+    |
+    */
+
+    'production_mailer' => env('MAIL_PRODUCTION_MAILER', 'smtp'),
+    
+    'queue_emails' => env('MAIL_QUEUE_EMAILS', true),
+    'queue_connection' => env('MAIL_QUEUE_CONNECTION', 'redis'),
+    'queue_name' => env('MAIL_QUEUE_NAME', 'emails'),
+    'max_retries' => env('MAIL_MAX_RETRIES', 3),
+    'retry_delay' => env('MAIL_RETRY_DELAY', 60),
 
 ];

@@ -2,228 +2,99 @@
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 
 class Notification extends Model
 {
     use HasFactory;
 
-    // Notification types constants
-    const TYPE_EXIT_REMINDER = 'exit_reminder';
-    const TYPE_CHECKLIST_VALIDATION = 'checklist_validation';
-    const TYPE_INCIDENT_ALERT = 'incident_alert';
-    const TYPE_MISSION_ASSIGNED = 'mission_assigned';
-    const TYPE_MISSION_COMPLETED = 'mission_completed';
-    const TYPE_CALENDAR_UPDATE = 'calendar_update';
-
     protected $fillable = [
+        'user_id',
         'type',
-        'recipient_id',
-        'bail_mobilite_id',
+        'title',
+        'message',
+        'data',
+        'read_at',
+        'channels',
         'mission_id',
-        'scheduled_at',
-        'sent_at',
-        'status',
-        'data'
+        'checklist_id',
+        'priority',
+        'requires_action',
+        'action_taken_at',
+        'action_taken_by',
     ];
 
     protected $casts = [
-        'scheduled_at' => 'datetime',
-        'sent_at' => 'datetime',
-        'data' => 'array'
+        'data' => 'array',
+        'channels' => 'array',
+        'read_at' => 'datetime',
+        'action_taken_at' => 'datetime',
+        'requires_action' => 'boolean',
     ];
 
-    /**
-     * Get the user who should receive this notification.
-     */
-    public function recipient(): BelongsTo
+    public function user(): BelongsTo
     {
-        return $this->belongsTo(User::class, 'recipient_id');
+        return $this->belongsTo(User::class);
     }
 
-    /**
-     * Get the bail mobilité associated with this notification.
-     */
-    public function bailMobilite(): BelongsTo
-    {
-        return $this->belongsTo(BailMobilite::class);
-    }
-
-    /**
-     * Get the mission associated with this notification.
-     */
     public function mission(): BelongsTo
     {
         return $this->belongsTo(Mission::class);
     }
 
-    /**
-     * Scope to get pending notifications.
-     */
-    public function scopePending($query)
+    public function checklist(): BelongsTo
     {
-        return $query->where('status', 'pending');
+        return $this->belongsTo(Checklist::class);
     }
 
-    /**
-     * Scope to get sent notifications.
-     */
-    public function scopeSent($query)
+    public function actionTakenBy(): BelongsTo
     {
-        return $query->where('status', 'sent');
+        return $this->belongsTo(User::class, 'action_taken_by');
     }
 
-    /**
-     * Scope to get cancelled notifications.
-     */
-    public function scopeCancelled($query)
+    public function markAsRead(): void
     {
-        return $query->where('status', 'cancelled');
+        $this->update(['read_at' => now()]);
     }
 
-    /**
-     * Scope to get notifications by type.
-     */
-    public function scopeByType($query, string $type)
-    {
-        return $query->where('type', $type);
-    }
-
-    /**
-     * Scope to get notifications for a specific recipient.
-     */
-    public function scopeForRecipient($query, int $recipientId)
-    {
-        return $query->where('recipient_id', $recipientId);
-    }
-
-    /**
-     * Scope to get notifications scheduled for sending.
-     */
-    public function scopeScheduledForSending($query)
-    {
-        return $query->where('status', 'pending')
-                    ->where('scheduled_at', '<=', now());
-    }
-
-    /**
-     * Scope to get exit reminder notifications.
-     */
-    public function scopeExitReminders($query)
-    {
-        return $query->where('type', self::TYPE_EXIT_REMINDER);
-    }
-
-    /**
-     * Scope to get checklist validation notifications.
-     */
-    public function scopeChecklistValidations($query)
-    {
-        return $query->where('type', self::TYPE_CHECKLIST_VALIDATION);
-    }
-
-    /**
-     * Scope to get incident alert notifications.
-     */
-    public function scopeIncidentAlerts($query)
-    {
-        return $query->where('type', self::TYPE_INCIDENT_ALERT);
-    }
-
-    /**
-     * Scope to get mission assigned notifications.
-     */
-    public function scopeMissionAssigned($query)
-    {
-        return $query->where('type', self::TYPE_MISSION_ASSIGNED);
-    }
-
-    /**
-     * Scope to get calendar update notifications.
-     */
-    public function scopeCalendarUpdates($query)
-    {
-        return $query->where('type', self::TYPE_CALENDAR_UPDATE);
-    }
-
-    /**
-     * Mark the notification as sent.
-     */
-    public function markAsSent(): void
+    public function markActionTaken(User $user): void
     {
         $this->update([
-            'status' => 'sent',
-            'sent_at' => now()
+            'action_taken_at' => now(),
+            'action_taken_by' => $user->id,
         ]);
     }
 
-    /**
-     * Cancel the notification.
-     */
-    public function cancel(): void
+    public function isRead(): bool
     {
-        $this->update(['status' => 'cancelled']);
+        return !is_null($this->read_at);
     }
 
-    /**
-     * Check if the notification is ready to be sent.
-     */
-    public function isReadyToSend(): bool
+    public function isActionTaken(): bool
     {
-        return $this->status === 'pending' && 
-               $this->scheduled_at <= now();
+        return !is_null($this->action_taken_at);
     }
 
-    /**
-     * Check if the notification has been sent.
-     */
-    public function isSent(): bool
+    public function scopeUnread($query)
     {
-        return $this->status === 'sent' && !is_null($this->sent_at);
+        return $query->whereNull('read_at');
     }
 
-    /**
-     * Check if the notification has been cancelled.
-     */
-    public function isCancelled(): bool
+    public function scopeForUser($query, User $user)
     {
-        return $this->status === 'cancelled';
+        return $query->where('user_id', $user->id);
     }
 
-    /**
-     * Get the notification message based on type and data.
-     */
-    public function getMessage(): string
+    public function scopeByPriority($query, string $priority)
     {
-        switch ($this->type) {
-            case self::TYPE_EXIT_REMINDER:
-                return "Bail Mobilité se termine dans 10 jours - {$this->bailMobilite->tenant_name}";
-            case self::TYPE_CHECKLIST_VALIDATION:
-                return "Checklist à valider pour {$this->bailMobilite->tenant_name}";
-            case self::TYPE_INCIDENT_ALERT:
-                return "Incident détecté pour {$this->bailMobilite->tenant_name}";
-            case self::TYPE_MISSION_ASSIGNED:
-                return "Nouvelle mission assignée";
-            case self::TYPE_MISSION_COMPLETED:
-                $checkerName = $this->data['checker_name'] ?? 'Checker';
-                return "Mission terminée par {$checkerName} - {$this->bailMobilite->tenant_name}";
-            case self::TYPE_CALENDAR_UPDATE:
-                $updateType = $this->data['update_type'] ?? 'update';
-                $tenantName = $this->data['tenant_name'] ?? 'Unknown';
-                switch ($updateType) {
-                    case 'creation':
-                        return "Nouveau Bail Mobilité créé - {$tenantName}";
-                    case 'assignment':
-                        return "Mission assignée - {$tenantName}";
-                    case 'status_change':
-                        return "Statut mission modifié - {$tenantName}";
-                    default:
-                        return "Calendrier mis à jour - {$tenantName}";
-                }
-            default:
-                return "Notification";
-        }
+        return $query->where('priority', $priority);
+    }
+
+    public function scopeRequiringAction($query)
+    {
+        return $query->where('requires_action', true)
+                    ->whereNull('action_taken_at');
     }
 }

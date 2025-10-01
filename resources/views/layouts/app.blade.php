@@ -1,136 +1,256 @@
 <!DOCTYPE html>
 <html lang="{{ str_replace('_', '-', app()->getLocale()) }}">
-<head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <meta name="csrf-token" content="{{ csrf_token() }}">
-    
-    <title>{{ config('app.name', 'BM Platform') }} @isset($title) - {{ $title }} @endisset</title>
-    
-    <!-- Fonts -->
-    <link rel="preconnect" href="https://fonts.bunny.net">
-    <link href="https://fonts.bunny.net/css?family=inter:400,500,600,700&display=swap" rel="stylesheet" />
-    
-    <!-- Favicon -->
-    <link rel="icon" type="image/x-icon" href="/favicon.ico">
-    
-    <!-- Meta Tags -->
-    <meta name="description" content="@yield('meta_description', 'Bail Mobilité Management Platform')">
-    <meta name="keywords" content="@yield('meta_keywords', 'bail mobilité, property management, inspection')">
-    
-    <!-- PWA Meta Tags -->
-    <meta name="theme-color" content="#4f46e5">
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="default">
-    <meta name="apple-mobile-web-app-title" content="{{ config('app.name') }}">
-    
-    <!-- Scripts -->
-    @vite(['resources/css/blade.css', 'resources/js/blade.js'])
-    @stack('styles')
-</head>
-<body class="font-sans antialiased bg-gray-50" x-data="{ sidebarOpen: false }" x-cloak>
-    <div class="min-h-screen">
-        <!-- Role-based Navigation -->
-        @auth
-            <x-role-based-navigation :user="auth()->user()" />
-        @else
-            @include('layouts.navigation')
-        @endauth
+    <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="{{ app(\App\Services\MobileResponsivenessService::class)->getViewportConfig() }}">
+        <meta name="csrf-token" content="{{ csrf_token() }}">
+
+        <title>{{ config('app.name', 'Laravel') }}</title>
+
+        <!-- PWA Meta Tags -->
+        <meta name="theme-color" content="#4f46e5">
+        <meta name="apple-mobile-web-app-capable" content="yes">
+        <meta name="apple-mobile-web-app-status-bar-style" content="default">
+        <meta name="apple-mobile-web-app-title" content="{{ config('app.name') }}">
+        <meta name="mobile-web-app-capable" content="yes">
         
-        <!-- Sidebar -->
-        @include('layouts.sidebar')
+        <!-- PWA Manifest -->
+        <link rel="manifest" href="{{ route('pwa.manifest') }}">
         
-        <!-- Page Content -->
-        <div class="lg:pl-64">
-            <!-- Top Bar -->
-            <div class="sticky top-0 z-40 flex h-16 shrink-0 items-center gap-x-4 border-b border-gray-200 bg-white px-4 shadow-sm sm:gap-x-6 sm:px-6 lg:px-8">
-                <!-- Mobile sidebar button -->
-                <button type="button" class="-m-2.5 p-2.5 text-gray-700 lg:hidden" 
-                        x-on:click="sidebarOpen = true">
-                    <span class="sr-only">Open sidebar</span>
-                    <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" />
-                    </svg>
-                </button>
-                
-                <!-- Breadcrumbs -->
-                @if(isset($breadcrumbs) && count($breadcrumbs) > 0)
-                    <nav class="flex" aria-label="Breadcrumb">
-                        <ol class="flex items-center space-x-4">
-                            @foreach($breadcrumbs as $breadcrumb)
-                                <li>
-                                    @if(!$loop->last)
-                                        <a href="{{ $breadcrumb['url'] }}" class="text-gray-500 hover:text-gray-700">
-                                            {{ $breadcrumb['title'] }}
-                                        </a>
-                                        <svg class="ml-4 h-5 w-5 text-gray-300" fill="currentColor" viewBox="0 0 20 20">
-                                            <path fill-rule="evenodd" d="M7.21 14.77a.75.75 0 01.02-1.06L11.168 10 7.23 6.29a.75.75 0 111.04-1.08l4.5 4.25a.75.75 0 010 1.08l-4.5 4.25a.75.75 0 01-1.06-.02z" clip-rule="evenodd" />
-                                        </svg>
-                                    @else
-                                        <span class="text-gray-900 font-medium">{{ $breadcrumb['title'] }}</span>
-                                    @endif
-                                </li>
-                            @endforeach
-                        </ol>
-                    </nav>
-                @endif
-                
-                <div class="flex flex-1 gap-x-4 self-stretch lg:gap-x-6">
-                    <div class="flex flex-1"></div>
-                    
-                    <!-- Notifications -->
-                    @auth
-                        <div class="flex items-center gap-x-4 lg:gap-x-6">
-                            <x-notifications-dropdown />
-                            <x-user-dropdown />
-                        </div>
-                    @endauth
-                </div>
-            </div>
+        <!-- Apple Touch Icons -->
+        <link rel="apple-touch-icon" sizes="152x152" href="/images/icons/icon-152x152.png">
+        <link rel="apple-touch-icon" sizes="180x180" href="/images/icons/icon-180x180.png">
+        
+        <!-- Favicon -->
+        <link rel="icon" type="image/png" sizes="32x32" href="/images/icons/icon-32x32.png">
+        <link rel="icon" type="image/png" sizes="16x16" href="/images/icons/icon-16x16.png">
+
+        <!-- Fonts -->
+        <link rel="preconnect" href="https://fonts.bunny.net">
+        <link href="https://fonts.bunny.net/css?family=figtree:400,500,600&display=swap" rel="stylesheet" />
+
+        <!-- Scripts -->
+        @vite(['resources/css/app.css', 'resources/js/app.js'])
+        
+        <!-- Mobile-specific styles -->
+        <style>
+            /* Prevent text size adjustment on orientation change */
+            html {
+                -webkit-text-size-adjust: 100%;
+                -ms-text-size-adjust: 100%;
+            }
             
-            <!-- Main Content -->
-            <main class="py-6">
-                <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-                    <!-- Flash Messages -->
-                    @if(session('success'))
-                        <x-alert type="success" :message="session('success')" class="mb-6" />
-                    @endif
-                    
-                    @if(session('error'))
-                        <x-alert type="error" :message="session('error')" class="mb-6" />
-                    @endif
-                    
-                    @if(session('warning'))
-                        <x-alert type="warning" :message="session('warning')" class="mb-6" />
-                    @endif
-                    
-                    <!-- Page Content -->
-                    {{ $slot }}
-                </div>
+            /* Smooth scrolling for mobile */
+            html {
+                scroll-behavior: smooth;
+                -webkit-overflow-scrolling: touch;
+            }
+            
+            /* Safe area support */
+            body {
+                padding-top: env(safe-area-inset-top);
+                padding-bottom: env(safe-area-inset-bottom);
+                padding-left: env(safe-area-inset-left);
+                padding-right: env(safe-area-inset-right);
+            }
+            
+            /* Touch action optimization */
+            .touch-action-manipulation {
+                touch-action: manipulation;
+            }
+            
+            /* Prevent zoom on input focus (iOS) */
+            @media screen and (-webkit-min-device-pixel-ratio: 0) {
+                select, textarea, input[type="text"], input[type="password"], 
+                input[type="datetime"], input[type="datetime-local"], 
+                input[type="date"], input[type="month"], input[type="time"], 
+                input[type="week"], input[type="number"], input[type="email"], 
+                input[type="url"], input[type="search"], input[type="tel"], 
+                input[type="color"] {
+                    font-size: 16px !important;
+                }
+            }
+            
+            /* Mobile-first responsive utilities */
+            .mobile-hidden { display: none; }
+            @media (min-width: 640px) {
+                .mobile-hidden { display: block; }
+                .mobile-only { display: none; }
+            }
+        </style>
+    </head>
+    <body class="font-sans antialiased">
+        <div class="min-h-screen bg-gray-100 pb-16 sm:pb-0">
+            @include('layouts.navigation')
+
+            <!-- Page Heading -->
+            @isset($header)
+                <header class="bg-white shadow">
+                    <div class="max-w-7xl mx-auto py-4 sm:py-6 px-4 sm:px-6 lg:px-8">
+                        {{ $header }}
+                    </div>
+                </header>
+            @endisset
+
+            <!-- Page Content -->
+            <main class="pb-safe">
+                {{ $slot ?? '' }}
+                @yield('content')
             </main>
+
+            <!-- Mobile Navigation -->
+            @php
+                $userRole = 'guest';
+                if (Auth::guard('admin')->check()) {
+                    $userRole = 'admin';
+                } elseif (Auth::guard('ops')->check()) {
+                    $userRole = 'ops';
+                } elseif (Auth::guard('checker')->check()) {
+                    $userRole = 'checker';
+                }
+            @endphp
+            
+            @if($userRole !== 'guest')
+                <x-mobile-navigation :userRole="$userRole" />
+            @endif
         </div>
-    </div>
-    
-    <!-- Global Loading Spinner -->
-    <div x-show="$store.app.loading" x-cloak 
-         class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
-        <div class="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
-            <div class="mt-3 text-center">
-                <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto"></div>
-                <h3 class="text-lg font-medium text-gray-900 mt-4">Loading...</h3>
+
+        <!-- PWA Installation Prompt -->
+        <div id="pwa-install-prompt" class="fixed bottom-20 sm:bottom-4 left-4 right-4 sm:left-auto sm:right-4 sm:w-80 bg-white rounded-lg shadow-lg border border-gray-200 p-4 hidden z-40">
+            <div class="flex items-start space-x-3">
+                <div class="flex-shrink-0">
+                    <svg class="w-6 h-6 text-indigo-600" fill="currentColor" viewBox="0 0 20 20">
+                        <path fill-rule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clip-rule="evenodd"></path>
+                    </svg>
+                </div>
+                <div class="flex-1">
+                    <h3 class="text-sm font-medium text-gray-900">Install App</h3>
+                    <p class="text-xs text-gray-500 mt-1">Add to your home screen for quick access</p>
+                </div>
+                <div class="flex space-x-2">
+                    <button id="pwa-install-dismiss" class="text-xs text-gray-400 hover:text-gray-600">
+                        Dismiss
+                    </button>
+                    <button id="pwa-install-button" class="text-xs bg-indigo-600 text-white px-3 py-1 rounded hover:bg-indigo-700">
+                        Install
+                    </button>
+                </div>
             </div>
         </div>
-    </div>
-    
-    <!-- Scripts -->
-    @stack('scripts')
-    
-    @if(config('app.env') === 'local')
-        <!-- Development helpers -->
+
+        <!-- Service Worker Registration -->
         <script>
-            window.userId = {{ auth()->id() ?? 'null' }};
-            window.userRole = '{{ auth()->user()?->getRoleNames()?->first() ?? 'guest' }}';
+            // Register service worker
+            if ('serviceWorker' in navigator) {
+                window.addEventListener('load', function() {
+                    navigator.serviceWorker.register('/sw.js')
+                        .then(function(registration) {
+                            console.log('ServiceWorker registration successful');
+                        })
+                        .catch(function(err) {
+                            console.log('ServiceWorker registration failed: ', err);
+                        });
+                });
+            }
+
+            // PWA Installation
+            let deferredPrompt;
+            const installPrompt = document.getElementById('pwa-install-prompt');
+            const installButton = document.getElementById('pwa-install-button');
+            const dismissButton = document.getElementById('pwa-install-dismiss');
+
+            window.addEventListener('beforeinstallprompt', (e) => {
+                e.preventDefault();
+                deferredPrompt = e;
+                
+                // Show install prompt if not dismissed
+                if (!localStorage.getItem('pwa-install-dismissed')) {
+                    installPrompt.classList.remove('hidden');
+                }
+            });
+
+            installButton.addEventListener('click', async () => {
+                if (deferredPrompt) {
+                    deferredPrompt.prompt();
+                    const { outcome } = await deferredPrompt.userChoice;
+                    
+                    if (outcome === 'accepted') {
+                        console.log('User accepted the install prompt');
+                    }
+                    
+                    deferredPrompt = null;
+                    installPrompt.classList.add('hidden');
+                }
+            });
+
+            dismissButton.addEventListener('click', () => {
+                installPrompt.classList.add('hidden');
+                localStorage.setItem('pwa-install-dismissed', 'true');
+            });
+
+            // Handle app installation
+            window.addEventListener('appinstalled', (evt) => {
+                console.log('App was installed');
+                installPrompt.classList.add('hidden');
+            });
+
+            // Mobile-specific enhancements
+            document.addEventListener('DOMContentLoaded', function() {
+                // Prevent double-tap zoom on buttons
+                document.querySelectorAll('button, .btn, [role="button"]').forEach(element => {
+                    element.style.touchAction = 'manipulation';
+                });
+
+                // Add touch feedback
+                document.addEventListener('touchstart', function(e) {
+                    if (e.target.matches('button, .btn, [role="button"], a')) {
+                        e.target.style.opacity = '0.7';
+                    }
+                });
+
+                document.addEventListener('touchend', function(e) {
+                    if (e.target.matches('button, .btn, [role="button"], a')) {
+                        setTimeout(() => {
+                            e.target.style.opacity = '';
+                        }, 150);
+                    }
+                });
+
+                // Handle orientation changes
+                window.addEventListener('orientationchange', function() {
+                    // Force repaint to fix layout issues
+                    setTimeout(() => {
+                        window.scrollTo(0, window.scrollY);
+                    }, 100);
+                });
+
+                // Improve scroll performance on mobile
+                if ('scrollBehavior' in document.documentElement.style) {
+                    document.documentElement.style.scrollBehavior = 'smooth';
+                }
+            });
+
+            // Network status handling
+            function updateOnlineStatus() {
+                const statusIndicator = document.getElementById('network-status');
+                if (navigator.onLine) {
+                    if (statusIndicator) statusIndicator.classList.add('hidden');
+                } else {
+                    if (!statusIndicator) {
+                        const indicator = document.createElement('div');
+                        indicator.id = 'network-status';
+                        indicator.className = 'fixed top-0 left-0 right-0 bg-red-600 text-white text-center py-2 text-sm z-50';
+                        indicator.textContent = 'You are offline. Some features may be limited.';
+                        document.body.appendChild(indicator);
+                    } else {
+                        statusIndicator.classList.remove('hidden');
+                    }
+                }
+            }
+
+            window.addEventListener('online', updateOnlineStatus);
+            window.addEventListener('offline', updateOnlineStatus);
+            updateOnlineStatus();
         </script>
-    @endif
-</body>
+    </body>
 </html>

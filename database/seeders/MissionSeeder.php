@@ -2,9 +2,12 @@
 
 namespace Database\Seeders;
 
-use Illuminate\Database\Seeder;
-use App\Models\Mission;
 use App\Models\User;
+use App\Models\Mission;
+use App\Models\Checklist;
+use App\Models\ChecklistItem;
+use App\Models\Amenity;
+use Illuminate\Database\Seeder;
 
 class MissionSeeder extends Seeder
 {
@@ -13,61 +16,139 @@ class MissionSeeder extends Seeder
      */
     public function run(): void
     {
-        // Get existing checkers
-        $checkers = User::role('checker')->get();
+        // Get users by role
+        $admin = User::where('role', 'admin')->first();
+        $ops = User::where('role', 'ops')->first();
+        $checker = User::where('role', 'checker')->first();
 
-        if ($checkers->isEmpty()) {
-            // Create a default checker if none exist
-            $checker = User::create([
-                'name' => 'Default Checker',
-                'email' => 'default.checker@example.com',
-                'password' => bcrypt('password'),
-                'email_verified_at' => now(),
+        // Sample missions data
+        $missions = [
+            [
+                'title' => 'Luxury Apartment Check-in',
+                'description' => 'Complete property inspection for new tenant move-in',
+                'property_address' => '123 Main Street, Downtown',
+                'checkin_date' => now()->addDays(2),
+                'checkout_date' => now()->addDays(5),
+                'status' => 'approved',
+            ],
+            [
+                'title' => 'Studio Apartment Check-out',
+                'description' => 'Final inspection before tenant departure',
+                'property_address' => '456 Oak Avenue, Midtown',
+                'checkin_date' => now()->subDays(1),
+                'checkout_date' => now()->addDays(1),
+                'status' => 'in_progress',
+            ],
+            [
+                'title' => 'Family Home Inspection',
+                'description' => 'Comprehensive property assessment for rental listing',
+                'property_address' => '789 Pine Road, Suburbia',
+                'checkin_date' => now()->addDays(7),
+                'checkout_date' => now()->addDays(10),
+                'status' => 'pending',
+            ],
+            [
+                'title' => 'Penthouse Suite Check-in',
+                'description' => 'Premium property inspection for VIP client',
+                'property_address' => '321 Sky Tower, Business District',
+                'checkin_date' => now()->addDays(3),
+                'checkout_date' => now()->addDays(6),
+                'status' => 'approved',
+            ],
+            [
+                'title' => 'Garden Apartment Check-out',
+                'description' => 'End-of-lease property evaluation',
+                'property_address' => '654 Garden Lane, Residential Area',
+                'checkin_date' => now()->subDays(3),
+                'checkout_date' => now()->subDays(1),
+                'status' => 'completed',
+            ],
+        ];
+
+        foreach ($missions as $missionData) {
+            // Create mission
+            $mission = Mission::create([
+                'title' => $missionData['title'],
+                'description' => $missionData['description'],
+                'property_address' => $missionData['property_address'],
+                'checkin_date' => $missionData['checkin_date'],
+                'checkout_date' => $missionData['checkout_date'],
+                'status' => $missionData['status'],
+                'admin_id' => $admin->id,
+                'ops_id' => $ops->id,
+                'checker_id' => $checker->id,
             ]);
-            $checker->assignRole('checker');
-            $checkers = collect([$checker]);
+
+            // Create checklists for each mission
+            $checklistTypes = ['checkin', 'checkout'];
+
+            foreach ($checklistTypes as $type) {
+                $checklist = Checklist::create([
+                    'mission_id' => $mission->id,
+                    'type' => $type,
+                    'status' => $type === 'checkin' ? 'pending' : 'completed',
+                ]);
+
+                // Create checklist items for random amenities
+                $amenities = Amenity::inRandomOrder()->limit(rand(5, 10))->get();
+
+                foreach ($amenities as $amenity) {
+                    $states = ['bad', 'average', 'good', 'excellent', 'need_a_fix'];
+                    $comments = [
+                        'Working properly',
+                        'Minor wear and tear',
+                        'Needs maintenance',
+                        'Excellent condition',
+                        'Replacement recommended',
+                        'Recently serviced',
+                    ];
+
+                    ChecklistItem::create([
+                        'checklist_id' => $checklist->id,
+                        'amenity_id' => $amenity->id,
+                        'state' => $states[array_rand($states)],
+                        'comment' => $comments[array_rand($comments)],
+                    ]);
+                }
+            }
         }
 
-        // Create 10 dummy missions
-        Mission::factory(10)->create()->each(function ($mission) use ($checkers) {
-            // Assign some missions to checkers
-            if (rand(0, 1) && $checkers->isNotEmpty()) {
-                $mission->agent_id = $checkers->random()->id;
-                $mission->status = 'assigned';
-                $mission->save();
-            }
-            // Create a checklist for each mission
-            $checklist = \App\Models\Checklist::factory()->create([
-                'mission_id' => $mission->id,
-            ]);
-            // Create 5-10 checklist items for each checklist
-            \App\Models\ChecklistItem::factory(rand(5, 10))->create([
-                'checklist_id' => $checklist->id,
-            ])->each(function ($item) {
-                // Attach 0-3 photos to each item
-                \App\Models\ChecklistPhoto::factory(rand(0, 3))->create([
-                    'checklist_item_id' => $item->id,
-                ]);
-            });
-        });
+        // Create additional missions with different statuses
+        for ($i = 1; $i <= 5; $i++) {
+            $statuses = ['pending', 'approved', 'in_progress', 'completed', 'cancelled'];
+            $status = $statuses[array_rand($statuses)];
 
-        // Create a few completed missions for the checker dashboard
-        if ($checkers->isNotEmpty()) {
-            Mission::factory(3)->create([
-                'agent_id' => $checkers->first()->id,
-                'status' => 'completed',
-            ])->each(function ($mission) {
-                $checklist = \App\Models\Checklist::factory()->create([
+            $mission = Mission::create([
+                'title' => "Sample Mission {$i}",
+                'description' => "This is a sample mission for testing purposes",
+                'property_address' => "Sample Address {$i}, Test City",
+                'checkin_date' => now()->addDays(rand(1, 30)),
+                'checkout_date' => now()->addDays(rand(31, 60)),
+                'status' => $status,
+                'admin_id' => $admin->id,
+                'ops_id' => $ops->id,
+                'checker_id' => $checker->id,
+            ]);
+
+            // Create checklists
+            foreach (['checkin', 'checkout'] as $type) {
+                $checklist = Checklist::create([
                     'mission_id' => $mission->id,
+                    'type' => $type,
+                    'status' => $status === 'completed' ? 'completed' : 'pending',
                 ]);
-                \App\Models\ChecklistItem::factory(rand(5, 10))->create([
-                    'checklist_id' => $checklist->id,
-                ])->each(function ($item) {
-                    \App\Models\ChecklistPhoto::factory(rand(0, 3))->create([
-                        'checklist_item_id' => $item->id,
+
+                // Add some checklist items
+                $amenities = Amenity::inRandomOrder()->limit(rand(3, 8))->get();
+                foreach ($amenities as $amenity) {
+                    ChecklistItem::create([
+                        'checklist_id' => $checklist->id,
+                        'amenity_id' => $amenity->id,
+                        'state' => ['good', 'excellent'][array_rand(['good', 'excellent'])],
+                        'comment' => 'Standard inspection completed',
                     ]);
-                });
-            });
+                }
+            }
         }
     }
-} 
+}

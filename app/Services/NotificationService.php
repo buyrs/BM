@@ -2,1028 +2,239 @@
 
 namespace App\Services;
 
-use App\Models\BailMobilite;
-use App\Models\Mission;
-use App\Models\Notification;
-use App\Models\SignatureInvitation;
-use App\Models\BailMobiliteSignature;
 use App\Models\User;
-use App\Notifications\BailMobiliteExitReminder;
-use App\Notifications\ChecklistValidationNotification;
-use App\Notifications\IncidentAlertNotification;
-use App\Notifications\MissionAssignedNotification;
-use App\Notifications\MissionReassignmentNotification;
-use App\Notifications\MissionUnassignmentNotification;
-use App\Notifications\SignatureInvitationNotification;
-use App\Notifications\WorkflowCompletionNotification;
-use App\Notifications\InvitationExpiredNotification;
-use App\Notifications\EscalationNotification;
-use Carbon\Carbon;
+use App\Models\Notification;
+use App\Models\Mission;
+use App\Models\Checklist;
+use App\Contracts\NotificationChannelInterface;
+use App\Services\NotificationChannels\DatabaseChannel;
+use App\Services\NotificationChannels\EmailChannel;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Log;
 
-class NotificationService
+class NotificationService extends BaseService
 {
-    /**
-     * Schedule an exit reminder notification 10 days before end date.
-     */
-    public function scheduleExitReminder(BailMobilite $bailMobilite): ?Notification
-    {
-        // Calculate the notification date (10 days before end date)
-        $notificationDate = Carbon::parse($bailMobilite->end_date)->subDays(10);
-        
-        // Don't schedule if the date is in the past
-        if ($notificationDate->isPast()) {
-            Log::info("Exit reminder not scheduled for BM {$bailMobilite->id}: date is in the past");
-            return null;
-        }
+    private array $channels = [];
 
-        // Cancel any existing exit reminder notifications for this BM
-        $this->cancelExitReminders($bailMobilite);
-
-        // Get all ops users to notify
-        $opsUsers = User::role('ops')->get();
-        
-        $notifications = collect();
-        
-        foreach ($opsUsers as $opsUser) {
-            $notification = Notification::create([
-                'type' => Notification::TYPE_EXIT_REMINDER,
-                'recipient_id' => $opsUser->id,
-                'bail_mobilite_id' => $bailMobilite->id,
-                'scheduled_at' => $notificationDate,
-                'status' => 'pending',
-                'data' => [
-                    'bail_mobilite_id' => $bailMobilite->id,
-                    'tenant_name' => $bailMobilite->tenant_name,
-                    'address' => $bailMobilite->address,
-                    'end_date' => $bailMobilite->end_date->toDateString(),
-                    'days_remaining' => 10
-                ]
-            ]);
-            
-            $notifications->push($notification);
-        }
-
-        Log::info("Exit reminder scheduled for BM {$bailMobilite->id} on {$notificationDate->toDateString()}");
-        
-        return $notifications->first(); // Return first notification for consistency
+    public function __construct(
+        private EmailService $emailService
+    ) {
+        parent::__construct();
+        $this->registerChannels();
     }
 
     /**
-     * Send ops alert for checklist validation.
+     * Create and send a notification
      */
-    public function sendChecklistValidationAlert(Mission $mission): Collection
-    {
-        $bailMobilite = $mission->bailMobilite;
-        if (!$bailMobilite) {
-            Log::warning("Cannot send checklist validation alert: Mission {$mission->id} has no associated BailMobilite");
-            return collect();
-        }
-
-        // Get all ops users to notify
-        $opsUsers = User::role('ops')->get();
-        
-        $notifications = collect();
-        
-        foreach ($opsUsers as $opsUser) {
-            // Create notification record
-            $notification = Notification::create([
-                'type' => Notification::TYPE_CHECKLIST_VALIDATION,
-                'recipient_id' => $opsUser->id,
-                'bail_mobilite_id' => $bailMobilite->id,
-                'scheduled_at' => now(),
-                'status' => 'pending',
-                'data' => [
-                    'mission_id' => $mission->id,
-                    'mission_type' => $mission->mission_type,
-                    'bail_mobilite_id' => $bailMobilite->id,
-                    'tenant_name' => $bailMobilite->tenant_name,
-                    'address' => $bailMobilite->address,
-                    'checker_name' => $mission->agent->name ?? 'Unknown'
-                ]
-            ]);
-            
-            // Send immediate notification
-            $opsUser->notify(new ChecklistValidationNotification($mission, $bailMobilite));
-            $notification->markAsSent();
-            
-            $notifications->push($notification);
-        }
-
-        Log::info("Checklist validation alert sent for Mission {$mission->id}");
-        
-        return $notifications;
-    }
-
-    /**
-     * Send incident alert notification.
-     */
-    public function sendIncidentAlert(BailMobilite $bailMobilite, string $incidentReason = null): Collection
-    {
-        // Get all ops users to notify
-        $opsUsers = User::role('ops')->get();
-        
-        $notifications = collect();
-        
-        foreach ($opsUsers as $opsUser) {
-            // Create notification record
-            $notification = Notification::create([
-                'type' => Notification::TYPE_INCIDENT_ALERT,
-                'recipient_id' => $opsUser->id,
-                'bail_mobilite_id' => $bailMobilite->id,
-                'scheduled_at' => now(),
-                'status' => 'pending',
-                'data' => [
-                    'bail_mobilite_id' => $bailMobilite->id,
-                    'tenant_name' => $bailMobilite->tenant_name,
-                    'address' => $bailMobilite->address,
-                    'incident_reason' => $incidentReason,
-                    'status' => $bailMobilite->status
-                ]
-            ]);
-            
-            // Send immediate notification
-            $opsUser->notify(new IncidentAlertNotification($bailMobilite, $incidentReason));
-            $notification->markAsSent();
-            
-            $notifications->push($notification);
-        }
-
-        Log::info("Incident alert sent for BM {$bailMobilite->id}: {$incidentReason}");
-        
-        return $notifications;
-    }
-
-    /**
-     * Send mission assigned notification to checker.
-     */
-    public function sendMissionAssignedNotification(Mission $mission): ?Notification
-    {
-        if (!$mission->agent) {
-            Log::warning("Cannot send mission assigned notification: Mission {$mission->id} has no assigned agent");
-            return null;
-        }
-
-        $bailMobilite = $mission->bailMobilite;
-        
-        // Create notification record
+    public function create(
+        User $user,
+        string $type,
+        string $title,
+        string $message,
+        array $data = [],
+        array $channels = ['database'],
+        string $priority = 'medium',
+        bool $requiresAction = false,
+        ?Mission $mission = null,
+        ?Checklist $checklist = null
+    ): Notification {
         $notification = Notification::create([
-            'type' => Notification::TYPE_MISSION_ASSIGNED,
-            'recipient_id' => $mission->agent->id,
-            'bail_mobilite_id' => $bailMobilite?->id,
-            'scheduled_at' => now(),
-            'status' => 'pending',
-            'data' => [
-                'mission_id' => $mission->id,
-                'mission_type' => $mission->mission_type,
-                'address' => $mission->address,
-                'scheduled_at' => $mission->scheduled_at?->toDateTimeString(),
-                'tenant_name' => $bailMobilite?->tenant_name ?? $mission->tenant_name,
-                'assigned_by' => $mission->opsAssignedBy?->name ?? 'System'
-            ]
+            'user_id' => $user->id,
+            'type' => $type,
+            'title' => $title,
+            'message' => $message,
+            'data' => $data,
+            'channels' => $channels,
+            'priority' => $priority,
+            'requires_action' => $requiresAction,
+            'mission_id' => $mission?->id,
+            'checklist_id' => $checklist?->id,
         ]);
-        
-        // Send immediate notification
-        $mission->agent->notify(new MissionAssignedNotification($mission, $bailMobilite));
-        $notification->markAsSent();
 
-        Log::info("Mission assigned notification sent to agent {$mission->agent->id} for Mission {$mission->id}");
-        
+        $this->sendThroughChannels($user, $notification, $channels);
+
         return $notification;
     }
 
     /**
-     * Cancel scheduled notifications for a bail mobilité.
+     * Send notification for mission assignment
      */
-    public function cancelScheduledNotifications(BailMobilite $bailMobilite, array $types = null): int
+    public function notifyMissionAssigned(User $checker, Mission $mission): Notification
     {
-        $query = Notification::where('bail_mobilite_id', $bailMobilite->id)
-                            ->where('status', 'pending');
-        
-        if ($types) {
-            $query->whereIn('type', $types);
-        }
-        
-        $notifications = $query->get();
-        $cancelledCount = 0;
-        
-        foreach ($notifications as $notification) {
-            $notification->cancel();
-            $cancelledCount++;
-        }
-
-        Log::info("Cancelled {$cancelledCount} notifications for BM {$bailMobilite->id}");
-        
-        return $cancelledCount;
+        return $this->create(
+            user: $checker,
+            type: 'mission_assigned',
+            title: 'New Mission Assigned',
+            message: "You have been assigned a new mission for property: {$mission->property->name}",
+            data: [
+                'mission_id' => $mission->id,
+                'property_name' => $mission->property->name,
+                'due_date' => $mission->due_date?->format('Y-m-d H:i'),
+            ],
+            channels: ['database', 'email', 'websocket'],
+            priority: 'medium',
+            mission: $mission
+        );
     }
 
     /**
-     * Cancel exit reminder notifications specifically.
+     * Send notification for mission completion
      */
-    public function cancelExitReminders(BailMobilite $bailMobilite): int
+    public function notifyMissionCompleted(User $creator, Mission $mission): Notification
     {
-        return $this->cancelScheduledNotifications($bailMobilite, [Notification::TYPE_EXIT_REMINDER]);
+        return $this->create(
+            user: $creator,
+            type: 'mission_completed',
+            title: 'Mission Completed',
+            message: "Mission for property {$mission->property->name} has been completed by {$mission->assignedUser->name}",
+            data: [
+                'mission_id' => $mission->id,
+                'property_name' => $mission->property->name,
+                'completed_by' => $mission->assignedUser->name,
+                'completed_at' => $mission->completed_at?->format('Y-m-d H:i'),
+            ],
+            channels: ['database', 'email', 'websocket'],
+            priority: 'medium',
+            mission: $mission
+        );
     }
 
     /**
-     * Process scheduled notifications that are ready to be sent.
+     * Send notification for checklist completion
      */
-    public function processScheduledNotifications(): int
+    public function notifyChecklistCompleted(User $missionCreator, Checklist $checklist): Notification
     {
-        $notifications = Notification::scheduledForSending()->get();
-        $processedCount = 0;
-        
-        foreach ($notifications as $notification) {
-            try {
-                $this->sendScheduledNotification($notification);
-                $processedCount++;
-            } catch (\Exception $e) {
-                Log::error("Failed to send scheduled notification {$notification->id}: " . $e->getMessage());
-            }
-        }
-
-        Log::info("Processed {$processedCount} scheduled notifications");
-        
-        return $processedCount;
+        return $this->create(
+            user: $missionCreator,
+            type: 'checklist_completed',
+            title: 'Checklist Completed',
+            message: "Checklist '{$checklist->name}' has been completed for mission at {$checklist->mission->property->name}",
+            data: [
+                'checklist_id' => $checklist->id,
+                'checklist_name' => $checklist->name,
+                'mission_id' => $checklist->mission_id,
+                'property_name' => $checklist->mission->property->name,
+                'completed_by' => $checklist->mission->assignedUser->name,
+            ],
+            channels: ['database', 'email', 'websocket'],
+            priority: 'medium',
+            mission: $checklist->mission,
+            checklist: $checklist
+        );
     }
 
     /**
-     * Send a specific scheduled notification.
+     * Send bulk notifications to multiple users
      */
-    protected function sendScheduledNotification(Notification $notification): void
-    {
-        switch ($notification->type) {
-            case Notification::TYPE_EXIT_REMINDER:
-                $this->sendExitReminderNotification($notification);
-                break;
-            case Notification::TYPE_CHECKLIST_VALIDATION:
-                $this->sendChecklistValidationFromScheduled($notification);
-                break;
-            case Notification::TYPE_INCIDENT_ALERT:
-                $this->sendIncidentAlertFromScheduled($notification);
-                break;
-            case Notification::TYPE_MISSION_ASSIGNED:
-                $this->sendMissionAssignedFromScheduled($notification);
-                break;
-            default:
-                Log::warning("Unknown notification type: {$notification->type}");
-        }
-    }
-
-    /**
-     * Send exit reminder notification.
-     */
-    protected function sendExitReminderNotification(Notification $notification): void
-    {
-        $bailMobilite = $notification->bailMobilite;
-        if (!$bailMobilite) {
-            Log::warning("Cannot send exit reminder: BailMobilite not found for notification {$notification->id}");
-            return;
-        }
-
-        $notification->recipient->notify(new BailMobiliteExitReminder($bailMobilite));
-        $notification->markAsSent();
-    }
-
-    /**
-     * Send checklist validation notification from scheduled.
-     */
-    protected function sendChecklistValidationFromScheduled(Notification $notification): void
-    {
-        $bailMobilite = $notification->bailMobilite;
-        $missionId = $notification->data['mission_id'] ?? null;
-        
-        if (!$bailMobilite || !$missionId) {
-            Log::warning("Cannot send checklist validation: Missing data for notification {$notification->id}");
-            return;
-        }
-
-        $mission = Mission::find($missionId);
-        if (!$mission) {
-            Log::warning("Cannot send checklist validation: Mission {$missionId} not found");
-            return;
-        }
-
-        $notification->recipient->notify(new ChecklistValidationNotification($mission, $bailMobilite));
-        $notification->markAsSent();
-    }
-
-    /**
-     * Send incident alert notification from scheduled.
-     */
-    protected function sendIncidentAlertFromScheduled(Notification $notification): void
-    {
-        $bailMobilite = $notification->bailMobilite;
-        if (!$bailMobilite) {
-            Log::warning("Cannot send incident alert: BailMobilite not found for notification {$notification->id}");
-            return;
-        }
-
-        $incidentReason = $notification->data['incident_reason'] ?? null;
-        $notification->recipient->notify(new IncidentAlertNotification($bailMobilite, $incidentReason));
-        $notification->markAsSent();
-    }
-
-    /**
-     * Send mission assigned notification from scheduled.
-     */
-    protected function sendMissionAssignedFromScheduled(Notification $notification): void
-    {
-        $missionId = $notification->data['mission_id'] ?? null;
-        if (!$missionId) {
-            Log::warning("Cannot send mission assigned: Missing mission_id for notification {$notification->id}");
-            return;
-        }
-
-        $mission = Mission::find($missionId);
-        if (!$mission) {
-            Log::warning("Cannot send mission assigned: Mission {$missionId} not found");
-            return;
-        }
-
-        $bailMobilite = $mission->bailMobilite;
-        $notification->recipient->notify(new MissionAssignedNotification($mission, $bailMobilite));
-        $notification->markAsSent();
-    }
-
-    /**
-     * Get pending notifications for a user.
-     */
-    public function getPendingNotificationsForUser(User $user): Collection
-    {
-        return Notification::forRecipient($user->id)
-                          ->pending()
-                          ->with(['bailMobilite'])
-                          ->orderBy('scheduled_at', 'desc')
-                          ->get();
-    }
-
-    /**
-     * Get notification history for a user.
-     */
-    public function getNotificationHistoryForUser(User $user, int $limit = 50): Collection
-    {
-        return Notification::forRecipient($user->id)
-                          ->with(['bailMobilite'])
-                          ->orderBy('created_at', 'desc')
-                          ->limit($limit)
-                          ->get();
-    }
-
-    /**
-     * Get notifications for a specific bail mobilité.
-     */
-    public function getNotificationsForBailMobilite(BailMobilite $bailMobilite): Collection
-    {
-        return $bailMobilite->notifications()
-                           ->with(['recipient'])
-                           ->orderBy('created_at', 'desc')
-                           ->get();
-    }
-
-    /**
-     * Mark notification as read/handled.
-     */
-    public function markNotificationAsHandled(Notification $notification): void
-    {
-        if ($notification->status === 'pending') {
-            $notification->update(['status' => 'sent', 'sent_at' => now()]);
-        }
-    }
-
-    /**
-     * Reschedule exit reminder when bail mobilité dates change.
-     */
-    public function rescheduleExitReminder(BailMobilite $bailMobilite): ?Notification
-    {
-        // Cancel existing exit reminders
-        $this->cancelExitReminders($bailMobilite);
-        
-        // Schedule new exit reminder if BM is in progress
-        if ($bailMobilite->status === 'in_progress') {
-            return $this->scheduleExitReminder($bailMobilite);
-        }
-        
-        return null;
-    }
-
-    /**
-     * Send calendar mission update notification.
-     */
-    public function sendCalendarMissionUpdateNotification(Mission $mission, string $updateType, array $changes = []): Collection
-    {
-        $bailMobilite = $mission->bailMobilite;
-        if (!$bailMobilite) {
-            Log::warning("Cannot send calendar mission update notification: Mission {$mission->id} has no associated BailMobilite");
-            return collect();
-        }
-
-        // Get all ops users to notify
-        $opsUsers = User::role('ops')->get();
-        
+    public function createBulk(
+        Collection $users,
+        string $type,
+        string $title,
+        string $message,
+        array $data = [],
+        array $channels = ['database'],
+        string $priority = 'medium'
+    ): Collection {
         $notifications = collect();
-        
-        foreach ($opsUsers as $opsUser) {
-            // Create notification record
-            $notification = Notification::create([
-                'type' => Notification::TYPE_CALENDAR_UPDATE,
-                'recipient_id' => $opsUser->id,
-                'bail_mobilite_id' => $bailMobilite->id,
-                'scheduled_at' => now(),
-                'status' => 'pending',
-                'data' => [
-                    'mission_id' => $mission->id,
-                    'mission_type' => $mission->mission_type,
-                    'update_type' => $updateType,
-                    'changes' => $changes,
-                    'bail_mobilite_id' => $bailMobilite->id,
-                    'tenant_name' => $bailMobilite->tenant_name,
-                    'address' => $bailMobilite->address,
-                    'checker_name' => $mission->agent->name ?? null,
-                    'updated_by' => auth()->user()->name ?? 'System'
-                ]
-            ]);
-            
-            $notifications->push($notification);
+
+        foreach ($users as $user) {
+            $notifications->push(
+                $this->create($user, $type, $title, $message, $data, $channels, $priority)
+            );
         }
 
-        Log::info("Calendar mission update notification sent for Mission {$mission->id}: {$updateType}");
-        
         return $notifications;
     }
 
     /**
-     * Send calendar mission assignment notification.
+     * Mark notification as read
      */
-    public function sendCalendarMissionAssignmentNotification(Mission $mission): Collection
+    public function markAsRead(Notification $notification): bool
     {
-        $notifications = collect();
-        
-        // Send to assigned checker
-        if ($mission->agent) {
-            $checkerNotification = $this->sendMissionAssignedNotification($mission);
-            if ($checkerNotification) {
-                $notifications->push($checkerNotification);
-            }
-        }
-        
-        // Send calendar update to ops users
-        $opsNotifications = $this->sendCalendarMissionUpdateNotification($mission, 'assignment', [
-            'assigned_to' => $mission->agent->name ?? null,
-            'assigned_by' => auth()->user()->name ?? 'System'
-        ]);
-        
-        $notifications = $notifications->merge($opsNotifications);
-        
-        return $notifications;
+        $notification->markAsRead();
+        return true;
     }
 
     /**
-     * Send calendar mission status change notification.
+     * Mark multiple notifications as read
      */
-    public function sendCalendarMissionStatusNotification(Mission $mission, string $oldStatus, string $newStatus): Collection
+    public function markMultipleAsRead(Collection $notifications): bool
     {
-        $notifications = collect();
-        
-        // Send calendar update to ops users
-        $opsNotifications = $this->sendCalendarMissionUpdateNotification($mission, 'status_change', [
-            'old_status' => $oldStatus,
-            'new_status' => $newStatus,
-            'changed_by' => auth()->user()->name ?? 'System'
-        ]);
-        
-        $notifications = $notifications->merge($opsNotifications);
-        
-        // If mission is completed, send checklist validation alert
-        if ($newStatus === 'completed') {
-            $validationNotifications = $this->sendChecklistValidationAlert($mission);
-            $notifications = $notifications->merge($validationNotifications);
-        }
-        
-        return $notifications;
+        $notifications->each(fn($notification) => $notification->markAsRead());
+        return true;
     }
 
     /**
-     * Send mission completion notification with real-time broadcasting.
+     * Get unread notifications for user
      */
-    public function sendMissionCompletionNotification(Mission $mission): Collection
+    public function getUnreadForUser(User $user): Collection
     {
-        $bailMobilite = $mission->bailMobilite;
-        if (!$bailMobilite) {
-            Log::warning("Cannot send mission completion notification: Mission {$mission->id} has no associated BailMobilite");
-            return collect();
-        }
-
-        // Get all ops users to notify
-        $opsUsers = User::role('ops')->get();
-        
-        $notifications = collect();
-        
-        foreach ($opsUsers as $opsUser) {
-            // Create notification record
-            $notification = Notification::create([
-                'type' => 'mission_completed',
-                'recipient_id' => $opsUser->id,
-                'bail_mobilite_id' => $bailMobilite->id,
-                'scheduled_at' => now(),
-                'status' => 'pending',
-                'data' => [
-                    'mission_id' => $mission->id,
-                    'mission_type' => $mission->mission_type,
-                    'bail_mobilite_id' => $bailMobilite->id,
-                    'tenant_name' => $bailMobilite->tenant_name,
-                    'address' => $bailMobilite->address,
-                    'checker_name' => $mission->agent->name ?? 'Unknown',
-                    'completed_at' => $mission->actual_end_time?->toDateTimeString() ?? now()->toDateTimeString(),
-                    'requires_validation' => true
-                ]
-            ]);
-            
-            $notifications->push($notification);
-        }
-
-        // Send checklist validation alert immediately
-        $validationNotifications = $this->sendChecklistValidationAlert($mission);
-        $notifications = $notifications->merge($validationNotifications);
-
-        Log::info("Mission completion notification sent for Mission {$mission->id}");
-        
-        return $notifications;
+        return Notification::forUser($user)
+            ->unread()
+            ->orderBy('created_at', 'desc')
+            ->get();
     }
 
     /**
-     * Send real-time notification update to specific user.
+     * Get notifications requiring action for user
      */
-    public function sendRealTimeNotification(User $user, array $notificationData): void
+    public function getRequiringActionForUser(User $user): Collection
     {
-        // This would integrate with broadcasting systems like Pusher, WebSockets, etc.
-        // For now, we'll log and rely on polling
-        Log::info("Real-time notification for user {$user->id}", $notificationData);
-        
-        // In a real implementation, you would broadcast here:
-        // broadcast(new NotificationEvent($user, $notificationData));
+        return Notification::forUser($user)
+            ->requiringAction()
+            ->orderBy('priority', 'desc')
+            ->orderBy('created_at', 'desc')
+            ->get();
     }
 
     /**
-     * Broadcast notification to all ops users.
+     * Register notification channels
      */
-    public function broadcastToOpsUsers(array $notificationData): void
+    private function registerChannels(): void
     {
-        $opsUsers = User::role('ops')->get();
-        
-        foreach ($opsUsers as $opsUser) {
-            $this->sendRealTimeNotification($opsUser, $notificationData);
-        }
+        $this->channels['database'] = new DatabaseChannel();
+        $this->channels['email'] = new EmailChannel($this->emailService);
+        $this->channels['websocket'] = new \App\Services\NotificationChannels\WebSocketChannel();
     }
 
     /**
-     * Send calendar mission creation notification.
+     * Send notification through specified channels
      */
-    public function sendCalendarMissionCreationNotification(BailMobilite $bailMobilite): Collection
+    private function sendThroughChannels(User $user, Notification $notification, array $channels): void
     {
-        // Get all ops users to notify
-        $opsUsers = User::role('ops')->get();
-        
-        $notifications = collect();
-        
-        foreach ($opsUsers as $opsUser) {
-            // Skip the user who created the mission
-            if ($opsUser->id === auth()->id()) {
+        foreach ($channels as $channelName) {
+            if (!isset($this->channels[$channelName])) {
+                Log::warning("Unknown notification channel: {$channelName}");
                 continue;
             }
-            
-            // Create notification record
-            $notification = Notification::create([
-                'type' => Notification::TYPE_CALENDAR_UPDATE,
-                'recipient_id' => $opsUser->id,
-                'bail_mobilite_id' => $bailMobilite->id,
-                'scheduled_at' => now(),
-                'status' => 'pending',
-                'data' => [
-                    'update_type' => 'creation',
-                    'bail_mobilite_id' => $bailMobilite->id,
-                    'tenant_name' => $bailMobilite->tenant_name,
-                    'address' => $bailMobilite->address,
-                    'start_date' => $bailMobilite->start_date->toDateString(),
-                    'end_date' => $bailMobilite->end_date->toDateString(),
-                    'created_by' => auth()->user()->name ?? 'System'
-                ]
-            ]);
-            
-            $notifications->push($notification);
-        }
 
-        Log::info("Calendar mission creation notification sent for BailMobilite {$bailMobilite->id}");
-        
-        return $notifications;
-    }
+            $channel = $this->channels[$channelName];
 
-    /**
-     * Get notification statistics for ops dashboard.
-     */
-    public function getNotificationStats(User $opsUser = null): array
-    {
-        $query = Notification::query();
-        
-        if ($opsUser) {
-            $query->forRecipient($opsUser->id);
-        }
-
-        return [
-            'total_pending' => (clone $query)->pending()->count(),
-            'exit_reminders_pending' => (clone $query)->pending()->exitReminders()->count(),
-            'checklist_validations_pending' => (clone $query)->pending()->checklistValidations()->count(),
-            'incident_alerts_pending' => (clone $query)->pending()->incidentAlerts()->count(),
-            'calendar_updates_pending' => (clone $query)->pending()->calendarUpdates()->count(),
-            'total_sent_today' => (clone $query)->sent()->whereDate('sent_at', today())->count(),
-            'total_sent_this_week' => (clone $query)->sent()->whereBetween('sent_at', [now()->startOfWeek(), now()->endOfWeek()])->count(),
-        ];
-    }
-
-    /**
-     * Send mission assignment notification to agent
-     */
-    public function sendMissionAssignmentNotification(Mission $mission, User $agent): void
-    {
-        try {
-            $agent->notify(new MissionAssignedNotification($mission));
-            
-            // Also create a database notification
-            Notification::create([
-                'type' => 'mission_assigned',
-                'recipient_id' => $agent->id,
-                'mission_id' => $mission->id,
-                'status' => 'sent',
-                'sent_at' => now(),
-                'data' => [
-                    'mission_id' => $mission->id,
-                    'address' => $mission->address,
-                    'tenant_name' => $mission->tenant_name,
-                    'scheduled_at' => $mission->scheduled_at?->format('d/m/Y H:i'),
-                    'mission_type' => $mission->mission_type,
-                    'assigned_by' => auth()->user()->name ?? 'System'
-                ]
-            ]);
-
-            Log::info("Mission assignment notification sent to agent {$agent->id} for mission {$mission->id}");
-        } catch (\Exception $e) {
-            Log::error("Failed to send mission assignment notification", [
-                'mission_id' => $mission->id,
-                'agent_id' => $agent->id,
-                'error' => $e->getMessage()
-            ]);
-        }
-    }
-
-    /**
-     * Send mission reassignment notification
-     */
-    public function sendMissionReassignmentNotification(Mission $mission, User $newAgent, ?User $oldAgent = null): void
-    {
-        try {
-            $newAgent->notify(new MissionReassignmentNotification($mission, $oldAgent));
-            
-            // Create database notification
-            Notification::create([
-                'type' => 'mission_reassigned',
-                'recipient_id' => $newAgent->id,
-                'mission_id' => $mission->id,
-                'status' => 'sent',
-                'sent_at' => now(),
-                'data' => [
-                    'mission_id' => $mission->id,
-                    'address' => $mission->address,
-                    'tenant_name' => $mission->tenant_name,
-                    'scheduled_at' => $mission->scheduled_at?->format('d/m/Y H:i'),
-                    'mission_type' => $mission->mission_type,
-                    'previous_agent' => $oldAgent?->name,
-                    'reassigned_by' => auth()->user()->name ?? 'System',
-                    'reason' => $mission->reassignment_reason
-                ]
-            ]);
-
-            Log::info("Mission reassignment notification sent to agent {$newAgent->id} for mission {$mission->id}");
-        } catch (\Exception $e) {
-            Log::error("Failed to send mission reassignment notification", [
-                'mission_id' => $mission->id,
-                'new_agent_id' => $newAgent->id,
-                'error' => $e->getMessage()
-            ]);
-        }
-    }
-
-    /**
-     * Send mission unassignment notification
-     */
-    public function sendMissionUnassignmentNotification(Mission $mission, User $agent): void
-    {
-        try {
-            $agent->notify(new MissionUnassignmentNotification($mission));
-            
-            // Create database notification
-            Notification::create([
-                'type' => 'mission_unassigned',
-                'recipient_id' => $agent->id,
-                'mission_id' => $mission->id,
-                'status' => 'sent',
-                'sent_at' => now(),
-                'data' => [
-                    'mission_id' => $mission->id,
-                    'address' => $mission->address,
-                    'tenant_name' => $mission->tenant_name,
-                    'scheduled_at' => $mission->scheduled_at?->format('d/m/Y H:i'),
-                    'mission_type' => $mission->mission_type,
-                    'unassigned_by' => auth()->user()->name ?? 'System',
-                    'reason' => $mission->reassignment_reason
-                ]
-            ]);
-
-            Log::info("Mission unassignment notification sent to agent {$agent->id} for mission {$mission->id}");
-        } catch (\Exception $e) {
-            Log::error("Failed to send mission unassignment notification", [
-                'mission_id' => $mission->id,
-                'agent_id' => $agent->id,
-                'error' => $e->getMessage()
-            ]);
-        }
-    }
-
-    /**
-     * Send bulk assignment summary notification to ops staff
-     */
-    public function sendBulkAssignmentSummaryNotification(array $results, User $opsUser): void
-    {
-        try {
-            $successCount = collect($results)->where('success', true)->count();
-            $failureCount = collect($results)->where('success', false)->count();
-            
-            Notification::create([
-                'type' => 'bulk_assignment_summary',
-                'recipient_id' => $opsUser->id,
-                'status' => 'sent',
-                'sent_at' => now(),
-                'data' => [
-                    'total_processed' => count($results),
-                    'successful_assignments' => $successCount,
-                    'failed_assignments' => $failureCount,
-                    'results' => $results,
-                    'processed_by' => auth()->user()->name ?? 'System'
-                ]
-            ]);
-
-            Log::info("Bulk assignment summary notification sent to ops user {$opsUser->id}");
-        } catch (\Exception $e) {
-            Log::error("Failed to send bulk assignment summary notification", [
-                'ops_user_id' => $opsUser->id,
-                'error' => $e->getMessage()
-            ]);
-        }
-    }
-
-    /**
-     * Send assignment deadline reminder notifications
-     */
-    public function sendAssignmentDeadlineReminders(): int
-    {
-        $unassignedMissions = Mission::where('status', 'unassigned')
-            ->where('scheduled_at', '<=', now()->addHours(2))
-            ->where('scheduled_at', '>', now())
-            ->get();
-
-        $notificationsSent = 0;
-
-        foreach ($unassignedMissions as $mission) {
-            $opsUsers = User::role('ops')->get();
-            
-            foreach ($opsUsers as $opsUser) {
-                Notification::create([
-                    'type' => 'assignment_deadline_reminder',
-                    'recipient_id' => $opsUser->id,
-                    'mission_id' => $mission->id,
-                    'status' => 'sent',
-                    'sent_at' => now(),
-                    'data' => [
-                        'mission_id' => $mission->id,
-                        'address' => $mission->address,
-                        'tenant_name' => $mission->tenant_name,
-                        'scheduled_at' => $mission->scheduled_at->format('d/m/Y H:i'),
-                        'time_until_mission' => $mission->scheduled_at->diffForHumans(),
-                        'priority' => 'high'
-                    ]
-                ]);
-                
-                $notificationsSent++;
+            if (!$channel->isAvailable()) {
+                Log::warning("Notification channel {$channelName} is not available");
+                continue;
             }
-        }
 
-        Log::info("Assignment deadline reminder notifications sent: {$notificationsSent}");
-        return $notificationsSent;
-    }
+            if (!$channel->supports($notification->type)) {
+                Log::info("Channel {$channelName} does not support notification type: {$notification->type}");
+                continue;
+            }
 
-    /**
-     * Send signature invitation email
-     */
-    public function sendSignatureInvitationEmail(string $email, array $data): void
-    {
-        try {
-            $invitation = $data['invitation'];
-            $signatureUrl = $invitation->getSignatureUrl();
-            
-            // Send email notification
-            $notification = new SignatureInvitationNotification($data);
-            
-            // In a real implementation, you would use Laravel's mail system:
-            // Mail::to($email)->send($notification);
-            
-            Log::info("Signature invitation email sent to {$email}", [
-                'invitation_id' => $invitation->id,
-                'signature_id' => $invitation->bail_mobilite_signature_id,
-                'party_role' => $data['party']->role
-            ]);
-            
-        } catch (\Exception $e) {
-            Log::error("Failed to send signature invitation email", [
-                'email' => $email,
-                'error' => $e->getMessage()
-            ]);
-        }
-    }
-
-    /**
-     * Send SMS invitation
-     */
-    public function sendSms(string $phone, string $message, array $metadata = []): void
-    {
-        try {
-            // In a real implementation, integrate with SMS service like Twilio
-            Log::info("SMS would be sent to {$phone}", [
-                'message' => $message,
-                'metadata' => $metadata
-            ]);
-            
-        } catch (\Exception $e) {
-            Log::error("Failed to send SMS", [
-                'phone' => $phone,
-                'error' => $e->getMessage()
-            ]);
-        }
-    }
-
-    /**
-     * Send workflow completion notification
-     */
-    public function sendWorkflowCompletionNotification(BailMobiliteSignature $signature): void
-    {
-        try {
-            $opsUsers = User::role('ops')->get();
-            
-            foreach ($opsUsers as $opsUser) {
-                $opsUser->notify(new WorkflowCompletionNotification($signature));
-                
-                Notification::create([
-                    'type' => 'workflow_completed',
-                    'recipient_id' => $opsUser->id,
-                    'bail_mobilite_id' => $signature->bail_mobilite_id,
-                    'status' => 'sent',
-                    'sent_at' => now(),
-                    'data' => [
-                        'signature_id' => $signature->id,
-                        'bail_mobilite_id' => $signature->bail_mobilite_id,
-                        'tenant_name' => $signature->bailMobilite->tenant_name,
-                        'address' => $signature->bailMobilite->address,
-                        'completed_at' => now()->toDateTimeString()
-                    ]
+            try {
+                $success = $channel->send($user, $notification);
+                if (!$success) {
+                    Log::error("Failed to send notification through channel: {$channelName}", [
+                        'notification_id' => $notification->id,
+                        'user_id' => $user->id
+                    ]);
+                }
+            } catch (\Exception $e) {
+                Log::error("Exception sending notification through channel: {$channelName}", [
+                    'notification_id' => $notification->id,
+                    'user_id' => $user->id,
+                    'error' => $e->getMessage()
                 ]);
             }
-            
-            Log::info("Workflow completion notifications sent for signature {$signature->id}");
-            
-        } catch (\Exception $e) {
-            Log::error("Failed to send workflow completion notifications", [
-                'signature_id' => $signature->id,
-                'error' => $e->getMessage()
-            ]);
-        }
-    }
-
-    /**
-     * Send tenant completion notification
-     */
-    public function sendTenantCompletionNotification(BailMobilite $bailMobilite, BailMobiliteSignature $signature): void
-    {
-        try {
-            if ($bailMobilite->tenant_email) {
-                // In a real implementation, send email to tenant
-                Log::info("Tenant completion notification would be sent to {$bailMobilite->tenant_email}", [
-                    'bail_mobilite_id' => $bailMobilite->id,
-                    'signature_id' => $signature->id
-                ]);
-            }
-            
-        } catch (\Exception $e) {
-            Log::error("Failed to send tenant completion notification", [
-                'bail_mobilite_id' => $bailMobilite->id,
-                'error' => $e->getMessage()
-            ]);
-        }
-    }
-
-    /**
-     * Send party completion notification
-     */
-    public function sendPartyCompletionNotification(SignatureInvitation $invitation, BailMobiliteSignature $signature): void
-    {
-        try {
-            $party = $invitation->signatureParty;
-            
-            // In a real implementation, send email to the signing party
-            Log::info("Party completion notification would be sent to {$party->email}", [
-                'invitation_id' => $invitation->id,
-                'party_role' => $party->role,
-                'signature_id' => $signature->id
-            ]);
-            
-        } catch (\Exception $e) {
-            Log::error("Failed to send party completion notification", [
-                'invitation_id' => $invitation->id,
-                'error' => $e->getMessage()
-            ]);
-        }
-    }
-
-    /**
-     * Send invitation expired notification
-     */
-    public function sendInvitationExpiredNotification(SignatureInvitation $invitation): void
-    {
-        try {
-            $opsUsers = User::role('ops')->get();
-            
-            foreach ($opsUsers as $opsUser) {
-                $opsUser->notify(new InvitationExpiredNotification($invitation));
-                
-                Notification::create([
-                    'type' => 'invitation_expired',
-                    'recipient_id' => $opsUser->id,
-                    'bail_mobilite_id' => $invitation->bailMobiliteSignature->bail_mobilite_id,
-                    'status' => 'sent',
-                    'sent_at' => now(),
-                    'data' => [
-                        'invitation_id' => $invitation->id,
-                        'signature_id' => $invitation->bail_mobilite_signature_id,
-                        'party_email' => $invitation->signatureParty->email,
-                        'party_role' => $invitation->signatureParty->role,
-                        'expired_at' => $invitation->expires_at
-                    ]
-                ]);
-            }
-            
-            Log::warning("Invitation expired notifications sent for invitation {$invitation->id}");
-            
-        } catch (\Exception $e) {
-            Log::error("Failed to send invitation expired notifications", [
-                'invitation_id' => $invitation->id,
-                'error' => $e->getMessage()
-            ]);
-        }
-    }
-
-    /**
-     * Send escalation notification
-     */
-    public function sendEscalationNotification(SignatureInvitation $invitation, array $escalationSettings): void
-    {
-        try {
-            $opsUsers = User::role('ops')->get();
-            
-            foreach ($opsUsers as $opsUser) {
-                $opsUser->notify(new EscalationNotification($invitation, $escalationSettings));
-                
-                Notification::create([
-                    'type' => 'signature_escalation',
-                    'recipient_id' => $opsUser->id,
-                    'bail_mobilite_id' => $invitation->bailMobiliteSignature->bail_mobilite_id,
-                    'status' => 'sent',
-                    'sent_at' => now(),
-                    'data' => [
-                        'invitation_id' => $invitation->id,
-                        'signature_id' => $invitation->bail_mobilite_signature_id,
-                        'party_email' => $invitation->signatureParty->email,
-                        'party_role' => $invitation->signatureParty->role,
-                        'escalation_reason' => 'invitation_expired',
-                        'escalation_settings' => $escalationSettings
-                    ]
-                ]);
-            }
-            
-            Log::warning("Escalation notifications sent for expired invitation {$invitation->id}");
-            
-        } catch (\Exception $e) {
-            Log::error("Failed to send escalation notifications", [
-                'invitation_id' => $invitation->id,
-                'error' => $e->getMessage()
-            ]);
         }
     }
 }

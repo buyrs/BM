@@ -2,33 +2,22 @@
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Relations\HasMany;
-use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Checklist extends Model
 {
     use HasFactory;
-
+{
     protected $fillable = [
         'mission_id',
-        'general_info',
-        'rooms',
-        'utilities',
-        'tenant_signature',
-        'agent_signature',
+        'type',
         'status',
-        'ops_validation_comments',
-        'validated_by',
-        'validated_at'
-    ];
-
-    protected $casts = [
-        'general_info' => 'array',
-        'rooms' => 'array',
-        'utilities' => 'array',
-        'validated_at' => 'datetime'
+        'submitted_at',
+        'signature_path',
+        'guest_token',
     ];
 
     public function mission(): BelongsTo
@@ -36,82 +25,8 @@ class Checklist extends Model
         return $this->belongsTo(Mission::class);
     }
 
-    public function items(): HasMany
+    public function checklistItems(): HasMany
     {
         return $this->hasMany(ChecklistItem::class);
-    }
-
-    public function validatedBy(): BelongsTo
-    {
-        return $this->belongsTo(User::class, 'validated_by');
-    }
-
-    public function photos(): HasMany
-    {
-        return $this->hasMany(ChecklistPhoto::class, 'checklist_id');
-    }
-
-    public function getDefaultStructure(): array
-    {
-        return [
-            'general_info' => [
-                'heating' => [
-                    'type' => null,
-                    'condition' => null,
-                    'comment' => null
-                ],
-                'hot_water' => [
-                    'type' => null,
-                    'condition' => null,
-                    'comment' => null
-                ],
-                'keys' => [
-                    'count' => 0,
-                    'condition' => null,
-                    'comment' => null
-                ]
-            ],
-            'rooms' => [
-                'entrance' => [
-                    'walls' => null,
-                    'floor' => null,
-                    'ceiling' => null,
-                    'door' => null,
-                    'windows' => null,
-                    'electrical' => null
-                ],
-                'living_room' => [
-                    'walls' => null,
-                    'floor' => null,
-                    'ceiling' => null,
-                    'windows' => null,
-                    'electrical' => null,
-                    'heating' => null
-                ],
-                'kitchen' => [
-                    'walls' => null,
-                    'floor' => null,
-                    'ceiling' => null,
-                    'windows' => null,
-                    'electrical' => null,
-                    'plumbing' => null,
-                    'appliances' => null
-                ]
-            ],
-            'utilities' => [
-                'electricity_meter' => [
-                    'number' => null,
-                    'reading' => null
-                ],
-                'gas_meter' => [
-                    'number' => null,
-                    'reading' => null
-                ],
-                'water_meter' => [
-                    'number' => null,
-                    'reading' => null
-                ]
-            ]
-        ];
     }
 }

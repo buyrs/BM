@@ -3,23 +3,16 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use Illuminate\Database\Eloquent\Factories\HasFactory;
 
 class ChecklistItem extends Model
 {
-    use HasFactory;
-
     protected $fillable = [
         'checklist_id',
-        'category',
-        'item_name',
-        'condition',
+        'amenity_id',
+        'state',
         'comment',
-        'notes',
-        'is_required',
-        'created_by'
+        'photo_path',
     ];
 
     public function checklist(): BelongsTo
@@ -27,13 +20,8 @@ class ChecklistItem extends Model
         return $this->belongsTo(Checklist::class);
     }
 
-    public function photos(): HasMany
+    public function amenity(): BelongsTo
     {
-        return $this->hasMany(ChecklistPhoto::class);
-    }
-
-    public function createdBy(): BelongsTo
-    {
-        return $this->belongsTo(User::class, 'created_by');
+        return $this->belongsTo(Amenity::class);
     }
 }

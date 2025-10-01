@@ -3,368 +3,268 @@
 namespace App\Services;
 
 use Illuminate\Support\Facades\Cache;
-use Illuminate\Support\Facades\Redis;
 use Illuminate\Support\Facades\Log;
-use Carbon\Carbon;
+use Illuminate\Database\Eloquent\Model;
 
-class CacheService
+class CacheService extends BaseService implements \App\Contracts\CacheServiceInterface
 {
-    /**
-     * Cache duration constants (in seconds)
-     */
-    const SHORT_CACHE = 300; // 5 minutes
-    const MEDIUM_CACHE = 1800; // 30 minutes
-    const LONG_CACHE = 3600; // 1 hour
-    const DAILY_CACHE = 86400; // 24 hours
-    const WEEKLY_CACHE = 604800; // 7 days
+    protected array $taggedCacheKeys = [];
+
+    protected function getDefaultConfig(): array
+    {
+        return config('cache');
+    }
 
     /**
-     * Cache key prefixes
+     * Get cached data or execute callback and cache result
      */
-    const DASHBOARD_PREFIX = 'dashboard';
-    const MISSIONS_PREFIX = 'missions';
-    const BAIL_MOBILITES_PREFIX = 'bail_mobilites';
-    const CHECKLISTS_PREFIX = 'checklists';
-    const STATS_PREFIX = 'stats';
-    const CALENDAR_PREFIX = 'calendar';
-    const NOTIFICATIONS_PREFIX = 'notifications';
-
-    /**
-     * Get cached data with fallback
-     */
-    public function remember(string $key, int $ttl, callable $callback, array $tags = [])
+    public function remember(string $key, $ttl, callable $callback, array $tags = [])
     {
         try {
+            if (!empty($tags)) {
+                return Cache::tags($tags)->remember($key, $ttl, $callback);
+            }
+
             return Cache::remember($key, $ttl, $callback);
         } catch (\Exception $e) {
-            Log::warning('Cache remember failed', [
+            Log::error('Cache remember failed', [
                 'key' => $key,
+                'tags' => $tags,
                 'error' => $e->getMessage()
             ]);
-            
-            // Fallback to direct execution
+
+            // Fallback to executing callback without caching
             return $callback();
         }
     }
 
     /**
-     * Get cached data with tags support
+     * Store data in cache
      */
-    public function rememberWithTags(string $key, array $tags, int $ttl, callable $callback)
+    public function put(string $key, $value, $ttl = null, array $tags = []): bool
     {
         try {
-            if (config('cache.default') === 'redis') {
-                return Cache::tags($tags)->remember($key, $ttl, $callback);
-            } else {
-                // Fallback for non-Redis cache drivers
-                return $this->remember($key, $ttl, $callback);
+            $ttl = $ttl ?? config('cache.default_ttl', 3600);
+
+            if (!empty($tags)) {
+                return Cache::tags($tags)->put($key, $value, $ttl);
             }
+
+            return Cache::put($key, $value, $ttl);
         } catch (\Exception $e) {
-            Log::warning('Tagged cache remember failed', [
+            Log::error('Cache put failed', [
                 'key' => $key,
                 'tags' => $tags,
                 'error' => $e->getMessage()
             ]);
-            
-            return $callback();
+            return false;
         }
     }
 
     /**
-     * Invalidate cache by tags
+     * Get data from cache
      */
-    public function invalidateTags(array $tags): void
+    public function get(string $key, $default = null, array $tags = [])
     {
         try {
-            if (config('cache.default') === 'redis') {
-                Cache::tags($tags)->flush();
-            } else {
-                // For non-Redis drivers, we need to track keys manually
-                $this->invalidateKeysByPattern($tags);
+            if (!empty($tags)) {
+                return Cache::tags($tags)->get($key, $default);
             }
+
+            return Cache::get($key, $default);
         } catch (\Exception $e) {
-            Log::warning('Cache tag invalidation failed', [
+            Log::error('Cache get failed', [
+                'key' => $key,
                 'tags' => $tags,
                 'error' => $e->getMessage()
             ]);
+            return $default;
         }
     }
 
     /**
-     * Dashboard caching methods
+     * Remove data from cache
      */
-    public function getDashboardStats(int $userId, string $role, callable $callback)
-    {
-        $key = $this->buildKey(self::DASHBOARD_PREFIX, 'stats', $userId, $role);
-        $tags = [self::DASHBOARD_PREFIX, self::STATS_PREFIX, "user_{$userId}"];
-        
-        return $this->rememberWithTags($key, $tags, self::MEDIUM_CACHE, $callback);
-    }
-
-    public function getRecentActivity(int $userId, string $role, callable $callback)
-    {
-        $key = $this->buildKey(self::DASHBOARD_PREFIX, 'activity', $userId, $role);
-        $tags = [self::DASHBOARD_PREFIX, "user_{$userId}"];
-        
-        return $this->rememberWithTags($key, $tags, self::SHORT_CACHE, $callback);
-    }
-
-    /**
-     * Mission caching methods
-     */
-    public function getMissionsList(array $filters, callable $callback)
-    {
-        $filterHash = md5(serialize($filters));
-        $key = $this->buildKey(self::MISSIONS_PREFIX, 'list', $filterHash);
-        $tags = [self::MISSIONS_PREFIX];
-        
-        return $this->rememberWithTags($key, $tags, self::SHORT_CACHE, $callback);
-    }
-
-    public function getMissionDetails(int $missionId, callable $callback)
-    {
-        $key = $this->buildKey(self::MISSIONS_PREFIX, 'details', $missionId);
-        $tags = [self::MISSIONS_PREFIX, "mission_{$missionId}"];
-        
-        return $this->rememberWithTags($key, $tags, self::MEDIUM_CACHE, $callback);
-    }
-
-    public function getMissionsByAgent(int $agentId, callable $callback)
-    {
-        $key = $this->buildKey(self::MISSIONS_PREFIX, 'agent', $agentId);
-        $tags = [self::MISSIONS_PREFIX, "agent_{$agentId}"];
-        
-        return $this->rememberWithTags($key, $tags, self::SHORT_CACHE, $callback);
-    }
-
-    /**
-     * Bail Mobilité caching methods
-     */
-    public function getBailMobilitesList(array $filters, callable $callback)
-    {
-        $filterHash = md5(serialize($filters));
-        $key = $this->buildKey(self::BAIL_MOBILITES_PREFIX, 'list', $filterHash);
-        $tags = [self::BAIL_MOBILITES_PREFIX];
-        
-        return $this->rememberWithTags($key, $tags, self::SHORT_CACHE, $callback);
-    }
-
-    public function getBailMobiliteDetails(int $bailMobiliteId, callable $callback)
-    {
-        $key = $this->buildKey(self::BAIL_MOBILITES_PREFIX, 'details', $bailMobiliteId);
-        $tags = [self::BAIL_MOBILITES_PREFIX, "bail_mobilite_{$bailMobiliteId}"];
-        
-        return $this->rememberWithTags($key, $tags, self::MEDIUM_CACHE, $callback);
-    }
-
-    public function getBailMobilitesByStatus(string $status, callable $callback)
-    {
-        $key = $this->buildKey(self::BAIL_MOBILITES_PREFIX, 'status', $status);
-        $tags = [self::BAIL_MOBILITES_PREFIX, "status_{$status}"];
-        
-        return $this->rememberWithTags($key, $tags, self::SHORT_CACHE, $callback);
-    }
-
-    /**
-     * Calendar caching methods
-     */
-    public function getCalendarEvents(string $date, callable $callback)
-    {
-        $key = $this->buildKey(self::CALENDAR_PREFIX, 'events', $date);
-        $tags = [self::CALENDAR_PREFIX, "date_{$date}"];
-        
-        return $this->rememberWithTags($key, $tags, self::MEDIUM_CACHE, $callback);
-    }
-
-    public function getCalendarMonth(string $month, callable $callback)
-    {
-        $key = $this->buildKey(self::CALENDAR_PREFIX, 'month', $month);
-        $tags = [self::CALENDAR_PREFIX, "month_{$month}"];
-        
-        return $this->rememberWithTags($key, $tags, self::LONG_CACHE, $callback);
-    }
-
-    /**
-     * Statistics caching methods
-     */
-    public function getPerformanceStats(string $period, callable $callback)
-    {
-        $key = $this->buildKey(self::STATS_PREFIX, 'performance', $period);
-        $tags = [self::STATS_PREFIX];
-        
-        $ttl = $period === 'daily' ? self::LONG_CACHE : self::DAILY_CACHE;
-        return $this->rememberWithTags($key, $tags, $ttl, $callback);
-    }
-
-    public function getSystemHealth(callable $callback)
-    {
-        $key = $this->buildKey(self::STATS_PREFIX, 'system_health');
-        $tags = [self::STATS_PREFIX];
-        
-        return $this->rememberWithTags($key, $tags, self::SHORT_CACHE, $callback);
-    }
-
-    /**
-     * Notification caching methods
-     */
-    public function getUserNotifications(int $userId, callable $callback)
-    {
-        $key = $this->buildKey(self::NOTIFICATIONS_PREFIX, 'user', $userId);
-        $tags = [self::NOTIFICATIONS_PREFIX, "user_{$userId}"];
-        
-        return $this->rememberWithTags($key, $tags, self::SHORT_CACHE, $callback);
-    }
-
-    /**
-     * Cache invalidation methods
-     */
-    public function invalidateMissionCache(int $missionId): void
-    {
-        $this->invalidateTags([
-            self::MISSIONS_PREFIX,
-            "mission_{$missionId}",
-            self::DASHBOARD_PREFIX,
-            self::CALENDAR_PREFIX
-        ]);
-    }
-
-    public function invalidateBailMobiliteCache(int $bailMobiliteId): void
-    {
-        $this->invalidateTags([
-            self::BAIL_MOBILITES_PREFIX,
-            "bail_mobilite_{$bailMobiliteId}",
-            self::DASHBOARD_PREFIX,
-            self::CALENDAR_PREFIX
-        ]);
-    }
-
-    public function invalidateUserCache(int $userId): void
-    {
-        $this->invalidateTags([
-            "user_{$userId}",
-            self::DASHBOARD_PREFIX,
-            self::NOTIFICATIONS_PREFIX
-        ]);
-    }
-
-    public function invalidateCalendarCache(string $date = null): void
-    {
-        $tags = [self::CALENDAR_PREFIX];
-        
-        if ($date) {
-            $tags[] = "date_{$date}";
-            $month = Carbon::parse($date)->format('Y-m');
-            $tags[] = "month_{$month}";
-        }
-        
-        $this->invalidateTags($tags);
-    }
-
-    public function invalidateStatsCache(): void
-    {
-        $this->invalidateTags([self::STATS_PREFIX, self::DASHBOARD_PREFIX]);
-    }
-
-    /**
-     * Bulk cache operations
-     */
-    public function warmupDashboardCache(int $userId, string $role): void
+    public function forget(string $key, array $tags = []): bool
     {
         try {
-            // Pre-load common dashboard data
-            $this->getDashboardStats($userId, $role, function() use ($userId, $role) {
-                // This would be implemented in the respective controllers
-                return [];
-            });
-            
-            $this->getRecentActivity($userId, $role, function() use ($userId, $role) {
-                // This would be implemented in the respective controllers
-                return [];
-            });
-            
+            if (!empty($tags)) {
+                return Cache::tags($tags)->forget($key);
+            }
+
+            return Cache::forget($key);
         } catch (\Exception $e) {
-            Log::warning('Dashboard cache warmup failed', [
-                'user_id' => $userId,
-                'role' => $role,
+            Log::error('Cache forget failed', [
+                'key' => $key,
+                'tags' => $tags,
+                'error' => $e->getMessage()
+            ]);
+            return false;
+        }
+    }
+
+    /**
+     * Flush cache by tags
+     */
+    public function flushTags(array $tags): bool
+    {
+        try {
+            Cache::tags($tags)->flush();
+            return true;
+        } catch (\Exception $e) {
+            Log::error('Cache flush tags failed', [
+                'tags' => $tags,
+                'error' => $e->getMessage()
+            ]);
+            return false;
+        }
+    }
+
+    /**
+     * Generate cache key for model
+     */
+    public function modelKey(Model $model, string $suffix = ''): string
+    {
+        $key = strtolower(class_basename($model)) . ':' . $model->getKey();
+        return $suffix ? $key . ':' . $suffix : $key;
+    }
+
+    /**
+     * Generate cache key for collection
+     */
+    public function collectionKey(string $model, array $params = []): string
+    {
+        $key = strtolower($model) . ':collection';
+        
+        if (!empty($params)) {
+            ksort($params);
+            $key .= ':' . md5(serialize($params));
+        }
+
+        return $key;
+    }
+
+    /**
+     * Cache model data with automatic invalidation
+     */
+    public function cacheModel(Model $model, $ttl = null): bool
+    {
+        $key = $this->modelKey($model);
+        $tags = $this->getModelTags($model);
+        
+        return $this->put($key, $model->toArray(), $ttl, $tags);
+    }
+
+    /**
+     * Get cached model data
+     */
+    public function getCachedModel(string $modelClass, $id)
+    {
+        $key = strtolower(class_basename($modelClass)) . ':' . $id;
+        $tags = [strtolower(class_basename($modelClass))];
+        
+        return $this->get($key, null, $tags);
+    }
+
+    /**
+     * Invalidate model cache
+     */
+    public function invalidateModel(Model $model): bool
+    {
+        $tags = $this->getModelTags($model);
+        return $this->flushTags($tags);
+    }
+
+    /**
+     * Get cache tags for model
+     */
+    protected function getModelTags(Model $model): array
+    {
+        $baseTag = strtolower(class_basename($model));
+        $tags = [$baseTag];
+
+        // Add relationship tags if model has specific relationships
+        if (method_exists($model, 'getCacheInvalidationTags')) {
+            $tags = array_merge($tags, $model->getCacheInvalidationTags());
+        }
+
+        return $tags;
+    }
+
+    /**
+     * Warm up frequently accessed cache data
+     */
+    public function warmCache(): void
+    {
+        try {
+            Log::info('Starting cache warming process');
+
+            // Warm up user data
+            $this->warmUserCache();
+
+            // Warm up property data
+            $this->warmPropertyCache();
+
+            // Warm up mission data
+            $this->warmMissionCache();
+
+            Log::info('Cache warming completed successfully');
+        } catch (\Exception $e) {
+            Log::error('Cache warming failed', [
                 'error' => $e->getMessage()
             ]);
         }
     }
 
-    public function clearAllCache(): void
+    /**
+     * Warm up user cache
+     */
+    protected function warmUserCache(): void
     {
-        try {
-            Cache::flush();
-        } catch (\Exception $e) {
-            Log::error('Failed to clear all cache', ['error' => $e->getMessage()]);
-        }
+        $this->remember('users:active', 3600, function () {
+            return \App\Models\User::where('created_at', '>', now()->subDays(30))->count();
+        }, ['users']);
+
+        $this->remember('users:by_role', 3600, function () {
+            return \App\Models\User::selectRaw('role, count(*) as count')
+                ->groupBy('role')
+                ->pluck('count', 'role')
+                ->toArray();
+        }, ['users']);
     }
 
     /**
-     * Cache health check
+     * Warm up property cache
      */
-    public function healthCheck(): array
+    protected function warmPropertyCache(): void
     {
-        $health = [
-            'status' => 'healthy',
-            'driver' => config('cache.default'),
-            'issues' => []
-        ];
+        $this->remember('properties:count', 3600, function () {
+            return \App\Models\Property::count();
+        }, ['properties']);
 
-        try {
-            // Test basic cache operations
-            $testKey = 'health_check_' . time();
-            $testValue = 'test_value';
-            
-            Cache::put($testKey, $testValue, 60);
-            $retrieved = Cache::get($testKey);
-            Cache::forget($testKey);
-            
-            if ($retrieved !== $testValue) {
-                $health['status'] = 'unhealthy';
-                $health['issues'][] = 'Cache read/write test failed';
-            }
-            
-            // Test Redis connection if using Redis
-            if (config('cache.default') === 'redis') {
-                try {
-                    Redis::ping();
-                } catch (\Exception $e) {
-                    $health['status'] = 'unhealthy';
-                    $health['issues'][] = 'Redis connection failed: ' . $e->getMessage();
-                }
-            }
-            
-        } catch (\Exception $e) {
-            $health['status'] = 'unhealthy';
-            $health['issues'][] = 'Cache health check failed: ' . $e->getMessage();
-        }
-
-        return $health;
+        $this->remember('properties:by_type', 3600, function () {
+            return \App\Models\Property::selectRaw('property_type, count(*) as count')
+                ->groupBy('property_type')
+                ->pluck('count', 'property_type')
+                ->toArray();
+        }, ['properties']);
     }
 
     /**
-     * Helper methods
+     * Warm up mission cache
      */
-    private function buildKey(string ...$parts): string
+    protected function warmMissionCache(): void
     {
-        return implode(':', array_filter($parts));
-    }
+        $this->remember('missions:active', 3600, function () {
+            return \App\Models\Mission::where('status', 'active')->count();
+        }, ['missions']);
 
-    private function invalidateKeysByPattern(array $patterns): void
-    {
-        // This is a simplified implementation for non-Redis drivers
-        // In production, you might want to maintain a registry of keys
-        foreach ($patterns as $pattern) {
-            try {
-                Cache::forget($pattern);
-            } catch (\Exception $e) {
-                Log::warning('Failed to invalidate cache key', [
-                    'pattern' => $pattern,
-                    'error' => $e->getMessage()
-                ]);
-            }
-        }
+        $this->remember('missions:completion_rate', 3600, function () {
+            $total = \App\Models\Mission::count();
+            $completed = \App\Models\Mission::where('status', 'completed')->count();
+            
+            return $total > 0 ? round(($completed / $total) * 100, 2) : 0;
+        }, ['missions']);
     }
 
     /**
@@ -372,33 +272,43 @@ class CacheService
      */
     public function getStats(): array
     {
-        $stats = [
-            'driver' => config('cache.default'),
-            'prefix' => config('cache.prefix'),
-        ];
-
         try {
-            if (config('cache.default') === 'redis') {
-                $redis = Redis::connection();
-                $info = $redis->info();
-                
-                $stats['redis'] = [
-                    'used_memory' => $info['used_memory_human'] ?? 'unknown',
-                    'connected_clients' => $info['connected_clients'] ?? 'unknown',
-                    'total_commands_processed' => $info['total_commands_processed'] ?? 'unknown',
-                    'keyspace_hits' => $info['keyspace_hits'] ?? 'unknown',
-                    'keyspace_misses' => $info['keyspace_misses'] ?? 'unknown',
-                ];
-                
-                if (isset($info['keyspace_hits']) && isset($info['keyspace_misses'])) {
-                    $total = $info['keyspace_hits'] + $info['keyspace_misses'];
-                    $stats['redis']['hit_rate'] = $total > 0 ? round(($info['keyspace_hits'] / $total) * 100, 2) . '%' : '0%';
-                }
-            }
+            // This would depend on the Redis driver being used
+            $redis = Cache::getRedis();
+            $info = $redis->info();
+
+            return [
+                'memory_used' => $info['used_memory_human'] ?? 'unknown',
+                'connected_clients' => $info['connected_clients'] ?? 'unknown',
+                'total_commands_processed' => $info['total_commands_processed'] ?? 'unknown',
+                'keyspace_hits' => $info['keyspace_hits'] ?? 'unknown',
+                'keyspace_misses' => $info['keyspace_misses'] ?? 'unknown',
+                'hit_rate' => $this->calculateHitRate($info),
+            ];
         } catch (\Exception $e) {
-            $stats['error'] = 'Failed to get cache stats: ' . $e->getMessage();
+            Log::error('Failed to get cache stats', [
+                'error' => $e->getMessage()
+            ]);
+
+            return [
+                'error' => 'Unable to retrieve cache statistics'
+            ];
+        }
+    }
+
+    /**
+     * Calculate cache hit rate
+     */
+    protected function calculateHitRate(array $info): string
+    {
+        $hits = $info['keyspace_hits'] ?? 0;
+        $misses = $info['keyspace_misses'] ?? 0;
+        $total = $hits + $misses;
+
+        if ($total === 0) {
+            return '0%';
         }
 
-        return $stats;
+        return round(($hits / $total) * 100, 2) . '%';
     }
 }

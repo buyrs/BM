@@ -8,26 +8,61 @@ use Illuminate\Support\Facades\Hash;
 
 class UserSeeder extends Seeder
 {
+    /**
+     * Run the database seeds.
+     */
     public function run(): void
     {
-        // Create super admin user
-        $superAdmin = User::firstOrCreate([
-            'email' => 'admin@example.com',
-        ], [
-            'name' => 'Super Admin',
+        // Create Admin User
+        User::create([
+            'name' => 'Admin User',
+            'email' => 'admin@bailmobilite.com',
             'password' => Hash::make('password'),
+            'role' => 'admin',
             'email_verified_at' => now(),
         ]);
-        $superAdmin->assignRole('super-admin');
 
-        // Create test checker
-        $checker = User::firstOrCreate([
-            'email' => 'checker@example.com',
-        ], [
-            'name' => 'Test Checker',
+        // Create Ops User
+        User::create([
+            'name' => 'Ops Manager',
+            'email' => 'ops@bailmobilite.com',
             'password' => Hash::make('password'),
+            'role' => 'ops',
             'email_verified_at' => now(),
         ]);
-        $checker->assignRole('checker');
+
+        // Create Checker User
+        User::create([
+            'name' => 'Property Checker',
+            'email' => 'checker@bailmobilite.com',
+            'password' => Hash::make('password'),
+            'role' => 'checker',
+            'email_verified_at' => now(),
+        ]);
+
+        // Create additional demo users
+        User::create([
+            'name' => 'Senior Admin',
+            'email' => 'senior.admin@bailmobilite.com',
+            'password' => Hash::make('password'),
+            'role' => 'admin',
+            'email_verified_at' => now(),
+        ]);
+
+        User::create([
+            'name' => 'Junior Ops',
+            'email' => 'junior.ops@bailmobilite.com',
+            'password' => Hash::make('password'),
+            'role' => 'ops',
+            'email_verified_at' => now(),
+        ]);
+
+        User::create([
+            'name' => 'Lead Checker',
+            'email' => 'lead.checker@bailmobilite.com',
+            'password' => Hash::make('password'),
+            'role' => 'checker',
+            'email_verified_at' => now(),
+        ]);
     }
-} 
+}

@@ -4,7 +4,6 @@ namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Auth\LoginRequest;
-use App\Providers\RouteServiceProvider;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -26,23 +25,27 @@ class AuthenticatedSessionController extends Controller
     public function store(LoginRequest $request): RedirectResponse
     {
         $request->authenticate();
-        $request->session()->regenerate();
 
         $user = Auth::user();
-        if ($user->hasRole('super-admin')) {
-            return redirect()->route('super-admin.dashboard');
-        }
-        if ($user->hasRole('admin')) {
-            return redirect()->route('admin.dashboard');
-        }
-        if ($user->hasRole('checker')) {
-            return redirect()->route('checker.dashboard');
-        }
-        if ($user->hasRole('ops')) {
-            return redirect()->route('ops.dashboard');
+
+        // If user has 2FA enabled, redirect to 2FA challenge
+        if ($user->hasTwoFactorEnabled()) {
+            Auth::logout();
+            
+            $request->session()->put([
+                'login.id' => $user->id,
+                'login.remember' => $request->boolean('remember'),
+            ]);
+
+            return redirect()->route('two-factor.login');
         }
 
-        return redirect()->intended(RouteServiceProvider::HOME);
+        // Update last login time
+        $user->update(['last_login_at' => now()]);
+
+        $request->session()->regenerate();
+
+        return redirect()->intended(route('dashboard', absolute: false));
     }
 
     /**
@@ -50,36 +53,12 @@ class AuthenticatedSessionController extends Controller
      */
     public function destroy(Request $request): RedirectResponse
     {
-        $user = Auth::user();
-        $userRole = null;
-        
-        // Determine user role before logout
-        if ($user) {
-            if ($user->hasRole('ops')) {
-                $userRole = 'ops';
-            } elseif ($user->hasRole('admin') || $user->hasRole('super-admin')) {
-                $userRole = 'admin';
-            } elseif ($user->hasRole('checker')) {
-                $userRole = 'checker';
-            }
-        }
-
         Auth::guard('web')->logout();
 
         $request->session()->invalidate();
 
         $request->session()->regenerateToken();
 
-        // Redirect based on user role
-        switch ($userRole) {
-            case 'ops':
-                return redirect()->route('ops.login');
-            case 'admin':
-                return redirect()->route('admin.login');
-            case 'checker':
-                return redirect()->route('checker.login');
-            default:
-                return redirect('/');
-        }
+        return redirect('/');
     }
 }

@@ -2,16 +2,17 @@
 
 namespace App\Models;
 
-use App\Traits\HasEncryptedAttributes;
-use Illuminate\Contracts\Auth\MustVerifyEmail;
+// use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
-use Spatie\Permission\Traits\HasRoles;
+use Laravel\Sanctum\HasApiTokens;
 
-class User extends Authenticatable implements MustVerifyEmail
+class User extends Authenticatable
 {
-    use HasFactory, Notifiable, HasRoles, HasEncryptedAttributes;
+    /** @use HasFactory<\Database\Factories\UserFactory> */
+    use HasFactory, Notifiable, HasApiTokens;
 
     /**
      * The attributes that are mass assignable.
@@ -22,8 +23,10 @@ class User extends Authenticatable implements MustVerifyEmail
         'name',
         'email',
         'password',
-        'google_id',
-        'avatar',
+        'role',
+        'two_factor_enabled',
+        'preferences',
+        'timezone',
     ];
 
     /**
@@ -34,6 +37,8 @@ class User extends Authenticatable implements MustVerifyEmail
     protected $hidden = [
         'password',
         'remember_token',
+        'two_factor_secret',
+        'two_factor_recovery_codes',
     ];
 
     /**
@@ -46,50 +51,114 @@ class User extends Authenticatable implements MustVerifyEmail
         return [
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
+            'two_factor_enabled' => 'boolean',
+            'two_factor_confirmed_at' => 'datetime',
+            'two_factor_recovery_codes' => 'array',
+            'last_login_at' => 'datetime',
+            'preferences' => 'array',
         ];
     }
 
     /**
-     * The attributes that should be encrypted
+     * Check if the user has two-factor authentication enabled.
      */
-    protected $encrypted = [];
-
-    /**
-     * The attributes that should be searchable while encrypted
-     */
-    protected $searchableEncrypted = [
-        'email'
-    ];
-
-    /**
-     * Get the agent associated with the user.
-     */
-    public function agent()
+    public function hasTwoFactorEnabled(): bool
     {
-        return $this->hasOne(Agent::class);
+        return $this->two_factor_enabled && !is_null($this->two_factor_secret);
     }
 
     /**
-     * Get the missions assigned to this user (as a checker).
+     * Get the user's two-factor authentication recovery codes.
      */
-    public function assignedMissions()
+    public function getRecoveryCodes(): array
     {
-        return $this->hasMany(Mission::class, 'agent_id');
+        return $this->two_factor_recovery_codes ?? [];
     }
 
     /**
-     * Get the bail mobilités managed by this user (as ops).
+     * Replace the given recovery code with a new one in the recovery codes array.
      */
-    public function managedBailMobilites()
+    public function replaceRecoveryCode(string $code): void
     {
-        return $this->hasMany(BailMobilite::class, 'ops_user_id');
+        $this->two_factor_recovery_codes = collect($this->two_factor_recovery_codes)
+            ->reject(fn ($recoveryCode) => hash_equals($recoveryCode, $code))
+            ->values()
+            ->all();
+
+        $this->save();
     }
 
     /**
-     * Get the missions assigned by this user (as ops).
+     * Generate new recovery codes for the user.
      */
-    public function assignedMissionsByOps()
+    public function generateRecoveryCodes(): array
     {
-        return $this->hasMany(Mission::class, 'ops_assigned_by');
+        $codes = [];
+        for ($i = 0; $i < 8; $i++) {
+            $codes[] = strtolower(bin2hex(random_bytes(5)));
+        }
+
+        $this->two_factor_recovery_codes = $codes;
+        $this->save();
+
+        return $codes;
+    }
+
+    /**
+     * Get the audit logs for this user
+     */
+    public function auditLogs(): HasMany
+    {
+        return $this->hasMany(AuditLog::class);
+    }
+
+    /**
+     * Get the notifications for this user
+     */
+    public function notifications(): HasMany
+    {
+        return $this->hasMany(Notification::class);
+    }
+
+    /**
+     * Get unread notifications for this user
+     */
+    public function unreadNotifications(): HasMany
+    {
+        return $this->notifications()->whereNull('read_at');
+    }
+
+    /**
+     * Get notifications requiring action for this user
+     */
+    public function actionRequiredNotifications(): HasMany
+    {
+        return $this->notifications()
+            ->where('requires_action', true)
+            ->whereNull('action_taken_at');
+    }
+
+    /**
+     * Get missions assigned to this user as checker
+     */
+    public function missions(): HasMany
+    {
+        return $this->hasMany(Mission::class, 'checker_id');
+    }
+
+    /**
+     * Get missions assigned to this user as ops
+     */
+    public function opsMissions(): HasMany
+    {
+        return $this->hasMany(Mission::class, 'ops_id');
+    }
+
+    /**
+     * Get missions created by this user as admin
+     */
+    public function adminMissions(): HasMany
+    {
+        return $this->hasMany(Mission::class, 'admin_id');
     }
 }

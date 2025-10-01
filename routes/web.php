@@ -1,414 +1,267 @@
 <?php
 
-use App\Http\Controllers\Auth\GoogleController;
-use App\Http\Controllers\MissionController;
-use App\Http\Controllers\BladeMissionController;
-use App\Http\Controllers\MissionAssignmentController;
-use App\Http\Controllers\MissionStatusController;
-use App\Http\Controllers\ProfileController;
+use App\Http\Controllers\Auth\AdminLoginController;
+use App\Http\Controllers\Auth\OpsLoginController;
+use App\Http\Controllers\Auth\CheckerLoginController;
+use App\Http\Controllers\Auth\TwoFactorController;
+use App\Http\Controllers\Auth\TwoFactorChallengeController;
+use App\Http\Controllers\SecureFileController;
+use App\Http\Controllers\UserController;
 use App\Http\Controllers\ChecklistController;
-use App\Http\Controllers\DashboardController;
-
-use App\Http\Controllers\PdfController;
-use App\Http\Controllers\InstallerController;
+use App\Http\Controllers\GuestChecklistController;
+use App\Http\Controllers\AdminChecklistController;
+use App\Http\Controllers\MissionController;
+use App\Http\Controllers\AmenityTypeController;
+use App\Http\Controllers\AmenityController;
+use App\Http\Controllers\Admin\PropertyController as AdminPropertyController;
+use App\Http\Controllers\Ops\PropertyController as OpsPropertyController;
 use Illuminate\Support\Facades\Route;
 
-/*
-|--------------------------------------------------------------------------
-| Web Routes
-|--------------------------------------------------------------------------
-|
-| Here is where you can register web routes for your application. These
-| routes are loaded by the RouteServiceProvider and all of them will
-| be assigned to the "web" middleware group. Make something great!
-|
-*/
-
-// Installer routes
-Route::prefix('install')->group(function () {
-    Route::get('/', [InstallerController::class, 'index'])->name('installer.index');
-    Route::post('/database', [InstallerController::class, 'database'])->name('installer.database');
-    Route::post('/install', [InstallerController::class, 'install'])->name('installer.install');
+Route::get('/', function () {
+    return view('welcome');
 });
 
-// Health check endpoint
-Route::get('/api/health', [App\Http\Controllers\CalendarController::class, 'health'])->name('health');
+// Public Dashboard Route (fixes RouteNotFoundException)
+Route::get('/dashboard', function () {
+    return view('dashboard');
+})->name('dashboard');
 
-Route::get('/welcome', function () {
-    return view('welcome', [
-        'canLogin' => Route::has('login'),
-        'canRegister' => Route::has('register'),
-        'laravelVersion' => app()->version(),
-        'phpVersion' => PHP_VERSION,
-    ]);
-})->name('welcome');
+// Admin Routes
+Route::get('/admin/login', [AdminLoginController::class, 'create'])->name('admin.login');
+Route::post('/admin/login', [AdminLoginController::class, 'store']);
+Route::middleware('auth:admin')->group(function () {
+    Route::get('/admin/dashboard', function () {
+        return view('admin.dashboard');
+    })->name('admin.dashboard');
+    Route::post('/admin/logout', [AdminLoginController::class, 'destroy'])->name('admin.logout');
 
-Route::get('/', [App\Http\Controllers\RoleRedirectController::class, 'index'])->name('role.selection');
+    // Admin User Management
+    Route::resource('/admin/users', UserController::class)->names('admin.users');
 
-// Routes for authenticated users
-Route::middleware(['auth', 'verified'])->group(function () {
-    Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
+    // Admin Checklist Management
+    Route::post('/admin/checklists/{checklist}/send-to-guest', [AdminChecklistController::class, 'sendToGuest'])->name('admin.checklists.sendToGuest');
+
+    // Admin Mission Management
+    Route::resource('/admin/missions', MissionController::class)->names('admin.missions');
+    Route::post('/admin/missions/{mission}/approve', [MissionController::class, 'approve'])->name('admin.missions.approve');
+
+    // Admin Amenity Type Management
+    Route::resource('/admin/amenity-types', AmenityTypeController::class)->names('admin.amenity_types');
+
+    // Admin Amenity Management
+    Route::resource('/admin/amenities', AmenityController::class)->names('admin.amenities');
     
-    // Super Admin routes
-    // Super Admin routes - redirect to admin (same person)
-    Route::middleware(['role:super-admin'])->prefix('super-admin')->name('super-admin.')->group(function () {
-        Route::get('/dashboard', function () {
-            return redirect()->route('admin.dashboard');
-        })->name('dashboard');
-        Route::get('/missions', function () {
-            return redirect()->route('admin.missions');
-        })->name('missions');
-        Route::get('/checkers', function () {
-            return redirect()->route('admin.checkers');
-        })->name('checkers');
-        Route::get('/reports', function () {
-            return redirect()->route('admin.analytics.data');
-        })->name('reports');
-        Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
-        Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
-        Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
-    });
-
-    // Checker routes
-    Route::middleware(['role:checker'])->prefix('checker')->name('checker.')->group(function () {
-        Route::get('/dashboard', [DashboardController::class, 'checkerDashboard'])->name('dashboard');
-        Route::get('/missions', [DashboardController::class, 'checkerMissions'])->name('missions');
-        Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
-        Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
-        Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
-    });
-
-    // Mission routes
-    Route::prefix('missions')->group(function () {
-        Route::get('/', [MissionController::class, 'index'])->name('missions.index');
-        Route::get('/assigned', [MissionController::class, 'getAssignedMissions'])->name('missions.assigned');
-        Route::get('/completed', [MissionController::class, 'getCompletedMissions'])->name('missions.completed');
-        
-        // API route for offline caching
-        Route::get('/api/critical', [MissionController::class, 'getCriticalMissions'])->name('missions.api.critical');
-        
-        Route::middleware(['role:super-admin'])->group(function () {
-            Route::get('/create', [MissionController::class, 'create'])->name('missions.create');
-            Route::post('/', [MissionController::class, 'store'])->name('missions.store');
-            Route::get('/{mission}/edit', [MissionController::class, 'edit'])->name('missions.edit');
-            Route::patch('/{mission}', [MissionController::class, 'update'])->name('missions.update');
-            Route::delete('/{mission}', [MissionController::class, 'destroy'])->name('missions.destroy');
-            Route::patch('/{mission}/assign', [MissionController::class, 'assignAgent'])->name('missions.assign-agent');
-        });
-
-        Route::get('/{mission}', [MissionController::class, 'show'])->name('missions.show');
-        Route::patch('/{mission}/status', [MissionController::class, 'updateStatus'])->name('missions.update-status');
-        Route::patch('/{mission}/start', [MissionController::class, 'startMission'])->name('missions.start');
-        Route::patch('/{mission}/refuse', [MissionController::class, 'refuseMission'])->name('missions.refuse');
-        
-        // Bail Mobilité specific mission routes
-        Route::middleware(['ops.access:assign_missions_to_checkers'])->group(function () {
-            Route::post('/{mission}/assign-to-checker', [MissionController::class, 'assignToChecker'])->name('missions.assign-to-checker');
-            Route::post('/{mission}/validate-bail-mobilite-checklist', [MissionController::class, 'validateBailMobiliteChecklist'])->name('missions.validate-bail-mobilite-checklist');
-            Route::get('/ops-assigned', [MissionController::class, 'getOpsAssignedMissions'])->name('missions.ops-assigned');
-        });
-        
-        Route::middleware(['role:checker'])->group(function () {
-            Route::post('/{mission}/submit-bail-mobilite-checklist', [MissionController::class, 'submitBailMobiliteChecklist'])->name('missions.submit-bail-mobilite-checklist');
-            Route::post('/{mission}/sign-bail-mobilite-contract', [MissionController::class, 'signBailMobiliteContract'])->name('missions.sign-bail-mobilite-contract');
-        });
-    });
-
-    // Blade Mission routes (new implementation)
-    Route::prefix('blade-missions')->name('blade-missions.')->group(function () {
-        Route::get('/', [BladeMissionController::class, 'index'])->name('index');
-        Route::get('/create', [BladeMissionController::class, 'create'])->name('create');
-        Route::post('/', [BladeMissionController::class, 'store'])->name('store');
-        Route::get('/{mission}', [BladeMissionController::class, 'show'])->name('show');
-        Route::get('/{mission}/edit', [BladeMissionController::class, 'edit'])->name('edit');
-        Route::put('/{mission}', [BladeMissionController::class, 'update'])->name('update');
-        Route::delete('/{mission}', [BladeMissionController::class, 'destroy'])->name('destroy');
-        
-        // Additional mission actions
-        Route::post('/{mission}/assign', [BladeMissionController::class, 'assignToChecker'])->name('assign');
-        Route::post('/{mission}/update-status', [BladeMissionController::class, 'updateStatus'])->name('update-status');
-        Route::post('/bulk-update', [BladeMissionController::class, 'bulkUpdate'])->name('bulk-update');
-        Route::get('/assigned', [BladeMissionController::class, 'getAssignedMissions'])->name('assigned');
-        Route::get('/completed', [BladeMissionController::class, 'getCompletedMissions'])->name('completed');
-        Route::get('/calendar', [BladeMissionController::class, 'calendar'])->name('calendar');
-        Route::post('/{mission}/update-schedule', [BladeMissionController::class, 'updateSchedule'])->name('update-schedule');
-        Route::get('/api/statistics', [BladeMissionController::class, 'getStatistics'])->name('statistics');
-    });
-
-    // Mission Assignment routes
-    Route::prefix('mission-assignments')->name('mission-assignments.')->group(function () {
-        Route::get('/', [MissionAssignmentController::class, 'index'])->name('index');
-        Route::post('/assign/{mission}', [MissionAssignmentController::class, 'assignSingle'])->name('assign');
-        Route::post('/bulk-assign', [MissionAssignmentController::class, 'bulkAssign'])->name('bulk-assign');
-        Route::post('/reassign/{mission}', [MissionAssignmentController::class, 'reassign'])->name('reassign');
-        Route::get('/api/agent-availability', [MissionAssignmentController::class, 'getAgentAvailability'])->name('agent-availability');
-    });
-
-    // Mission Status Tracking routes
-    Route::prefix('mission-status')->name('mission-status.')->group(function () {
-        Route::get('/dashboard', [MissionStatusController::class, 'dashboard'])->name('dashboard');
-        Route::post('/update/{mission}', [MissionStatusController::class, 'updateStatus'])->name('update');
-        Route::get('/updates', [MissionStatusController::class, 'getStatusUpdates'])->name('updates');
-        Route::get('/history/{mission}', [MissionStatusController::class, 'getStatusHistory'])->name('history');
-    });
-
-    // Checklist routes
-    Route::prefix('checklists')->name('checklists.')->group(function () {
-        Route::get('/{mission}', [ChecklistController::class, 'show'])->name('show');
-        Route::post('/{mission}', [ChecklistController::class, 'store'])->name('store');
-        Route::put('/{mission}', [ChecklistController::class, 'update'])->name('update');
-        Route::post('/{mission}/rooms', [ChecklistController::class, 'addRoom'])->name('add-room');
-        
-        // Photo management
-        Route::post('/items/{item}/photos', [ChecklistController::class, 'uploadPhoto'])->name('upload-photo');
-        Route::delete('/photos/{photo}', [ChecklistController::class, 'deletePhoto'])->name('delete-photo');
-        Route::get('/photos/{photo}/url/{size?}', [ChecklistController::class, 'getPhotoUrl'])->name('photo-url');
-    });
-
-    // Signature routes
-    Route::prefix('signatures')->name('signatures.')->group(function () {
-        Route::post('/validate', [\App\Http\Controllers\SignatureController::class, 'validateSignature'])->name('validate-bulk');
-        Route::post('/checklist/{checklist}/save', [\App\Http\Controllers\SignatureController::class, 'saveSignature'])->name('save');
-        Route::get('/checklist/{checklist}/{type}', [\App\Http\Controllers\SignatureController::class, 'getSignature'])->name('get');
-        Route::delete('/checklist/{checklist}/{type}', [\App\Http\Controllers\SignatureController::class, 'deleteSignature'])->name('delete');
-        Route::post('/thumbnail', [\App\Http\Controllers\SignatureController::class, 'createThumbnail'])->name('thumbnail');
-        Route::post('/checklist/{checklist}/verify', [\App\Http\Controllers\SignatureController::class, 'verifyIntegrity'])->name('verify');
-    });
-
-    // Security routes
-    Route::prefix('security')->name('security.')->group(function () {
-        Route::post('/checklist/{checklist}/encrypt', [\App\Http\Controllers\ChecklistSecurityController::class, 'encryptChecklist'])->name('encrypt');
-        Route::post('/checklist/{checklist}/decrypt', [\App\Http\Controllers\ChecklistSecurityController::class, 'decryptChecklist'])->name('decrypt');
-        Route::post('/checklist/{checklist}/audit', [\App\Http\Controllers\ChecklistSecurityController::class, 'performSecurityAudit'])->name('audit');
-        Route::get('/checklist/{checklist}/report', [\App\Http\Controllers\ChecklistSecurityController::class, 'generateSecurityReport'])->name('report');
-        Route::post('/checklist/{checklist}/backup', [\App\Http\Controllers\ChecklistSecurityController::class, 'createSecureBackup'])->name('backup');
-        Route::post('/checklist/{checklist}/restore', [\App\Http\Controllers\ChecklistSecurityController::class, 'restoreFromBackup'])->name('restore');
-        Route::get('/checklist/{checklist}/integrity', [\App\Http\Controllers\ChecklistSecurityController::class, 'verifyIntegrity'])->name('integrity');
-        Route::get('/checklist/{checklist}/status', [\App\Http\Controllers\ChecklistSecurityController::class, 'getSecurityStatus'])->name('status');
-    });
-
-    // PDF routes
-    Route::prefix('pdf')->name('pdf.')->group(function () {
-        Route::get('/mission/{mission}', [PdfController::class, 'generateMissionPdf'])->name('mission');
-        Route::get('/checklist/{checklist}', [PdfController::class, 'generateChecklistPdf'])->name('checklist');
-        Route::get('/shared/{token}', [PdfController::class, 'sharedChecklistPdf'])->name('shared');
-        Route::get('/statistics', [PdfController::class, 'getPdfStatistics'])->name('statistics');
-        Route::post('/cleanup', [PdfController::class, 'cleanupOldPdfs'])->name('cleanup');
-    });
-
-    // Ops routes for Bail Mobilité management
-    Route::middleware(['ops.access'])->prefix('ops')->name('ops.')->group(function () {
-        Route::get('/dashboard', [\App\Http\Controllers\OpsController::class, 'dashboard'])->name('dashboard');
-        
-        // Dashboard API routes
-        Route::get('/api/kanban-data', [\App\Http\Controllers\OpsController::class, 'getKanbanData'])->name('api.kanban-data');
-        Route::get('/api/bail-mobilites', [\App\Http\Controllers\OpsController::class, 'getBailMobilites'])->name('api.bail-mobilites');
-        Route::get('/api/export', [\App\Http\Controllers\OpsController::class, 'exportData'])->name('api.export');
-        Route::get('/api/analytics-export', [\App\Http\Controllers\OpsController::class, 'exportAnalytics'])->name('api.analytics-export');
-        Route::get('/api/ops-users', [\App\Http\Controllers\OpsController::class, 'getOpsUsers'])->name('api.ops-users');
-        Route::get('/api/checkers', [\App\Http\Controllers\OpsController::class, 'getCheckers'])->name('api.checkers');
-        
-        // Notification routes
-        Route::get('/notifications', [\App\Http\Controllers\OpsController::class, 'notifications'])->name('notifications');
-        Route::post('/notifications/{notification}/mark-handled', [\App\Http\Controllers\OpsController::class, 'markNotificationAsHandled'])->name('notifications.mark-handled');
-        Route::get('/api/notifications/pending', [\App\Http\Controllers\OpsController::class, 'getPendingNotifications'])->name('api.notifications.pending');
-        Route::post('/notifications/{notification}/action', [\App\Http\Controllers\OpsController::class, 'handleNotificationAction'])->name('notifications.action');
-        
-        // Bail Mobilité routes
-        Route::resource('bail-mobilites', \App\Http\Controllers\BailMobiliteController::class);
-        Route::post('bail-mobilites/{bailMobilite}/assign-entry', [\App\Http\Controllers\BailMobiliteController::class, 'assignEntry'])->name('bail-mobilites.assign-entry');
-        Route::post('bail-mobilites/{bailMobilite}/assign-exit', [\App\Http\Controllers\BailMobiliteController::class, 'assignExit'])->name('bail-mobilites.assign-exit');
-        Route::post('bail-mobilites/{bailMobilite}/validate-entry', [\App\Http\Controllers\BailMobiliteController::class, 'validateEntry'])->name('bail-mobilites.validate-entry');
-        Route::post('bail-mobilites/{bailMobilite}/validate-exit', [\App\Http\Controllers\BailMobiliteController::class, 'validateExit'])->name('bail-mobilites.validate-exit');
-        Route::post('bail-mobilites/{bailMobilite}/handle-incident', [\App\Http\Controllers\BailMobiliteController::class, 'handleIncident'])->name('bail-mobilites.handle-incident');
-        Route::get('checkers/available', [\App\Http\Controllers\BailMobiliteController::class, 'getAvailableCheckers'])->name('checkers.available');
-        
-        // Mission validation routes
-        Route::get('missions/{mission}/validate', [MissionController::class, 'showValidation'])->name('missions.validate');
-        Route::post('missions/{mission}/validate', [MissionController::class, 'validateMission'])->name('missions.validate.submit');
-        
-        // Incident detection and management routes
-        Route::post('bail-mobilites/{bailMobilite}/detect-incidents', [\App\Http\Controllers\BailMobiliteController::class, 'detectIncidents'])->name('bail-mobilites.detect-incidents');
-        Route::get('bail-mobilites/{bailMobilite}/incidents', [\App\Http\Controllers\BailMobiliteController::class, 'getIncidents'])->name('bail-mobilites.incidents');
-        Route::get('api/incident-stats', [\App\Http\Controllers\BailMobiliteController::class, 'getIncidentStats'])->name('api.incident-stats');
-        Route::post('api/run-incident-detection', [\App\Http\Controllers\BailMobiliteController::class, 'runIncidentDetection'])->name('api.run-incident-detection');
-        
-        // Incident management routes
-        Route::resource('incidents', \App\Http\Controllers\IncidentController::class)->only(['index', 'show']);
-        Route::patch('incidents/{incident}/status', [\App\Http\Controllers\IncidentController::class, 'updateStatus'])->name('incidents.update-status');
-        Route::post('incidents/{incident}/corrective-actions', [\App\Http\Controllers\IncidentController::class, 'createCorrectiveAction'])->name('incidents.create-corrective-action');
-        Route::patch('corrective-actions/{correctiveAction}', [\App\Http\Controllers\IncidentController::class, 'updateCorrectiveAction'])->name('corrective-actions.update');
-        Route::get('api/incidents/stats', [\App\Http\Controllers\IncidentController::class, 'getStats'])->name('api.incidents.stats');
-        Route::get('api/bail-mobilites/{bailMobilite}/incidents', [\App\Http\Controllers\IncidentController::class, 'getIncidentsForBailMobilite'])->name('api.bail-mobilites.incidents');
-        Route::post('api/incidents/bulk-update', [\App\Http\Controllers\IncidentController::class, 'bulkUpdate'])->name('api.incidents.bulk-update');
-        
-        // Calendar routes
-        Route::prefix('calendar')->name('calendar.')->group(function () {
-            Route::get('/', [\App\Http\Controllers\CalendarController::class, 'index'])->name('index');
-            Route::get('/missions', [\App\Http\Controllers\CalendarController::class, 'getMissions'])->name('missions');
-            Route::post('/missions', [\App\Http\Controllers\CalendarController::class, 'createMission'])->name('missions.create');
-            Route::patch('/missions/{mission}', [\App\Http\Controllers\CalendarController::class, 'updateMission'])->name('missions.update');
-            Route::get('/missions/{mission}/details', [\App\Http\Controllers\CalendarController::class, 'getMissionDetails'])->name('missions.details');
-            Route::patch('/missions/{mission}/status', [\App\Http\Controllers\CalendarController::class, 'updateMissionStatus'])->name('missions.update-status');
-            Route::post('/missions/{mission}/assign', [\App\Http\Controllers\CalendarController::class, 'assignMissionToChecker'])->name('missions.assign');
-            Route::delete('/missions/{mission}', [\App\Http\Controllers\CalendarController::class, 'deleteMission'])->name('missions.delete');
-            Route::post('/missions/bulk-update', [\App\Http\Controllers\CalendarController::class, 'bulkUpdateMissions'])->name('missions.bulk-update');
-            Route::get('/time-slots', [\App\Http\Controllers\CalendarController::class, 'getAvailableTimeSlots'])->name('time-slots');
-            Route::post('/conflicts', [\App\Http\Controllers\CalendarController::class, 'detectConflicts'])->name('conflicts');
-        });
-    });
-
-    // API routes for contract templates (for Ops users)
-    Route::middleware(['ops.access:view_contract_templates'])->prefix('api')->name('api.')->group(function () {
-        Route::get('/contract-templates/active', [\App\Http\Controllers\ContractTemplateController::class, 'getActiveTemplates'])->name('contract-templates.active');
-    });
-
-    // Signature routes
-    Route::prefix('signatures')->name('signatures.')->group(function () {
-        // Checker routes for creating signatures
-        Route::middleware(['role:checker'])->group(function () {
-            Route::post('/bail-mobilites/{bailMobilite}/sign', [\App\Http\Controllers\SignatureController::class, 'createTenantSignature'])->name('create-tenant');
-        });
-        
-        // Ops and Admin routes for viewing signatures
-        Route::middleware(['ops.access:view_signatures'])->group(function () {
-            Route::get('/{signature}', [\App\Http\Controllers\SignatureController::class, 'getSignature'])->name('show');
-            Route::get('/{signature}/download', [\App\Http\Controllers\SignatureController::class, 'downloadContract'])->name('download');
-            Route::get('/{signature}/preview', [\App\Http\Controllers\SignatureController::class, 'previewContract'])->name('preview');
-            Route::get('/{signature}/validate', [\App\Http\Controllers\SignatureController::class, 'validateSignature'])->name('validate-single');
-            Route::get('/bail-mobilites/{bailMobilite}/signatures', [\App\Http\Controllers\SignatureController::class, 'getBailMobiliteSignatures'])->name('bail-mobilite');
-            Route::post('/bail-mobilites/{bailMobilite}/archive', [\App\Http\Controllers\SignatureController::class, 'archiveSignatures'])->name('archive');
-
-            // Multi-party signature workflow routes
-            Route::prefix('workflow')->name('workflow.')->group(function () {
-                Route::get('/{signature}/status', [\App\Http\Controllers\SignatureWorkflowController::class, 'showWorkflowStatus'])->name('status');
-                Route::get('/{signature}/status/api', [\App\Http\Controllers\SignatureWorkflowController::class, 'getWorkflowStatusApi'])->name('status.api');
-                Route::post('/{signature}/initialize', [\App\Http\Controllers\SignatureWorkflowController::class, 'initializeWorkflow'])->name('initialize');
-                Route::post('/invitations/{invitation}/resend', [\App\Http\Controllers\SignatureWorkflowController::class, 'resendInvitation'])->name('resend');
-                Route::post('/invitations/{invitation}/cancel', [\App\Http\Controllers\SignatureWorkflowController::class, 'cancelInvitation'])->name('cancel');
-                Route::get('/{signature}/download-contract', [\App\Http\Controllers\SignatureWorkflowController::class, 'downloadContract'])->name('download-contract');
-            });
-        });
-
-        // Public invitation routes (no auth required)
-        Route::prefix('invitations')->name('invitations.')->group(function () {
-            Route::get('/{token}', [\App\Http\Controllers\SignatureWorkflowController::class, 'showInvitation'])->name('show');
-            Route::post('/{token}/process', [\App\Http\Controllers\SignatureWorkflowController::class, 'processSignature'])->name('process');
-            Route::get('/{invitation}/completed', [\App\Http\Controllers\SignatureWorkflowController::class, 'showCompletion'])->name('completed');
-        });
-    });
-
-    // Admin routes (authenticated)
-    Route::middleware(['role:admin'])->prefix('admin')->name('admin.')->group(function () {
-        Route::get('/analytics/data', [\App\Http\Controllers\Admin\AnalyticsController::class, 'index'])->name('analytics.data');
-        Route::get('/checkers', [\App\Http\Controllers\Admin\AnalyticsController::class, 'checkers'])->name('checkers');
-        
-        // Role Management routes
-        Route::get('/role-management', [\App\Http\Controllers\RoleManagementController::class, 'index'])->name('role-management');
-        Route::post('/roles', [\App\Http\Controllers\RoleManagementController::class, 'storeRole'])->name('roles.store');
-        Route::put('/roles/{role}', [\App\Http\Controllers\RoleManagementController::class, 'updateRole'])->name('roles.update');
-        Route::delete('/roles/{role}', [\App\Http\Controllers\RoleManagementController::class, 'destroyRole'])->name('roles.destroy');
-        Route::post('/users', [\App\Http\Controllers\RoleManagementController::class, 'storeUser'])->name('users.store');
-        Route::put('/users/{user}', [\App\Http\Controllers\RoleManagementController::class, 'updateUser'])->name('users.update');
-        Route::post('/users/{user}/assign-role', [\App\Http\Controllers\RoleManagementController::class, 'assignRole'])->name('users.assign-role');
-        Route::post('/users/{user}/reset-password', [\App\Http\Controllers\RoleManagementController::class, 'resetPassword'])->name('users.reset-password');
-        Route::get('/role-stats', [\App\Http\Controllers\RoleManagementController::class, 'getRoleStats'])->name('role-stats');
-        
-        // Contract Templates routes
-        Route::resource('contract-templates', \App\Http\Controllers\ContractTemplateController::class);
-        Route::post('contract-templates/{contractTemplate}/sign', [\App\Http\Controllers\ContractTemplateController::class, 'signTemplate'])->name('contract-templates.sign');
-        Route::patch('contract-templates/{contractTemplate}/toggle-active', [\App\Http\Controllers\ContractTemplateController::class, 'toggleActive'])->name('contract-templates.toggle-active');
-        Route::get('contract-templates/{contractTemplate}/preview', [\App\Http\Controllers\ContractTemplateController::class, 'preview'])->name('contract-templates.preview');
-        Route::get('contract-templates/{contractTemplate}/validate', [\App\Http\Controllers\ContractTemplateController::class, 'validateTemplate'])->name('contract-templates.validate');
-        Route::get('contract-templates/placeholders', [\App\Http\Controllers\ContractTemplateController::class, 'getPlaceholders'])->name('contract-templates.placeholders');
-        Route::post('contract-templates/{contractTemplate}/create-version', [\App\Http\Controllers\ContractTemplateController::class, 'createVersion'])->name('contract-templates.create-version');
-    });
-});
-
-// Google OAuth routes
-Route::get('/auth/google', [GoogleController::class, 'redirectToGoogle'])->name('auth.google');
-Route::get('/auth/google/callback', [GoogleController::class, 'handleGoogleCallback']);
-
-// Super Admin authentication
-Route::prefix('super-admin')->name('super-admin.')->group(function () {
-    Route::get('login', [\App\Http\Controllers\Auth\AuthenticatedSessionController::class, 'create'])->name('login');
-    Route::post('login', [\App\Http\Controllers\Auth\AuthenticatedSessionController::class, 'store']);
-    Route::post('logout', [\App\Http\Controllers\Auth\AuthenticatedSessionController::class, 'destroy'])->name('logout');
-});
-
-require __DIR__.'/auth.php';
-
-Route::get('/shared/checklist/pdf/{token}', [App\Http\Controllers\PdfController::class, 'sharedChecklistPdf'])
-    ->name('shared.checklist.pdf')
-    ->middleware('signed');
-
-// Admin authentication and dashboard
-Route::prefix('admin')->name('admin.')->group(function () {
-    Route::get('login', [\App\Http\Controllers\Auth\AuthenticatedSessionController::class, 'create'])->name('login');
-    Route::post('login', [\App\Http\Controllers\Auth\AuthenticatedSessionController::class, 'store']);
-    Route::post('logout', [\App\Http\Controllers\Auth\AuthenticatedSessionController::class, 'destroy'])->name('logout');
+    // Admin Property Management
+    Route::resource('/admin/properties', AdminPropertyController::class)->names('admin.properties');
+    Route::get('/admin/properties-upload', [AdminPropertyController::class, 'uploadForm'])->name('admin.properties.upload.form');
+    Route::post('/admin/properties-upload', [AdminPropertyController::class, 'upload'])->name('admin.properties.upload');
+    Route::get('/admin/properties-template', [AdminPropertyController::class, 'template'])->name('admin.properties.template');
     
-    Route::middleware(['auth', 'role:admin|super-admin'])->group(function () {
-        Route::get('dashboard', [\App\Http\Controllers\DashboardController::class, 'adminDashboard'])->name('dashboard');
-        Route::get('missions', [MissionController::class, 'index'])->name('missions');
-        Route::get('missions/assigned', [MissionController::class, 'getAssignedMissions'])->name('missions.assigned');
-        Route::get('missions/completed', [MissionController::class, 'getCompletedMissions'])->name('missions.completed');
-        Route::get('checkers', [\App\Http\Controllers\DashboardController::class, 'checkers'])->name('checkers');
-        Route::post('checkers', [\App\Http\Controllers\DashboardController::class, 'storeChecker'])->name('checkers.store');
-        Route::put('checkers/{checker}', [\App\Http\Controllers\DashboardController::class, 'updateChecker'])->name('checkers.update');
-        Route::patch('checkers/{checker}/toggle-status', [\App\Http\Controllers\DashboardController::class, 'toggleCheckerStatus'])->name('checkers.toggle-status');
-        Route::get('analytics/data', [\App\Http\Controllers\DashboardController::class, 'reports'])->name('analytics.data');
-        Route::get('profile', [ProfileController::class, 'edit'])->name('profile.edit');
-        Route::patch('profile', [ProfileController::class, 'update'])->name('profile.update');
-    });
-
-    // Export and Reporting routes
-    Route::middleware(['auth'])->group(function () {
-        Route::prefix('api/export')->name('api.export.')->group(function () {
-            Route::get('/bail-mobilites', [\App\Http\Controllers\ExportController::class, 'exportBailMobilites'])->name('bail-mobilites');
-            Route::get('/missions', [\App\Http\Controllers\ExportController::class, 'exportMissions'])->name('missions');
-            Route::get('/checklists', [\App\Http\Controllers\ExportController::class, 'exportChecklists'])->name('checklists');
-            Route::get('/incidents', [\App\Http\Controllers\ExportController::class, 'exportIncidents'])->name('incidents');
-            Route::get('/audit-trail', [\App\Http\Controllers\ExportController::class, 'exportAuditTrail'])->name('audit-trail');
-            Route::get('/analytics', [\App\Http\Controllers\ExportController::class, 'exportAnalytics'])->name('analytics');
-        });
-
-        Route::prefix('api/reports')->name('api.reports.')->group(function () {
-            Route::get('/mission/{mission}', [\App\Http\Controllers\ReportController::class, 'missionReport'])->name('mission');
-            Route::get('/checklist/{checklist}', [\App\Http\Controllers\ReportController::class, 'checklistReport'])->name('checklist');
-            Route::get('/bail-mobilite/{bailMobilite}', [\App\Http\Controllers\ReportController::class, 'bailMobiliteReport'])->name('bail-mobilite');
-            Route::get('/performance', [\App\Http\Controllers\ReportController::class, 'performanceReport'])->name('performance');
-            Route::get('/incidents', [\App\Http\Controllers\ReportController::class, 'incidentReport'])->name('incidents');
-            Route::get('/analytics', [\App\Http\Controllers\ReportController::class, 'analyticsReport'])->name('analytics');
-            Route::get('/contracts', [\App\Http\Controllers\ReportController::class, 'contractReport'])->name('contracts');
-            Route::get('/audit-trail', [\App\Http\Controllers\ReportController::class, 'auditTrailReport'])->name('audit-trail');
-        });
-
-        Route::get('/api/audit-trail', [\App\Http\Controllers\AuditController::class, 'index'])->name('api.audit-trail');
-        Route::delete('profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
-    });
-});
-
-// Checker authentication and dashboard
-Route::prefix('checker')->name('checker.')->group(function () {
-    Route::get('login', [\App\Http\Controllers\Auth\AuthenticatedSessionController::class, 'create'])->name('login');
-    Route::post('login', [\App\Http\Controllers\Auth\AuthenticatedSessionController::class, 'store']);
-    Route::post('logout', [\App\Http\Controllers\Auth\AuthenticatedSessionController::class, 'destroy'])->name('logout');
+    // Admin Audit Log Management
+    Route::get('/admin/audit-logs', [\App\Http\Controllers\Admin\AuditLogController::class, 'index'])->name('admin.audit-logs.index');
     
-    Route::middleware(['auth', 'role:checker'])->group(function () {
-        Route::get('dashboard', [\App\Http\Controllers\DashboardController::class, 'checkerDashboard'])->name('dashboard');
-        Route::get('missions', [MissionController::class, 'getAssignedMissions'])->name('missions');
-        Route::get('missions/completed', [MissionController::class, 'getCompletedMissions'])->name('missions.completed');
-    });
+    // Admin Performance Monitoring
+    Route::get('/admin/performance', [\App\Http\Controllers\Admin\PerformanceMonitoringController::class, 'index'])->name('admin.performance.index');
+    Route::get('/admin/performance/health', [\App\Http\Controllers\Admin\PerformanceMonitoringController::class, 'health'])->name('admin.performance.health');
+    Route::get('/admin/performance/metrics', [\App\Http\Controllers\Admin\PerformanceMonitoringController::class, 'metrics'])->name('admin.performance.metrics');
+    Route::get('/admin/performance/database-analysis', [\App\Http\Controllers\Admin\PerformanceMonitoringController::class, 'databaseAnalysis'])->name('admin.performance.database-analysis');
+    Route::delete('/admin/performance/metrics', [\App\Http\Controllers\Admin\PerformanceMonitoringController::class, 'clearMetrics'])->name('admin.performance.clear-metrics');
+    Route::get('/admin/performance/export', [\App\Http\Controllers\Admin\PerformanceMonitoringController::class, 'exportReport'])->name('admin.performance.export');
+    Route::get('/admin/audit-logs/statistics', [\App\Http\Controllers\Admin\AuditLogController::class, 'statistics'])->name('admin.audit-logs.statistics');
+    Route::get('/admin/audit-logs/suspicious', [\App\Http\Controllers\Admin\AuditLogController::class, 'suspicious'])->name('admin.audit-logs.suspicious');
+    Route::get('/admin/audit-logs/export', [\App\Http\Controllers\Admin\AuditLogController::class, 'export'])->name('admin.audit-logs.export');
+    Route::post('/admin/audit-logs/cleanup', [\App\Http\Controllers\Admin\AuditLogController::class, 'cleanup'])->name('admin.audit-logs.cleanup');
+    Route::get('/admin/audit-logs/{auditLog}', [\App\Http\Controllers\Admin\AuditLogController::class, 'show'])->name('admin.audit-logs.show');
+    
+    // Admin Reports
+    Route::get('/admin/reports', [\App\Http\Controllers\Admin\ReportController::class, 'index'])->name('admin.reports.index');
+    Route::get('/admin/reports/list', [\App\Http\Controllers\Admin\ReportController::class, 'getReports'])->name('admin.reports.list');
+    Route::get('/admin/reports/types', [\App\Http\Controllers\Admin\ReportController::class, 'getReportTypes'])->name('admin.reports.types');
+    Route::post('/admin/reports/generate/analytics', [\App\Http\Controllers\Admin\ReportController::class, 'generateAnalyticsReport'])->name('admin.reports.generate.analytics');
+    Route::post('/admin/reports/generate/missions', [\App\Http\Controllers\Admin\ReportController::class, 'generateMissionReport'])->name('admin.reports.generate.missions');
+    Route::post('/admin/reports/generate/user_performance', [\App\Http\Controllers\Admin\ReportController::class, 'generateUserPerformanceReport'])->name('admin.reports.generate.user_performance');
+    Route::post('/admin/reports/generate/maintenance', [\App\Http\Controllers\Admin\ReportController::class, 'generateMaintenanceReport'])->name('admin.reports.generate.maintenance');
+    Route::get('/admin/reports/download/{filename}', [\App\Http\Controllers\Admin\ReportController::class, 'downloadReport'])->name('admin.reports.download');
+    Route::delete('/admin/reports/{filename}', [\App\Http\Controllers\Admin\ReportController::class, 'deleteReport'])->name('admin.reports.delete');
+    
+    // Admin Analytics Dashboard
+    Route::get('/admin/analytics', [\App\Http\Controllers\Admin\AnalyticsDashboardController::class, 'index'])->name('admin.analytics.dashboard');
+    Route::get('/admin/analytics/dashboard-data', [\App\Http\Controllers\Admin\AnalyticsDashboardController::class, 'getDashboardData'])->name('admin.analytics.dashboard-data');
+    Route::get('/admin/analytics/mission-metrics', [\App\Http\Controllers\Admin\AnalyticsDashboardController::class, 'getMissionMetrics'])->name('admin.analytics.mission-metrics');
+    Route::get('/admin/analytics/user-performance', [\App\Http\Controllers\Admin\AnalyticsDashboardController::class, 'getUserPerformance'])->name('admin.analytics.user-performance');
+    Route::get('/admin/analytics/property-metrics', [\App\Http\Controllers\Admin\AnalyticsDashboardController::class, 'getPropertyMetrics'])->name('admin.analytics.property-metrics');
+    Route::get('/admin/analytics/maintenance-metrics', [\App\Http\Controllers\Admin\AnalyticsDashboardController::class, 'getMaintenanceMetrics'])->name('admin.analytics.maintenance-metrics');
+    Route::get('/admin/analytics/system-metrics', [\App\Http\Controllers\Admin\AnalyticsDashboardController::class, 'getSystemMetrics'])->name('admin.analytics.system-metrics');
+    Route::get('/admin/analytics/trending-data', [\App\Http\Controllers\Admin\AnalyticsDashboardController::class, 'getTrendingData'])->name('admin.analytics.trending-data');
+    Route::get('/admin/analytics/date-ranges', [\App\Http\Controllers\Admin\AnalyticsDashboardController::class, 'getDateRanges'])->name('admin.analytics.date-ranges');
+    Route::post('/admin/analytics/clear-cache', [\App\Http\Controllers\Admin\AnalyticsDashboardController::class, 'clearCache'])->name('admin.analytics.clear-cache');
+    
+    // Admin Backup Management
+    Route::get('/admin/backups', [\App\Http\Controllers\Admin\BackupController::class, 'index'])->name('admin.backups.index');
+    Route::get('/admin/backups/dashboard', [\App\Http\Controllers\Admin\BackupController::class, 'dashboard'])->name('admin.backups.dashboard');
+    Route::get('/admin/backups/database', [\App\Http\Controllers\Admin\BackupController::class, 'listDatabaseBackups'])->name('admin.backups.database.list');
+    Route::get('/admin/backups/files', [\App\Http\Controllers\Admin\BackupController::class, 'listFileBackups'])->name('admin.backups.files.list');
+    Route::post('/admin/backups/database', [\App\Http\Controllers\Admin\BackupController::class, 'createDatabaseBackup'])->name('admin.backups.database.create');
+    Route::post('/admin/backups/files', [\App\Http\Controllers\Admin\BackupController::class, 'createFileBackup'])->name('admin.backups.files.create');
+    Route::post('/admin/backups/verify', [\App\Http\Controllers\Admin\BackupController::class, 'verifyBackup'])->name('admin.backups.verify');
+    Route::delete('/admin/backups/delete', [\App\Http\Controllers\Admin\BackupController::class, 'deleteBackup'])->name('admin.backups.delete');
+    Route::get('/admin/backups/download', [\App\Http\Controllers\Admin\BackupController::class, 'downloadBackup'])->name('admin.backups.download');
+    Route::get('/admin/backups/health-check', [\App\Http\Controllers\Admin\BackupController::class, 'healthCheck'])->name('admin.backups.health-check');
+    Route::get('/admin/backups/statistics', [\App\Http\Controllers\Admin\BackupController::class, 'statistics'])->name('admin.backups.statistics');
+    Route::post('/admin/backups/cleanup', [\App\Http\Controllers\Admin\BackupController::class, 'cleanup'])->name('admin.backups.cleanup');
+    Route::post('/admin/backups/test', [\App\Http\Controllers\Admin\BackupController::class, 'test'])->name('admin.backups.test');
+    
+    // Admin Bulk Operations
+    Route::get('/admin/bulk-operations', [\App\Http\Controllers\Admin\BulkOperationsController::class, 'index'])->name('admin.bulk-operations.index');
+    Route::post('/admin/bulk-operations/missions/assign', [\App\Http\Controllers\Admin\BulkOperationsController::class, 'bulkAssignMissions'])->name('admin.bulk-operations.missions.assign');
+    Route::post('/admin/bulk-operations/missions/status', [\App\Http\Controllers\Admin\BulkOperationsController::class, 'bulkUpdateMissionStatus'])->name('admin.bulk-operations.missions.status');
+    Route::post('/admin/bulk-operations/users', [\App\Http\Controllers\Admin\BulkOperationsController::class, 'bulkUpdateUsers'])->name('admin.bulk-operations.users');
+    Route::post('/admin/bulk-operations/properties/import', [\App\Http\Controllers\Admin\BulkOperationsController::class, 'bulkImportProperties'])->name('admin.bulk-operations.properties.import');
+    Route::post('/admin/bulk-operations/properties/delete', [\App\Http\Controllers\Admin\BulkOperationsController::class, 'bulkDeleteProperties'])->name('admin.bulk-operations.properties.delete');
+    Route::post('/admin/bulk-operations/notifications', [\App\Http\Controllers\Admin\BulkOperationsController::class, 'bulkSendNotifications'])->name('admin.bulk-operations.notifications');
+    Route::get('/admin/bulk-operations/stats', [\App\Http\Controllers\Admin\BulkOperationsController::class, 'getStats'])->name('admin.bulk-operations.stats');
+    
+    // Admin Advanced Search
+    Route::get('/admin/advanced-search', [\App\Http\Controllers\Admin\AdvancedSearchController::class, 'index'])->name('admin.advanced-search.index');
+    Route::post('/admin/advanced-search/missions', [\App\Http\Controllers\Admin\AdvancedSearchController::class, 'searchMissions'])->name('admin.advanced-search.missions');
+    Route::post('/admin/advanced-search/users', [\App\Http\Controllers\Admin\AdvancedSearchController::class, 'searchUsers'])->name('admin.advanced-search.users');
+    Route::post('/admin/advanced-search/properties', [\App\Http\Controllers\Admin\AdvancedSearchController::class, 'searchProperties'])->name('admin.advanced-search.properties');
+    Route::post('/admin/advanced-search/global', [\App\Http\Controllers\Admin\AdvancedSearchController::class, 'globalSearch'])->name('admin.advanced-search.global');
+    Route::post('/admin/advanced-search/save', [\App\Http\Controllers\Admin\AdvancedSearchController::class, 'saveSearch'])->name('admin.advanced-search.save');
+    Route::get('/admin/advanced-search/saved', [\App\Http\Controllers\Admin\AdvancedSearchController::class, 'getSavedSearches'])->name('admin.advanced-search.saved');
+    Route::delete('/admin/advanced-search/saved/delete', [\App\Http\Controllers\Admin\AdvancedSearchController::class, 'deleteSavedSearch'])->name('admin.advanced-search.saved.delete');
+    Route::post('/admin/advanced-search/export', [\App\Http\Controllers\Admin\AdvancedSearchController::class, 'exportResults'])->name('admin.advanced-search.export');
+    Route::get('/admin/advanced-search/download/{filename}', [\App\Http\Controllers\Admin\AdvancedSearchController::class, 'downloadExport'])->name('admin.advanced-search.download');
+    Route::get('/admin/advanced-search/analytics', [\App\Http\Controllers\Admin\AdvancedSearchController::class, 'getAnalytics'])->name('admin.advanced-search.analytics');
+    Route::get('/admin/advanced-search/suggestions', [\App\Http\Controllers\Admin\AdvancedSearchController::class, 'getSuggestions'])->name('admin.advanced-search.suggestions');
+    
+    // Admin File Management
+    Route::get('/admin/file-manager', [\App\Http\Controllers\FileManagerController::class, 'index'])->name('admin.file-manager.index');
+    Route::get('/admin/file-manager/files', [\App\Http\Controllers\FileManagerController::class, 'getFiles'])->name('admin.file-manager.files');
+    Route::get('/admin/file-manager/files/{fileMetadata}', [\App\Http\Controllers\FileManagerController::class, 'show'])->name('admin.file-manager.files.show');
+    Route::delete('/admin/file-manager/files/{fileMetadata}', [\App\Http\Controllers\FileUploadController::class, 'destroy'])->name('admin.file-manager.files.destroy');
+    Route::post('/admin/file-manager/upload', [\App\Http\Controllers\FileUploadController::class, 'upload'])->name('admin.file-manager.upload');
+    Route::get('/admin/file-manager/download/{fileMetadata}', [\App\Http\Controllers\FileUploadController::class, 'download'])->name('admin.file-manager.download');
+    Route::post('/admin/file-manager/bulk-delete', [\App\Http\Controllers\FileManagerController::class, 'bulkDelete'])->name('admin.file-manager.bulk-delete');
+    Route::post('/admin/file-manager/bulk-move', [\App\Http\Controllers\FileManagerController::class, 'bulkMove'])->name('admin.file-manager.bulk-move');
+    Route::get('/admin/file-manager/search', [\App\Http\Controllers\FileManagerController::class, 'search'])->name('admin.file-manager.search');
+    Route::get('/admin/file-manager/stats', [\App\Http\Controllers\FileManagerController::class, 'getStats'])->name('admin.file-manager.stats');
+    Route::get('/admin/file-manager/export', [\App\Http\Controllers\FileManagerController::class, 'export'])->name('admin.file-manager.export');
+    
+    // Image Optimization Routes
+    Route::post('/admin/images/{fileMetadata}/thumbnails', [\App\Http\Controllers\ImageOptimizationController::class, 'generateThumbnails'])->name('admin.images.thumbnails');
+    Route::post('/admin/images/{fileMetadata}/metadata', [\App\Http\Controllers\ImageOptimizationController::class, 'extractMetadata'])->name('admin.images.metadata');
+    Route::post('/admin/images/{fileMetadata}/convert', [\App\Http\Controllers\ImageOptimizationController::class, 'convertFormat'])->name('admin.images.convert');
+    Route::post('/admin/images/batch-optimize', [\App\Http\Controllers\ImageOptimizationController::class, 'batchOptimize'])->name('admin.images.batch-optimize');
+    Route::get('/admin/images/{fileMetadata}/thumbnail/{size?}', [\App\Http\Controllers\ImageOptimizationController::class, 'getThumbnail'])->name('admin.images.thumbnail');
+    Route::delete('/admin/images/{fileMetadata}/thumbnails', [\App\Http\Controllers\ImageOptimizationController::class, 'cleanupThumbnails'])->name('admin.images.cleanup-thumbnails');
+    
+    // Debug route
+    Route::get('/admin/debug-properties', function() {
+        $user = auth('admin')->user();
+        $properties = \App\Models\Property::all();
+        return response()->json([
+            'authenticated' => auth('admin')->check(),
+            'user' => $user ? $user->only(['id', 'name', 'email', 'role']) : null,
+            'properties_count' => $properties->count(),
+            'first_property' => $properties->first() ? $properties->first()->only(['id', 'property_address', 'owner_name']) : null,
+        ]);
+    })->name('admin.debug.properties');
 });
 
-// Ops authentication and dashboard
-Route::prefix('ops')->name('ops.')->group(function () {
-    Route::get('login', [\App\Http\Controllers\Auth\AuthenticatedSessionController::class, 'create'])->name('login');
-    Route::post('login', [\App\Http\Controllers\Auth\AuthenticatedSessionController::class, 'store']);
-    Route::post('logout', [\App\Http\Controllers\Auth\AuthenticatedSessionController::class, 'destroy'])->name('logout');
+// Ops Routes
+Route::get('/ops/login', [OpsLoginController::class, 'create'])->name('ops.login');
+Route::post('/ops/login', [OpsLoginController::class, 'store']);
+Route::middleware('auth:ops')->group(function () {
+    Route::get('/ops/dashboard', function () {
+        return view('ops.dashboard');
+    })->name('ops.dashboard');
+    Route::post('/ops/logout', [OpsLoginController::class, 'destroy'])->name('ops.logout');
+
+    // Ops User Management (only for Checkers)
+    Route::resource('/ops/users', UserController::class)->only(['index', 'create', 'store', 'edit', 'update', 'destroy'])->names('ops.users');
+
+    // Ops Mission Management
+    Route::resource('/ops/missions', MissionController::class)->names('ops.missions');
     
-    Route::middleware(['auth', 'role:ops'])->group(function () {
-        Route::get('dashboard', [\App\Http\Controllers\OpsController::class, 'dashboard'])->name('dashboard');
-    });
+    // Ops Property Management
+    Route::resource('/ops/properties', OpsPropertyController::class)->only(['index', 'show', 'create', 'store', 'edit', 'update'])->names('ops.properties');
+    Route::get('/ops/properties-upload', [OpsPropertyController::class, 'uploadForm'])->name('ops.properties.upload.form');
+    Route::post('/ops/properties-upload', [OpsPropertyController::class, 'upload'])->name('ops.properties.upload');
+    Route::get('/ops/properties-template', [OpsPropertyController::class, 'template'])->name('ops.properties.template');
+    
+    // Ops Maintenance Request Management
+    Route::get('/ops/maintenance-requests', [\App\Http\Controllers\Ops\MaintenanceRequestController::class, 'index'])->name('ops.maintenance-requests.index');
+    Route::get('/ops/maintenance-requests/{maintenanceRequest}', [\App\Http\Controllers\Ops\MaintenanceRequestController::class, 'show'])->name('ops.maintenance-requests.show');
+    Route::post('/ops/maintenance-requests/{maintenanceRequest}/approve', [\App\Http\Controllers\Ops\MaintenanceRequestController::class, 'approve'])->name('ops.maintenance-requests.approve');
+    Route::post('/ops/maintenance-requests/{maintenanceRequest}/reject', [\App\Http\Controllers\Ops\MaintenanceRequestController::class, 'reject'])->name('ops.maintenance-requests.reject');
+    Route::post('/ops/maintenance-requests/{maintenanceRequest}/start-work', [\App\Http\Controllers\Ops\MaintenanceRequestController::class, 'startWork'])->name('ops.maintenance-requests.start-work');
+    Route::post('/ops/maintenance-requests/{maintenanceRequest}/complete', [\App\Http\Controllers\Ops\MaintenanceRequestController::class, 'complete'])->name('ops.maintenance-requests.complete');
+    Route::post('/ops/maintenance-requests/{maintenanceRequest}/update-assignment', [\App\Http\Controllers\Ops\MaintenanceRequestController::class, 'updateAssignment'])->name('ops.maintenance-requests.update-assignment');
 });
+
+// Checker Routes
+Route::get('/checker/login', [CheckerLoginController::class, 'create'])->name('checker.login');
+Route::post('/checker/login', [CheckerLoginController::class, 'store']);
+Route::middleware('auth:checker')->group(function () {
+    Route::get('/checker/dashboard', [CheckerLoginController::class, 'dashboard'])->name('checker.dashboard');
+    Route::post('/checker/logout', [CheckerLoginController::class, 'destroy'])->name('checker.logout');
+
+    // Checklist Management
+    Route::get('/checklists/{checklist}', [ChecklistController::class, 'show'])->name('checklists.show');
+    Route::put('/checklists/{checklist}', [ChecklistController::class, 'update'])->name('checklists.update');
+    Route::post('/checklists/{checklist}/submit', [ChecklistController::class, 'submit'])->name('checklists.submit');
+});
+
+// Guest Checklist Access
+Route::get('/guest/checklists/{checklist}/{token}', [GuestChecklistController::class, 'show'])->name('guest.checklists.show');
+
+// Two-Factor Authentication Routes
+Route::middleware('auth')->group(function () {
+    Route::get('/two-factor', [TwoFactorController::class, 'show'])->name('two-factor.show');
+    Route::post('/two-factor', [TwoFactorController::class, 'store'])->name('two-factor.store');
+    Route::delete('/two-factor', [TwoFactorController::class, 'destroy'])->name('two-factor.destroy');
+    Route::post('/two-factor/recovery-codes', [TwoFactorController::class, 'generateRecoveryCodes'])->name('two-factor.recovery-codes');
+});
+
+Route::get('/two-factor/challenge', [TwoFactorChallengeController::class, 'create'])->name('two-factor.login');
+Route::post('/two-factor/challenge', [TwoFactorChallengeController::class, 'store']);
+
+// Secure File Upload Routes
+Route::middleware('auth')->group(function () {
+    Route::post('/files/upload', [SecureFileController::class, 'upload'])->name('files.upload');
+    Route::get('/files/download/{path}', [SecureFileController::class, 'download'])->name('files.download')->where('path', '.*');
+    Route::get('/files/info/{path}', [SecureFileController::class, 'info'])->name('files.info')->where('path', '.*');
+    Route::delete('/files/{path}', [SecureFileController::class, 'delete'])->name('files.delete')->where('path', '.*');
+    Route::get('/files', [SecureFileController::class, 'list'])->name('files.list');
+    Route::get('/files/allowed-types/{category?}', [SecureFileController::class, 'allowedTypes'])->name('files.allowed-types');
+});
+
+// Notification Routes
+Route::middleware('auth')->group(function () {
+    Route::get('/notifications', [\App\Http\Controllers\NotificationController::class, 'index'])->name('notifications.index');
+    Route::get('/api/notifications', [\App\Http\Controllers\NotificationController::class, 'getNotifications'])->name('api.notifications.get');
+    Route::post('/notifications/{notification}/mark-as-read', [\App\Http\Controllers\NotificationController::class, 'markAsRead'])->name('notifications.mark-as-read');
+    Route::post('/notifications/mark-multiple-read', [\App\Http\Controllers\NotificationController::class, 'markMultipleAsRead'])->name('notifications.mark-multiple-read');
+    Route::post('/notifications/mark-all-read', [\App\Http\Controllers\NotificationController::class, 'markAllAsRead'])->name('notifications.mark-all-read');
+    Route::post('/notifications/{notification}/mark-action-taken', [\App\Http\Controllers\NotificationController::class, 'markActionTaken'])->name('notifications.mark-action-taken');
+    Route::get('/notifications/counts', [\App\Http\Controllers\NotificationController::class, 'getCounts'])->name('notifications.counts');
+});
+
+// PWA Routes
+Route::get('/manifest.json', [\App\Http\Controllers\PWAController::class, 'manifest'])->name('pwa.manifest');
+Route::get('/sw.js', [\App\Http\Controllers\PWAController::class, 'serviceWorker'])->name('pwa.sw');
+Route::get('/offline', [\App\Http\Controllers\PWAController::class, 'offline'])->name('pwa.offline');
+
+// Health check routes
+Route::get('/health', [\App\Http\Controllers\HealthCheckController::class, 'health'])->name('health');
+Route::get('/health/detailed', [\App\Http\Controllers\HealthCheckController::class, 'detailed'])->name('health.detailed');
+Route::get('/health/ready', [\App\Http\Controllers\HealthCheckController::class, 'ready'])->name('health.ready');
+Route::get('/health/live', [\App\Http\Controllers\HealthCheckController::class, 'live'])->name('health.live');
+Route::get('/metrics', [\App\Http\Controllers\HealthCheckController::class, 'metrics'])->name('metrics');
+Route::get('/info', [\App\Http\Controllers\HealthCheckController::class, 'info'])->name('info');
+
+// Ping route for connectivity testing
+Route::match(['GET', 'HEAD'], '/ping', function() {
+    return response('', 200);
+})->name('ping');

@@ -1,31 +1,136 @@
-<!-- Mobile Navigation Overlay -->
-<div x-show="sidebarOpen" class="relative z-50 lg:hidden" x-cloak>
-    <div x-show="sidebarOpen" x-transition:enter="transition-opacity ease-linear duration-300"
-         x-transition:enter-start="opacity-0" x-transition:enter-end="opacity-100"
-         x-transition:leave="transition-opacity ease-linear duration-300"
-         x-transition:leave-start="opacity-100" x-transition:leave-end="opacity-0"
-         class="fixed inset-0 bg-gray-900/80"></div>
-    
-    <div class="fixed inset-0 flex">
-        <div x-show="sidebarOpen" x-transition:enter="transition ease-in-out duration-300 transform"
-             x-transition:enter-start="-translate-x-full" x-transition:enter-end="translate-x-0"
-             x-transition:leave="transition ease-in-out duration-300 transform"
-             x-transition:leave-start="translate-x-0" x-transition:leave-end="-translate-x-full"
-             class="relative mr-16 flex w-full max-w-xs flex-1">
-            
-            <div class="absolute left-full top-0 flex w-16 justify-center pt-5">
-                <button type="button" class="-m-2.5 p-2.5" x-on:click="sidebarOpen = false">
-                    <span class="sr-only">Close sidebar</span>
-                    <svg class="h-6 w-6 text-white" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+<nav x-data="{ open: false }" class="bg-white border-b border-gray-100">
+    <!-- Primary Navigation Menu -->
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div class="flex justify-between h-16">
+            <div class="flex">
+                <!-- Logo -->
+                <div class="shrink-0 flex items-center">
+                    <a href="{{ Auth::guard('admin')->check() ? route('admin.dashboard') : (Auth::guard('ops')->check() ? route('ops.dashboard') : (Auth::guard('checker')->check() ? route('checker.dashboard') : '/')) }}">
+                        <x-application-logo class="block h-9 w-auto fill-current text-gray-800" />
+                    </a>
+                </div>
+
+                <!-- Navigation Links -->
+                <div class="hidden space-x-8 sm:-my-px sm:ms-10 sm:flex">
+                    @php
+                        $dashboardRoute = Auth::guard('admin')->check() ? 'admin.dashboard' : (Auth::guard('ops')->check() ? 'ops.dashboard' : (Auth::guard('checker')->check() ? 'checker.dashboard' : null));
+                        $currentRoute = Auth::guard('admin')->check() ? request()->routeIs('admin.dashboard') : (Auth::guard('ops')->check() ? request()->routeIs('ops.dashboard') : (Auth::guard('checker')->check() ? request()->routeIs('checker.dashboard') : false));
+                    @endphp
+                    @if($dashboardRoute)
+                    <x-nav-link :href="route($dashboardRoute)" :active="$currentRoute">
+                        {{ __('Dashboard') }}
+                    </x-nav-link>
+                    @endif
+                    
+                    <!-- Property Management Links -->
+                    @if(Auth::guard('admin')->check())
+                    <x-nav-link :href="route('admin.properties.index')" :active="request()->routeIs('admin.properties.*')">
+                        {{ __('Properties') }}
+                    </x-nav-link>
+                    <x-nav-link :href="route('admin.file-manager.index')" :active="request()->routeIs('admin.file-manager.*')">
+                        {{ __('File Manager') }}
+                    </x-nav-link>
+                    @endif
+                </div>
+            </div>
+
+            <!-- Settings Dropdown -->
+            @if(Auth::guard('admin')->check() || Auth::guard('ops')->check() || Auth::guard('checker')->check())
+            <div class="hidden sm:flex sm:items-center sm:ms-6">
+                <x-dropdown align="right" width="48">
+                    <x-slot name="trigger">
+                        <button class="inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-gray-500 bg-white hover:text-gray-700 focus:outline-none transition ease-in-out duration-150">
+                            <div>{{ Auth::guard('admin')->check() ? Auth::guard('admin')->user()->name : (Auth::guard('ops')->check() ? Auth::guard('ops')->user()->name : Auth::guard('checker')->user()->name) }}</div>
+
+                            <div class="ms-1">
+                                <svg class="fill-current h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20">
+                                    <path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd" />
+                                </svg>
+                            </div>
+                        </button>
+                    </x-slot>
+
+                    <x-slot name="content">
+                        @php
+                            $logoutRoute = Auth::guard('admin')->check() ? 'admin.logout' : (Auth::guard('ops')->check() ? 'ops.logout' : 'checker.logout');
+                        @endphp
+
+                        <!-- Authentication -->
+                        <form method="POST" action="{{ route($logoutRoute) }}">
+                            @csrf
+
+                            <x-dropdown-link :href="route($logoutRoute)"
+                                    onclick="event.preventDefault();
+                                                this.closest('form').submit();">
+                                {{ __('Log Out') }}
+                            </x-dropdown-link>
+                        </form>
+                    </x-slot>
+                </x-dropdown>
+            </div>
+            @endif
+
+            <!-- Hamburger -->
+            <div class="-me-2 flex items-center sm:hidden">
+                <button @click="open = ! open" class="inline-flex items-center justify-center p-2 rounded-md text-gray-400 hover:text-gray-500 hover:bg-gray-100 focus:outline-none focus:bg-gray-100 focus:text-gray-500 transition duration-150 ease-in-out">
+                    <svg class="h-6 w-6" stroke="currentColor" fill="none" viewBox="0 0 24 24">
+                        <path :class="{'hidden': open, 'inline-flex': ! open }" class="inline-flex" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
+                        <path :class="{'hidden': ! open, 'inline-flex': open }" class="hidden" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
                     </svg>
                 </button>
             </div>
-            
-            <!-- Mobile Sidebar Content -->
-            <div class="flex grow flex-col gap-y-5 overflow-y-auto bg-white px-6 pb-2">
-                @include('layouts.sidebar-content')
-            </div>
         </div>
     </div>
-</div>
+
+    <!-- Responsive Navigation Menu -->
+    <div :class="{'block': open, 'hidden': ! open}" class="hidden sm:hidden">
+        <div class="pt-2 pb-3 space-y-1">
+            @php
+                $dashboardRoute = Auth::guard('admin')->check() ? 'admin.dashboard' : (Auth::guard('ops')->check() ? 'ops.dashboard' : (Auth::guard('checker')->check() ? 'checker.dashboard' : null));
+                $currentRoute = Auth::guard('admin')->check() ? request()->routeIs('admin.dashboard') : (Auth::guard('ops')->check() ? request()->routeIs('ops.dashboard') : (Auth::guard('checker')->check() ? request()->routeIs('checker.dashboard') : false));
+            @endphp
+            @if($dashboardRoute)
+            <x-responsive-nav-link :href="route($dashboardRoute)" :active="$currentRoute">
+                {{ __('Dashboard') }}
+            </x-responsive-nav-link>
+            @endif
+            
+            <!-- Property Management Links -->
+            @if(Auth::guard('admin')->check())
+            <x-responsive-nav-link :href="route('admin.properties.index')" :active="request()->routeIs('admin.properties.*')">
+                {{ __('Properties') }}
+            </x-responsive-nav-link>
+            <x-responsive-nav-link :href="route('admin.file-manager.index')" :active="request()->routeIs('admin.file-manager.*')">
+                {{ __('File Manager') }}
+            </x-responsive-nav-link>
+            @endif
+        </div>
+
+        <!-- Responsive Settings Options -->
+        @if(Auth::guard('admin')->check() || Auth::guard('ops')->check() || Auth::guard('checker')->check())
+        <div class="pt-4 pb-1 border-t border-gray-200">
+            <div class="px-4">
+                <div class="font-medium text-base text-gray-800">{{ Auth::guard('admin')->check() ? Auth::guard('admin')->user()->name : (Auth::guard('ops')->check() ? Auth::guard('ops')->user()->name : Auth::guard('checker')->user()->name) }}</div>
+                <div class="font-medium text-sm text-gray-500">{{ Auth::guard('admin')->check() ? Auth::guard('admin')->user()->email : (Auth::guard('ops')->check() ? Auth::guard('ops')->user()->email : Auth::guard('checker')->user()->email) }}</div>
+            </div>
+
+            <div class="mt-3 space-y-1">
+                @php
+                    $logoutRoute = Auth::guard('admin')->check() ? 'admin.logout' : (Auth::guard('ops')->check() ? 'ops.logout' : 'checker.logout');
+                @endphp
+
+                <!-- Authentication -->
+                <form method="POST" action="{{ route($logoutRoute) }}">
+                    @csrf
+
+                    <x-responsive-nav-link :href="route($logoutRoute)"
+                            onclick="event.preventDefault();
+                                        this.closest('form').submit();">
+                        {{ __('Log Out') }}
+                    </x-responsive-nav-link>
+                </form>
+            </div>
+        </div>
+        @endif
+    </div>
+</nav>

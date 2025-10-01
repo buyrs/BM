@@ -17,15 +17,9 @@ class RegisteredUserController extends Controller
     /**
      * Display the registration view.
      */
-    public function create(): View|RedirectResponse
+    public function create(): View
     {
-        // Only allow registration for admin role
-        if (request()->is('admin/*')) {
-            return view('auth.register');
-        }
-        
-        // For other roles or general registration, redirect to role selection
-        return redirect()->route('role.selection');
+        return view('auth.register');
     }
 
     /**
@@ -47,13 +41,10 @@ class RegisteredUserController extends Controller
             'password' => Hash::make($request->password),
         ]);
 
-        // Assign admin role by default for self-registration
-        $user->assignRole('admin');
-
         event(new Registered($user));
 
         Auth::login($user);
 
-        return redirect(route('admin.dashboard', absolute: false));
+        return redirect(route('dashboard', absolute: false));
     }
 }
