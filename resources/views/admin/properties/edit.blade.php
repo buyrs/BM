@@ -41,11 +41,35 @@
     <!-- Google Places API -->
     <script async defer src="https://maps.googleapis.com/maps/api/js?key={{ config('services.google.places_api_key') }}&libraries=places&callback=initAutocomplete"></script>
 
+    <style>
+    /* Ensure Google Places dropdown is visible above all other elements */
+    .pac-container {
+        z-index: 10000 !important;
+        background-color: white !important;
+        border-radius: 8px !important;
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06) !important;
+        margin-top: 4px !important;
+    }
+    .pac-item {
+        padding: 8px 12px !important;
+        cursor: pointer !important;
+    }
+    .pac-item:hover {
+        background-color: #f3f4f6 !important;
+    }
+    .pac-item-query {
+        font-weight: 500 !important;
+    }
+    </style>
+
     <script>
     let propertyAutocomplete;
     let ownerAutocomplete;
 
     function initAutocomplete() {
+        console.log('🔍 Google Places: initAutocomplete called');
+        console.log('🔍 Google Maps object:', typeof google !== 'undefined' ? 'loaded' : 'NOT loaded');
+        console.log('🔍 Places library:', typeof google !== 'undefined' && google.maps && google.maps.places ? 'loaded' : 'NOT loaded');
         const propertyInput = document.getElementById('property_address');
         const ownerInput = document.getElementById('owner_address');
         const helpGoogle = document.getElementById('address-help-google');

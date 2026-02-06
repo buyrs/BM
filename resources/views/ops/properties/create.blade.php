@@ -193,12 +193,37 @@
 <!-- Google Places API -->
 <script async defer src="https://maps.googleapis.com/maps/api/js?key={{ config('services.google.places_api_key') }}&libraries=places&callback=initAutocomplete"></script>
 
+<style>
+/* Ensure Google Places dropdown is visible above all other elements */
+.pac-container {
+    z-index: 10000 !important;
+    background-color: white !important;
+    border-radius: 8px !important;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06) !important;
+    margin-top: 4px !important;
+}
+.pac-item {
+    padding: 8px 12px !important;
+    cursor: pointer !important;
+}
+.pac-item:hover {
+    background-color: #f3f4f6 !important;
+}
+.pac-item-query {
+    font-weight: 500 !important;
+}
+</style>
+
 <script>
 let propertyAutocomplete;
 let ownerAutocomplete;
 
 // Initialize Google Places Autocomplete
 function initAutocomplete() {
+    console.log('🔍 Google Places: initAutocomplete called');
+    console.log('🔍 Google Maps object:', typeof google !== 'undefined' ? 'loaded' : 'NOT loaded');
+    console.log('🔍 Places library:', typeof google !== 'undefined' && google.maps && google.maps.places ? 'loaded' : 'NOT loaded');
+    
     const propertyInput = document.getElementById('property_address');
     const ownerInput = document.getElementById('owner_address');
     const helpGoogle = document.getElementById('address-help-google');
@@ -206,21 +231,28 @@ function initAutocomplete() {
     const ownerHelpGoogle = document.getElementById('owner-address-help-google');
     const ownerHelpFallback = document.getElementById('owner-address-help-fallback');
     
+    console.log('🔍 Property input found:', !!propertyInput);
+    console.log('🔍 Owner input found:', !!ownerInput);
+    
     // Check if Google Places API key is configured
     const hasGoogleAPI = '{{ config("services.google.places_api_key") }}' !== '';
+    console.log('🔍 API Key configured:', hasGoogleAPI);
     
-    if (hasGoogleAPI) {
+    if (hasGoogleAPI && typeof google !== 'undefined' && google.maps && google.maps.places) {
         try {
             // Initialize Google Places Autocomplete for Property Address
             if (propertyInput) {
+                console.log('🔍 Initializing autocomplete for property_address...');
                 propertyAutocomplete = new google.maps.places.Autocomplete(propertyInput, {
                     types: ['address'],
                     fields: ['formatted_address', 'geometry', 'name', 'address_components']
                 });
+                console.log('✅ Property autocomplete initialized successfully');
                 
                 // Handle place selection for property address
                 propertyAutocomplete.addListener('place_changed', function() {
                     const place = propertyAutocomplete.getPlace();
+                    console.log('📍 Property place selected:', place);
                     if (place.formatted_address) {
                         propertyInput.value = place.formatted_address;
                     }
@@ -235,10 +267,12 @@ function initAutocomplete() {
             
             // Initialize Google Places Autocomplete for Owner Address
             if (ownerInput) {
+                console.log('🔍 Initializing autocomplete for owner_address...');
                 ownerAutocomplete = new google.maps.places.Autocomplete(ownerInput, {
                     types: ['address'],
                     fields: ['formatted_address', 'geometry', 'name', 'address_components']
                 });
+                console.log('✅ Owner autocomplete initialized successfully');
                 
                 // Handle place selection for owner address
                 ownerAutocomplete.addListener('place_changed', function() {

@@ -494,5 +494,8 @@
             <x-command-palette />
             <x-keyboard-shortcuts-help />
         </div>
+        
+        {{-- Scripts Stack for child views to push scripts --}}
+        @stack('scripts')
     </body>
 </html>
