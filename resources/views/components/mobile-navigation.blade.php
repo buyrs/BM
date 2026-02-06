@@ -110,8 +110,7 @@
                         </a>
                         @endif
                         
-                        <div class="border-t border-secondary-200 dark:border-secondary-700 my-2"></div>
-                        
+                        {{-- TODO: Uncomment when profile.edit route is implemented
                         <a href="{{ route('profile.edit') }}" 
                            @click="handleTap()"
                            class="flex items-center px-4 py-3 text-sm text-secondary-700 dark:text-secondary-200 hover:bg-secondary-50 dark:hover:bg-secondary-700 transition-colors">
@@ -123,6 +122,7 @@
                             </div>
                             <span class="font-medium">Settings</span>
                         </a>
+                        --}}
                     </div>
                 </div>
                 
