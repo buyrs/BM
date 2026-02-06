@@ -86,14 +86,14 @@ return new class extends Migration
             if (!$this->indexExists('checklist_items', 'checklist_items_amenity_id_index')) {
                 $table->index('amenity_id');
             }
-            if (!$this->indexExists('checklist_items', 'checklist_items_status_index')) {
-                $table->index('status');
+            if (!$this->indexExists('checklist_items', 'checklist_items_state_index')) {
+                $table->index('state');
             }
-            if (!$this->indexExists('checklist_items', 'checklist_items_checklist_id_status_index')) {
-                $table->index(['checklist_id', 'status']);
+            if (!$this->indexExists('checklist_items', 'checklist_items_checklist_id_state_index')) {
+                $table->index(['checklist_id', 'state']);
             }
-            if (!$this->indexExists('checklist_items', 'checklist_items_amenity_id_status_index')) {
-                $table->index(['amenity_id', 'status']);
+            if (!$this->indexExists('checklist_items', 'checklist_items_amenity_id_state_index')) {
+                $table->index(['amenity_id', 'state']);
             }
         });
 
@@ -193,14 +193,14 @@ return new class extends Migration
             if ($this->indexExists('checklist_items', 'checklist_items_amenity_id_index')) {
                 $table->dropIndex(['amenity_id']);
             }
-            if ($this->indexExists('checklist_items', 'checklist_items_status_index')) {
-                $table->dropIndex(['status']);
+            if ($this->indexExists('checklist_items', 'checklist_items_state_index')) {
+                $table->dropIndex(['state']);
             }
-            if ($this->indexExists('checklist_items', 'checklist_items_checklist_id_status_index')) {
-                $table->dropIndex(['checklist_id', 'status']);
+            if ($this->indexExists('checklist_items', 'checklist_items_checklist_id_state_index')) {
+                $table->dropIndex(['checklist_id', 'state']);
             }
-            if ($this->indexExists('checklist_items', 'checklist_items_amenity_id_status_index')) {
-                $table->dropIndex(['amenity_id', 'status']);
+            if ($this->indexExists('checklist_items', 'checklist_items_amenity_id_state_index')) {
+                $table->dropIndex(['amenity_id', 'state']);
             }
         });
 
