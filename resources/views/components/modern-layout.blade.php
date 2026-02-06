@@ -277,5 +277,8 @@
     @if($userRole !== 'guest')
         <x-mobile-navigation :userRole="$userRole" />
     @endif
+
+    <!-- Scripts Stack -->
+    @stack('scripts')
 </body>
 </html>
