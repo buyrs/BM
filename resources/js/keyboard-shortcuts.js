@@ -76,7 +76,7 @@ const DEFAULT_SHORTCUTS = {
 
     // Help
     'show-shortcuts': {
-        keys: ['?'],
+        keys: ['shift+/'],
         description: 'Show keyboard shortcuts',
         action: () => window.dispatchEvent(new CustomEvent('show-shortcuts-help'))
     }
