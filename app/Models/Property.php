@@ -13,6 +13,7 @@ class Property extends Model
 
     protected $fillable = [
         'internal_code',
+        'internal_name',
         'owner_name',
         'owner_address', 
         'property_address',
@@ -22,6 +23,7 @@ class Property extends Model
 
     protected $casts = [
         'internal_code' => 'string',
+        'internal_name' => 'string',
         'owner_name' => 'string',
         'owner_address' => 'string',
         'property_address' => 'string',

@@ -24,9 +24,11 @@ class UpdatePropertyRequest extends FormRequest
         $propertyId = $this->route('property') ? $this->route('property')->id : null;
         
         return [
-            'internal_code' => 'nullable|string|max:50|unique:properties,internal_code,' . $propertyId . '|regex:/^[a-zA-Z0-9_-]+$/',
-            'property_address' => 'required|string|max:255|unique:properties,property_address,' . $propertyId,
-            'owner_name' => 'nullable|string|max:255',
+            'internal_code' => 'nullable|string|max:6|regex:/^[a-zA-Z0-9]+$/',
+            'internal_name' => 'required|string|max:255',
+            'property_address' => 'required|string|max:255',
+            'property_type' => 'required|string|in:classic,vip',
+            'owner_name' => 'required|string|max:255',
             'owner_address' => 'nullable|string|max:1000',
             'description' => 'nullable|string|max:2000',
         ];

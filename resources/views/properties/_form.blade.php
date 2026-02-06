@@ -89,6 +89,69 @@
         </div>
         
         <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <!-- Internal Code -->
+            <div class="space-y-2">
+                <label for="internal_code" class="block text-sm font-semibold text-gray-700">
+                    Property Code
+                    <span class="text-gray-400 font-normal">(Optional)</span>
+                </label>
+                <div class="relative">
+                    <input type="text" 
+                           name="internal_code" 
+                           id="internal_code" 
+                           value="{{ old('internal_code', $property->internal_code ?? '') }}"
+                           maxlength="6"
+                           placeholder="e.g., APT123"
+                           class="w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-all duration-200 placeholder-gray-400 uppercase">
+                    <div class="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
+                        <svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 20l4-16m2 16l4-16M6 9h14M4 15h14"></path>
+                        </svg>
+                    </div>
+                </div>
+                <p class="text-xs text-gray-500">Max 6 characters (letters and numbers only)</p>
+                @error('internal_code')
+                    <p class="text-sm text-red-600 flex items-center gap-1">
+                        <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                            <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd"></path>
+                        </svg>
+                        {{ $message }}
+                    </p>
+                @enderror
+            </div>
+            
+            <!-- Internal Name -->
+            <div class="space-y-2">
+                <label for="internal_name" class="block text-sm font-semibold text-gray-700">
+                    Internal Name
+                    <span class="text-red-500">*</span>
+                </label>
+                <div class="relative">
+                    <input type="text" 
+                           name="internal_name" 
+                           id="internal_name" 
+                           value="{{ old('internal_name', $property->internal_name ?? '') }}"
+                           required
+                           placeholder="e.g., Sunset Apartment Building A"
+                           class="w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-all duration-200 placeholder-gray-400">
+                    <div class="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
+                        <svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"></path>
+                        </svg>
+                    </div>
+                </div>
+                @error('internal_name')
+                    <p class="text-sm text-red-600 flex items-center gap-1">
+                        <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                            <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd"></path>
+                        </svg>
+                        {{ $message }}
+                    </p>
+                @enderror
+            </div>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
             <!-- Property Address -->
             <div class="space-y-2">
                 <label for="property_address" class="block text-sm font-semibold text-gray-700">
