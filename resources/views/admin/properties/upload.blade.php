@@ -28,29 +28,72 @@
             <!-- Import Results -->
             @if (session('import_result'))
                 @php $result = session('import_result'); @endphp
-                <div class="bg-blue-100 border border-blue-400 text-blue-700 px-4 py-3 rounded mb-6">
-                    <h3 class="font-semibold mb-2">Import Results:</h3>
-                    <ul class="list-disc list-inside space-y-1">
-                        <li>Total rows processed: {{ $result['total'] }}</li>
-                        <li>Properties created: {{ $result['created'] }}</li>
-                        <li>Properties updated: {{ $result['updated'] }}</li>
-                        <li>Rows skipped: {{ $result['skipped'] }}</li>
-                        <li>Errors: {{ $result['errors'] }}</li>
-                        @if($result['dry_run'])
-                            <li class="font-semibold">This was a dry run - no data was actually saved.</li>
-                        @endif
-                    </ul>
-                    
-                    @if (!empty($result['error_messages']))
-                        <div class="mt-4">
-                            <h4 class="font-semibold">Error Details:</h4>
-                            <ul class="list-disc list-inside mt-2 space-y-1">
-                                @foreach ($result['error_messages'] as $error)
-                                    <li class="text-red-700">{{ $error }}</li>
-                                @endforeach
-                            </ul>
+                <div class="bg-white border-l-4 @if($result['errors'] > 0) border-red-500 @else border-green-500 @endif rounded-lg shadow-md px-6 py-4 mb-6">
+                    <div class="flex items-start">
+                        <div class="flex-shrink-0">
+                            @if($result['errors'] > 0)
+                                <svg class="w-6 h-6 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                </svg>
+                            @else
+                                <svg class="w-6 h-6 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                </svg>
+                            @endif
                         </div>
-                    @endif
+                        <div class="ml-4 flex-1">
+                            <h3 class="font-semibold text-gray-900 mb-3 text-lg">Import Results</h3>
+                            <div class="grid grid-cols-2 md:grid-cols-5 gap-4 mb-4">
+                                <div class="bg-blue-50 rounded-lg p-3 text-center">
+                                    <p class="text-2xl font-bold text-blue-600">{{ $result['total'] }}</p>
+                                    <p class="text-xs text-blue-700 mt-1">Total Rows</p>
+                                </div>
+                                <div class="bg-green-50 rounded-lg p-3 text-center">
+                                    <p class="text-2xl font-bold text-green-600">{{ $result['created'] }}</p>
+                                    <p class="text-xs text-green-700 mt-1">Created</p>
+                                </div>
+                                <div class="bg-yellow-50 rounded-lg p-3 text-center">
+                                    <p class="text-2xl font-bold text-yellow-600">{{ $result['updated'] }}</p>
+                                    <p class="text-xs text-yellow-700 mt-1">Updated</p>
+                                </div>
+                                <div class="bg-gray-50 rounded-lg p-3 text-center">
+                                    <p class="text-2xl font-bold text-gray-600">{{ $result['skipped'] }}</p>
+                                    <p class="text-xs text-gray-700 mt-1">Skipped</p>
+                                </div>
+                                <div class="bg-red-50 rounded-lg p-3 text-center">
+                                    <p class="text-2xl font-bold text-red-600">{{ $result['errors'] }}</p>
+                                    <p class="text-xs text-red-700 mt-1">Errors</p>
+                                </div>
+                            </div>
+                            
+                            @if($result['dry_run'])
+                                <div class="bg-yellow-100 border border-yellow-300 rounded-lg px-4 py-3 mb-3">
+                                    <p class="font-semibold text-yellow-800 flex items-center">
+                                        <svg class="w-5 h-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                        </svg>
+                                        This was a dry run - no data was actually saved.
+                                    </p>
+                                </div>
+                            @endif
+                            
+                            @if (!empty($result['error_messages']))
+                                <div class="mt-4 bg-red-50 border border-red-200 rounded-lg p-4">
+                                    <h4 class="font-semibold text-red-900 mb-2 flex items-center">
+                                        <svg class="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                                            <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd" />
+                                        </svg>
+                                        Error Details
+                                    </h4>
+                                    <ul class="list-disc list-inside mt-2 space-y-1 text-sm max-h-60 overflow-y-auto">
+                                        @foreach ($result['error_messages'] as $error)
+                                            <li class="text-red-700">{{ $error }}</li>
+                                        @endforeach
+                                    </ul>
+                                </div>
+                            @endif
+                        </div>
+                    </div>
                 </div>
             @endif
 
