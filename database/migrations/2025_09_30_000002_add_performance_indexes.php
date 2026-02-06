@@ -60,23 +60,8 @@ return new class extends Migration
             if (!$this->indexExists('missions', 'missions_status_index')) {
                 $table->index('status');
             }
-            if (!$this->indexExists('missions', 'missions_assigned_to_index')) {
-                $table->index('assigned_to');
-            }
-            if (!$this->indexExists('missions', 'missions_property_id_index')) {
-                $table->index('property_id');
-            }
             if (!$this->indexExists('missions', 'missions_created_at_index')) {
                 $table->index('created_at');
-            }
-            if (!$this->indexExists('missions', 'missions_status_assigned_to_index')) {
-                $table->index(['status', 'assigned_to']);
-            }
-            if (!$this->indexExists('missions', 'missions_property_id_status_index')) {
-                $table->index(['property_id', 'status']);
-            }
-            if (!$this->indexExists('missions', 'missions_assigned_to_created_at_index')) {
-                $table->index(['assigned_to', 'created_at']);
             }
         });
 
@@ -182,23 +167,8 @@ return new class extends Migration
             if ($this->indexExists('missions', 'missions_status_index')) {
                 $table->dropIndex(['status']);
             }
-            if ($this->indexExists('missions', 'missions_assigned_to_index')) {
-                $table->dropIndex(['assigned_to']);
-            }
-            if ($this->indexExists('missions', 'missions_property_id_index')) {
-                $table->dropIndex(['property_id']);
-            }
             if ($this->indexExists('missions', 'missions_created_at_index')) {
                 $table->dropIndex(['created_at']);
-            }
-            if ($this->indexExists('missions', 'missions_status_assigned_to_index')) {
-                $table->dropIndex(['status', 'assigned_to']);
-            }
-            if ($this->indexExists('missions', 'missions_property_id_status_index')) {
-                $table->dropIndex(['property_id', 'status']);
-            }
-            if ($this->indexExists('missions', 'missions_assigned_to_created_at_index')) {
-                $table->dropIndex(['assigned_to', 'created_at']);
             }
         });
 
