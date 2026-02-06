@@ -2,9 +2,27 @@ import './bootstrap';
 
 import Alpine from 'alpinejs';
 
+// UX Enhancement Modules
+import { registerGestureDirectives } from './gestures';
+import haptics from './haptics';
+import initKeyboardShortcuts from './keyboard-shortcuts';
+import initPageTransitions from './page-transitions';
+
+// Make haptics globally available
+window.haptics = haptics;
+
 window.Alpine = Alpine;
 
+// Register gesture directives before Alpine starts
+registerGestureDirectives();
+
 Alpine.start();
+
+// Initialize keyboard shortcuts for desktop power users
+initKeyboardShortcuts();
+
+// Initialize page transitions for smooth navigation
+initPageTransitions();
 
 // Add performance optimization for asset loading
 // Preload critical resources
@@ -27,7 +45,7 @@ function preloadCriticalAssets() {
         '/js/app.js',
         // Add other critical assets as needed
     ];
-    
+
     criticalAssets.forEach(asset => {
         const link = document.createElement('link');
         link.rel = 'preload';

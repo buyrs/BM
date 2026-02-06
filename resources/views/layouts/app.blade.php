@@ -79,7 +79,7 @@
             }
         </style>
     </head>
-    <body class="font-sans antialiased bg-secondary-50">
+    <body class="font-sans antialiased bg-secondary-50 dark:bg-secondary-900 text-secondary-900 dark:text-secondary-100 transition-colors duration-200">
         @php
             $userRole = 'guest';
             if (Auth::guard('admin')->check()) {
@@ -93,19 +93,43 @@
         
         @if($userRole !== 'guest')
             <!-- Modern Layout with Sidebar -->
-            <div class="flex h-screen bg-secondary-50" x-data="{ sidebarOpen: false }">
+            <div 
+                class="flex h-screen bg-secondary-50 dark:bg-secondary-900 transition-colors duration-200" 
+                x-data="{ 
+                    sidebarOpen: false,
+                    sidebarCollapsed: localStorage.getItem('sidebarCollapsed') === 'true',
+                    toggleCollapse() {
+                        this.sidebarCollapsed = !this.sidebarCollapsed;
+                        localStorage.setItem('sidebarCollapsed', this.sidebarCollapsed);
+                    }
+                }"
+            >
                 <!-- Sidebar -->
-                <div class="fixed inset-y-0 left-0 z-50 w-64 bg-white shadow-medium transform transition-transform duration-300 ease-in-out lg:translate-x-0 lg:static lg:inset-0" 
-                     :class="{ '-translate-x-full': !sidebarOpen, 'translate-x-0': sidebarOpen }">
+                <div 
+                    class="fixed inset-y-0 left-0 z-50 bg-white dark:bg-secondary-800 shadow-medium dark:shadow-none dark:border-r dark:border-secondary-700 transform transition-all duration-300 ease-in-out lg:translate-x-0 lg:static lg:inset-0" 
+                    :class="{ 
+                        '-translate-x-full': !sidebarOpen, 
+                        'translate-x-0': sidebarOpen,
+                        'w-64': !sidebarCollapsed,
+                        'lg:w-20': sidebarCollapsed,
+                        'w-64': !sidebarCollapsed || !$store?.lg
+                    }"
+                    :style="sidebarCollapsed ? 'width: 5rem' : 'width: 16rem'"
+                    @mouseenter="if(sidebarCollapsed) $el.style.width = '16rem'"
+                    @mouseleave="if(sidebarCollapsed) $el.style.width = '5rem'"
+                >
                     <div class="flex flex-col h-full">
                         <!-- Logo -->
-                        <div class="flex items-center justify-between h-16 px-6 border-b border-secondary-200">
+                        <div class="flex items-center justify-between h-16 px-4 border-b border-secondary-200 dark:border-secondary-700">
                             <a href="{{ Auth::guard('admin')->check() ? route('admin.dashboard') : (Auth::guard('ops')->check() ? route('ops.dashboard') : route('checker.dashboard')) }}" 
-                               class="flex items-center space-x-3">
-                                <x-application-logo class="h-8 w-8 text-primary-600" />
-                                <span class="text-xl font-bold text-secondary-900">{{ config('app.name') }}</span>
+                               class="flex items-center space-x-3 overflow-hidden">
+                                <x-application-logo class="h-8 w-8 flex-shrink-0 text-primary-600" />
+                                <span 
+                                    class="text-xl font-bold text-secondary-900 dark:text-white whitespace-nowrap transition-opacity duration-200"
+                                    :class="{ 'lg:opacity-0 lg:w-0': sidebarCollapsed }"
+                                >{{ config('app.name') }}</span>
                             </a>
-                            <button @click="sidebarOpen = false" class="lg:hidden p-2 rounded-md text-secondary-400 hover:text-secondary-500 hover:bg-secondary-100">
+                            <button @click="sidebarOpen = false" class="lg:hidden p-2 rounded-md text-secondary-400 hover:text-secondary-500 dark:hover:text-secondary-300 hover:bg-secondary-100 dark:hover:bg-secondary-700">
                                 <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
                                 </svg>
@@ -113,13 +137,32 @@
                         </div>
 
                         <!-- Navigation -->
-                        <nav class="flex-1 px-4 py-6 space-y-1 overflow-y-auto scrollbar-thin">
+                        <nav class="flex-1 px-3 py-6 space-y-1 overflow-y-auto scrollbar-thin" :class="{ 'lg:px-2': sidebarCollapsed }">
                             @include('layouts.navigation')
                         </nav>
 
+                        <!-- Collapse Toggle (Desktop only) -->
+                        <div class="hidden lg:block border-t border-secondary-200 dark:border-secondary-700 p-3">
+                            <button 
+                                @click="toggleCollapse()"
+                                class="w-full flex items-center justify-center p-2 rounded-lg text-secondary-500 dark:text-secondary-400 hover:bg-secondary-100 dark:hover:bg-secondary-700 hover:text-secondary-700 dark:hover:text-secondary-200 transition-colors"
+                                :title="sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'"
+                            >
+                                <svg 
+                                    class="w-5 h-5 transition-transform duration-200" 
+                                    :class="{ 'rotate-180': sidebarCollapsed }"
+                                    fill="none" 
+                                    viewBox="0 0 24 24" 
+                                    stroke="currentColor"
+                                >
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 19l-7-7 7-7m8 14l-7-7 7-7" />
+                                </svg>
+                            </button>
+                        </div>
+
                         <!-- User Profile -->
-                        <div class="border-t border-secondary-200 p-4">
-                            <div class="flex items-center space-x-3">
+                        <div class="border-t border-secondary-200 dark:border-secondary-700 p-4">
+                            <div class="flex items-center" :class="{ 'lg:justify-center': sidebarCollapsed }">
                                 <div class="flex-shrink-0">
                                     <div class="h-8 w-8 bg-primary-500 rounded-full flex items-center justify-center">
                                         <span class="text-sm font-medium text-white">
@@ -127,17 +170,17 @@
                                         </span>
                                     </div>
                                 </div>
-                                <div class="flex-1 min-w-0">
-                                    <p class="text-sm font-medium text-secondary-900 truncate">
+                                <div class="flex-1 min-w-0 ml-3 transition-opacity duration-200" :class="{ 'lg:hidden': sidebarCollapsed }">
+                                    <p class="text-sm font-medium text-secondary-900 dark:text-white truncate">
                                         {{ Auth::guard('admin')->check() ? Auth::guard('admin')->user()->name : (Auth::guard('ops')->check() ? Auth::guard('ops')->user()->name : Auth::guard('checker')->user()->name) }}
                                     </p>
-                                    <p class="text-xs text-secondary-500 truncate">
+                                    <p class="text-xs text-secondary-500 dark:text-secondary-400 truncate">
                                         {{ ucfirst($userRole) }}
                                     </p>
                                 </div>
                                 <x-dropdown align="right" width="48">
                                     <x-slot name="trigger">
-                                        <button class="flex text-secondary-400 hover:text-secondary-500 focus:outline-none focus:text-secondary-500 transition duration-150 ease-in-out">
+                                        <button class="flex text-secondary-400 hover:text-secondary-500 dark:hover:text-secondary-300 focus:outline-none focus:text-secondary-500 transition duration-150 ease-in-out" :class="{ 'lg:hidden': sidebarCollapsed }">
                                             <svg class="h-5 w-5" fill="currentColor" viewBox="0 0 20 20">
                                                 <path d="M10 6a2 2 0 110-4 2 2 0 010 4zM10 12a2 2 0 110-4 2 2 0 010 4zM10 18a2 2 0 110-4 2 2 0 010 4z"></path>
                                             </svg>
@@ -146,7 +189,7 @@
                                     <x-slot name="content">
                                         <form method="POST" action="{{ route(Auth::guard('admin')->check() ? 'admin.logout' : (Auth::guard('ops')->check() ? 'ops.logout' : 'checker.logout')) }}">
                                             @csrf
-                                            <x-dropdown-link href="#" onclick="event.preventDefault(); this.closest('form').submit();" class="flex items-center px-4 py-2 text-sm text-secondary-700 hover:bg-secondary-100">
+                                            <x-dropdown-link href="#" onclick="event.preventDefault(); this.closest('form').submit();" class="flex items-center px-4 py-2 text-sm text-secondary-700 dark:text-secondary-200 hover:bg-secondary-100 dark:hover:bg-secondary-700">
                                                 <svg class="mr-3 h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
                                                 </svg>
@@ -163,10 +206,10 @@
                 <!-- Main Content -->
                 <div class="flex-1 flex flex-col overflow-hidden">
                     <!-- Top Header -->
-                    <header class="bg-white border-b border-secondary-200 lg:border-none">
+                    <header class="bg-white dark:bg-secondary-800 border-b border-secondary-200 dark:border-secondary-700 lg:border-none lg:shadow-sm dark:lg:shadow-none lg:dark:border-b">
                         <div class="flex items-center justify-between h-16 px-4 sm:px-6 lg:px-8">
                             <div class="flex items-center">
-                                <button @click="sidebarOpen = true" class="lg:hidden p-2 rounded-md text-secondary-400 hover:text-secondary-500 hover:bg-secondary-100">
+                                <button @click="sidebarOpen = true" class="lg:hidden p-2 rounded-md text-secondary-400 hover:text-secondary-500 dark:hover:text-secondary-300 hover:bg-secondary-100 dark:hover:bg-secondary-700">
                                     <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
                                     </svg>
@@ -179,11 +222,14 @@
                                 @endisset
                             </div>
                             
-                            <div class="flex items-center space-x-4">
+                            <div class="flex items-center space-x-2 sm:space-x-4">
+                                <!-- Theme Toggle -->
+                                <x-theme-toggle size="sm" />
+                                
                                 <!-- Notification Bell -->
-                                <button class="p-2 text-secondary-400 hover:text-secondary-500 hover:bg-secondary-100 rounded-lg">
+                                <button class="p-2 text-secondary-400 hover:text-secondary-500 dark:hover:text-secondary-300 hover:bg-secondary-100 dark:hover:bg-secondary-700 rounded-lg transition-colors">
                                     <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-3.5-3.5L21 9a9 9 0 11-9 9l4.5-4.5z" />
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
                                     </svg>
                                 </button>
                             </div>
@@ -191,7 +237,7 @@
                     </header>
 
                     <!-- Page Content -->
-                    <main class="flex-1 overflow-x-hidden overflow-y-auto">
+                    <main class="flex-1 overflow-x-hidden overflow-y-auto bg-secondary-50 dark:bg-secondary-900">
                         <div class="p-4 sm:p-6 lg:p-8">
                             {{ $slot ?? '' }}
                             @yield('content')
@@ -208,12 +254,12 @@
                      x-transition:leave-start="opacity-100"
                      x-transition:leave-end="opacity-0"
                      @click="sidebarOpen = false"
-                     class="fixed inset-0 z-40 bg-secondary-900 bg-opacity-75 lg:hidden"
+                     class="fixed inset-0 z-40 bg-secondary-900/75 dark:bg-black/80 lg:hidden"
                      style="display: none;"></div>
             </div>
         @else
             <!-- Guest Layout -->
-            <div class="min-h-screen bg-secondary-50">
+            <div class="min-h-screen bg-secondary-50 dark:bg-secondary-900">
                 <!-- Page Content for Guests -->
                 <main>
                     {{ $slot ?? '' }}
@@ -240,22 +286,22 @@
         </div>
 
         <!-- PWA Installation Prompt -->
-        <div id="pwa-install-prompt" class="fixed bottom-20 sm:bottom-4 left-4 right-4 sm:left-auto sm:right-4 sm:w-80 bg-white rounded-lg shadow-lg border border-gray-200 p-4 hidden z-40">
+        <div id="pwa-install-prompt" class="fixed bottom-20 sm:bottom-4 left-4 right-4 sm:left-auto sm:right-4 sm:w-80 bg-white dark:bg-secondary-800 rounded-lg shadow-lg dark:shadow-none border border-secondary-200 dark:border-secondary-700 p-4 hidden z-40">
             <div class="flex items-start space-x-3">
                 <div class="flex-shrink-0">
-                    <svg class="w-6 h-6 text-indigo-600" fill="currentColor" viewBox="0 0 20 20">
+                    <svg class="w-6 h-6 text-primary-600 dark:text-primary-400" fill="currentColor" viewBox="0 0 20 20">
                         <path fill-rule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clip-rule="evenodd"></path>
                     </svg>
                 </div>
                 <div class="flex-1">
-                    <h3 class="text-sm font-medium text-gray-900">Install App</h3>
-                    <p class="text-xs text-gray-500 mt-1">Add to your home screen for quick access</p>
+                    <h3 class="text-sm font-medium text-secondary-900 dark:text-white">Install App</h3>
+                    <p class="text-xs text-secondary-500 dark:text-secondary-400 mt-1">Add to your home screen for quick access</p>
                 </div>
                 <div class="flex space-x-2">
-                    <button id="pwa-install-dismiss" class="text-xs text-gray-400 hover:text-gray-600">
+                    <button id="pwa-install-dismiss" class="text-xs text-secondary-400 hover:text-secondary-600 dark:hover:text-secondary-200">
                         Dismiss
                     </button>
-                    <button id="pwa-install-button" class="text-xs bg-indigo-600 text-white px-3 py-1 rounded hover:bg-indigo-700">
+                    <button id="pwa-install-button" class="text-xs bg-primary-600 text-white px-3 py-1 rounded hover:bg-primary-700">
                         Install
                     </button>
                 </div>
@@ -439,5 +485,14 @@
             window.addEventListener('offline', updateOnlineStatus);
             updateOnlineStatus();
         </script>
+        
+        {{-- Global UX Components --}}
+        <x-toast-notification position="bottom-right" />
+        
+        {{-- Desktop-only components --}}
+        <div class="hidden lg:block">
+            <x-command-palette />
+            <x-keyboard-shortcuts-help />
+        </div>
     </body>
 </html>

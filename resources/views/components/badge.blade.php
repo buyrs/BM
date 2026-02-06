@@ -4,15 +4,15 @@
 $baseClasses = 'inline-flex items-center font-medium rounded-full';
 
 $variants = [
-    'default' => 'bg-secondary-100 text-secondary-800',
-    'primary' => 'bg-primary-100 text-primary-800',
-    'secondary' => 'bg-secondary-100 text-secondary-800',
-    'accent' => 'bg-accent-100 text-accent-800',
-    'success' => 'bg-success-100 text-success-800',
-    'warning' => 'bg-warning-100 text-warning-800',
-    'danger' => 'bg-danger-100 text-danger-800',
-    'info' => 'bg-primary-100 text-primary-800',
-    'outline' => 'border border-secondary-300 text-secondary-700',
+    'default' => 'bg-secondary-100 dark:bg-secondary-700 text-secondary-800 dark:text-secondary-200',
+    'primary' => 'bg-primary-100 dark:bg-primary-900/50 text-primary-800 dark:text-primary-300',
+    'secondary' => 'bg-secondary-100 dark:bg-secondary-700 text-secondary-800 dark:text-secondary-200',
+    'accent' => 'bg-accent-100 dark:bg-accent-900/50 text-accent-800 dark:text-accent-300',
+    'success' => 'bg-success-100 dark:bg-success-900/50 text-success-800 dark:text-success-300',
+    'warning' => 'bg-warning-100 dark:bg-warning-900/50 text-warning-800 dark:text-warning-300',
+    'danger' => 'bg-danger-100 dark:bg-danger-900/50 text-danger-800 dark:text-danger-300',
+    'info' => 'bg-primary-100 dark:bg-primary-900/50 text-primary-800 dark:text-primary-300',
+    'outline' => 'border border-secondary-300 dark:border-secondary-600 text-secondary-700 dark:text-secondary-300',
 ];
 
 $sizes = [

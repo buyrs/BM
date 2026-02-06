@@ -116,18 +116,7 @@
 }
 
 @layer utilities {
-  /* Animation utilities */
-  .animate-fade-in {
-    @apply animate-fade-in;
-  }
-  
-  .animate-slide-up {
-    @apply animate-slide-up;
-  }
-  
-  .animate-bounce-gentle {
-    @apply animate-bounce-gentle;
-  }
+  /* Animation utilities - these extend keyframes defined in tailwind.config.js */
   
   /* Interaction states */
   .interactive {

@@ -1,11 +1,11 @@
 @props(['disabled' => false, 'error' => false, 'icon' => null, 'size' => 'md', 'placeholder' => ''])
 
 @php
-$baseClasses = 'block w-full rounded-lg border-0 py-1.5 text-secondary-900 shadow-sm ring-1 ring-inset placeholder:text-secondary-400 focus:ring-2 focus:ring-inset transition-colors duration-200 disabled:cursor-not-allowed disabled:bg-secondary-50 disabled:text-secondary-500 disabled:ring-secondary-200';
+$baseClasses = 'block w-full rounded-lg border-0 py-1.5 shadow-sm ring-1 ring-inset placeholder:text-secondary-400 dark:placeholder:text-secondary-500 focus:ring-2 focus:ring-inset transition-colors duration-200 disabled:cursor-not-allowed disabled:bg-secondary-50 dark:disabled:bg-secondary-800 disabled:text-secondary-500 disabled:ring-secondary-200 dark:disabled:ring-secondary-700 bg-white dark:bg-secondary-800 text-secondary-900 dark:text-secondary-100';
 
 $stateClasses = $error
-    ? 'ring-danger-300 placeholder:text-danger-300 focus:ring-danger-600'
-    : 'ring-secondary-300 focus:ring-primary-600';
+    ? 'ring-danger-300 dark:ring-danger-500 placeholder:text-danger-300 focus:ring-danger-600'
+    : 'ring-secondary-300 dark:ring-secondary-600 focus:ring-primary-600 dark:focus:ring-primary-500';
 
 $sizeClasses = [
     'sm' => 'px-2.5 py-1.5 text-sm',
@@ -19,7 +19,7 @@ $classes = $baseClasses . ' ' . $stateClasses . ' ' . ($sizeClasses[$size] ?? $s
 <div class="relative">
     @if ($icon)
         <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-            <span class="text-secondary-400 sm:text-sm">{!! $icon !!}</span>
+            <span class="text-secondary-400 dark:text-secondary-500 sm:text-sm">{!! $icon !!}</span>
         </div>
     @endif
     

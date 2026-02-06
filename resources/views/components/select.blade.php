@@ -1,11 +1,11 @@
 @props(['disabled' => false, 'error' => false, 'placeholder' => 'Select an option...', 'size' => 'md', 'multiple' => false])
 
 @php
-$baseClasses = 'block w-full rounded-lg border-0 py-1.5 text-secondary-900 shadow-sm ring-1 ring-inset placeholder:text-secondary-400 focus:ring-2 focus:ring-inset transition-colors duration-200 disabled:cursor-not-allowed disabled:bg-secondary-50 disabled:text-secondary-500 disabled:ring-secondary-200';
+$baseClasses = 'block w-full rounded-lg border-0 py-1.5 shadow-sm ring-1 ring-inset focus:ring-2 focus:ring-inset transition-colors duration-200 disabled:cursor-not-allowed bg-white dark:bg-secondary-800 text-secondary-900 dark:text-secondary-100 placeholder:text-secondary-400 dark:placeholder:text-secondary-500 disabled:bg-secondary-50 dark:disabled:bg-secondary-800 disabled:text-secondary-500 disabled:ring-secondary-200 dark:disabled:ring-secondary-700';
 
 $stateClasses = $error
-    ? 'ring-danger-300 focus:ring-danger-600'
-    : 'ring-secondary-300 focus:ring-primary-600';
+    ? 'ring-danger-300 dark:ring-danger-500 focus:ring-danger-600'
+    : 'ring-secondary-300 dark:ring-secondary-600 focus:ring-primary-600 dark:focus:ring-primary-500';
 
 $sizeClasses = [
     'sm' => 'px-2.5 py-1.5 text-sm',
@@ -26,7 +26,7 @@ $classes = $baseClasses . ' ' . $stateClasses . ' ' . ($sizeClasses[$size] ?? $s
     
     @if(!$multiple)
         <div class="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
-            <svg class="h-5 w-5 text-secondary-400" viewBox="0 0 20 20" fill="currentColor">
+            <svg class="h-5 w-5 text-secondary-400 dark:text-secondary-500" viewBox="0 0 20 20" fill="currentColor">
                 <path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd" />
             </svg>
         </div>
