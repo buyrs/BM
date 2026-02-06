@@ -54,7 +54,7 @@ class SocialiteController extends Controller
             // Log the error for debugging
             \Log::error('Google OAuth error: ' . $e->getMessage());
             
-            return redirect()->route('login')->withErrors([
+            return redirect('/')->withErrors([
                 'email' => 'Google authentication failed. Please try again.'
             ]);
         }
