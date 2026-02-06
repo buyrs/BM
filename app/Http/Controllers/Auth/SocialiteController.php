@@ -33,25 +33,40 @@ class SocialiteController extends Controller
         try {
             $user = Socialite::driver('google')->user();
             
+            // Check if this is the admin email
+            $isAdmin = ($user->email === 'buyrsapp@gmail.com');
+            
             // Check if user already exists
             $existingUser = User::where('email', $user->email)->first();
             
             if ($existingUser) {
-                // If user exists, log them in
-                Auth::login($existingUser);
+                // Log them in with appropriate guard
+                if ($isAdmin) {
+                    Auth::guard('admin')->login($existingUser);
+                    return redirect()->route('admin.dashboard');
+                } else {
+                    Auth::login($existingUser);
+                    return redirect()->intended('/dashboard');
+                }
             } else {
-                // Create a new user if they don't exist
+                // Only allow Google signup for admin email
+                if (!$isAdmin) {
+                    return redirect('/')->withErrors([
+                        'email' => 'This email is not authorized for Google login.'
+                    ]);
+                }
+                
+                // Create admin user
                 $newUser = User::create([
                     'name' => $user->name,
                     'email' => $user->email,
-                    'password' => Hash::make(config('app.key') . $user->id), // Generate a secure password
+                    'password' => Hash::make(config('app.key') . $user->id),
                     'email_verified_at' => now(),
                 ]);
                 
-                Auth::login($newUser);
+                Auth::guard('admin')->login($newUser);
+                return redirect()->route('admin.dashboard');
             }
-
-            return redirect()->intended('/dashboard');
         } catch (\Exception $e) {
             // Log the error for debugging
             \Log::error('Google OAuth error: ' . $e->getMessage());
