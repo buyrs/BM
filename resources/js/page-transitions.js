@@ -77,7 +77,7 @@ class PageTransitions {
 
         // Haptic feedback
         if (window.haptics) {
-            window.haptics.light();
+            window.haptics.selection();
         }
 
         try {
