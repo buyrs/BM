@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\MorphMany;
 
 class Property extends Model
 {
@@ -35,4 +36,25 @@ class Property extends Model
     {
         return $this->hasMany(Mission::class, 'property_address', 'property_address');
     }
+
+    /**
+     * Get all favorites for this property.
+     */
+    public function favorites(): MorphMany
+    {
+        return $this->morphMany(Favorite::class, 'favorable');
+    }
+
+    /**
+     * Check if the property is favorited by a user.
+     */
+    public function isFavoritedBy(?User $user): bool
+    {
+        if (!$user) {
+            return false;
+        }
+
+        return $this->favorites()->where('user_id', $user->id)->exists();
+    }
 }
+

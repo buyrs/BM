@@ -53,6 +53,7 @@ Route::prefix('v1')->group(function () {
             Route::post('/', [\App\Http\Controllers\Api\MissionController::class, 'store'])->middleware('api.role:admin,ops');
             Route::put('/{id}', [\App\Http\Controllers\Api\MissionController::class, 'update']);
             Route::delete('/{id}', [\App\Http\Controllers\Api\MissionController::class, 'destroy'])->middleware('api.role:admin');
+            Route::get('/{id}/comparison', [\App\Http\Controllers\Api\MissionController::class, 'comparison']);
         });
 
         // Checklists API
@@ -104,6 +105,56 @@ Route::prefix('v1')->group(function () {
             Route::get('/usage', [\App\Http\Controllers\Api\AnalyticsController::class, 'usage']);
             Route::get('/real-time', [\App\Http\Controllers\Api\AnalyticsController::class, 'realTime']);
         });
+
+        // Favorites API
+        Route::prefix('favorites')->group(function () {
+            Route::get('/', [\App\Http\Controllers\FavoriteController::class, 'index']);
+            Route::post('/toggle', [\App\Http\Controllers\FavoriteController::class, 'toggle']);
+            Route::get('/check', [\App\Http\Controllers\FavoriteController::class, 'check']);
+        });
+
+        // Ops API (Workloads, Assignment, Route Optimization)
+        Route::prefix('ops')->middleware('api.role:admin,ops')->group(function () {
+            Route::get('/workloads', [\App\Http\Controllers\Api\OpsController::class, 'workloads']);
+            Route::post('/suggest-checker', [\App\Http\Controllers\Api\OpsController::class, 'suggestChecker']);
+            Route::post('/bulk-assign', [\App\Http\Controllers\Api\OpsController::class, 'bulkAssign']);
+            Route::post('/optimize-route', [\App\Http\Controllers\Api\OpsController::class, 'optimizeRoute']);
+            Route::post('/compare-routes', [\App\Http\Controllers\Api\OpsController::class, 'compareRoutes']);
+            Route::get('/daily-route/{checkerId}', [\App\Http\Controllers\Api\OpsController::class, 'dailyRoute']);
+        });
+
+        // QA API (Admin Only)
+        Route::prefix('qa')->middleware('api.role:admin')->group(function () {
+            Route::get('/queue', [\App\Http\Controllers\Api\QAController::class, 'queue']);
+            Route::get('/dashboard', [\App\Http\Controllers\Api\QAController::class, 'dashboard']);
+            Route::post('/verify-mission/{missionId}', [\App\Http\Controllers\Api\QAController::class, 'verifyMission']);
+            Route::post('/reviews/{reviewId}/approve', [\App\Http\Controllers\Api\QAController::class, 'approve']);
+            Route::post('/reviews/{reviewId}/reject', [\App\Http\Controllers\Api\QAController::class, 'reject']);
+            Route::post('/reviews/{reviewId}/flag', [\App\Http\Controllers\Api\QAController::class, 'flag']);
+            Route::post('/bulk-approve', [\App\Http\Controllers\Api\QAController::class, 'bulkApprove']);
+        });
+
+        // Client Portal API
+        Route::prefix('client')->middleware('api.role:client')->group(function () {
+            Route::get('/dashboard', [\App\Http\Controllers\Api\ClientController::class, 'dashboard']);
+            Route::get('/properties', [\App\Http\Controllers\Api\ClientController::class, 'properties']);
+            Route::get('/properties/{propertyId}', [\App\Http\Controllers\Api\ClientController::class, 'property']);
+            Route::get('/inspections', [\App\Http\Controllers\Api\ClientController::class, 'inspections']);
+            Route::get('/inspections/{missionId}', [\App\Http\Controllers\Api\ClientController::class, 'inspectionReport']);
+        });
+
+        // Property Conditions API
+        Route::prefix('properties')->group(function () {
+            Route::get('/{propertyId}/conditions', [\App\Http\Controllers\Api\PropertyConditionController::class, 'history']);
+            Route::get('/{propertyId}/condition-score', [\App\Http\Controllers\Api\PropertyConditionController::class, 'score']);
+            Route::post('/{propertyId}/conditions', [\App\Http\Controllers\Api\PropertyConditionController::class, 'record']);
+            Route::get('/{propertyId}/conditions/degraded', [\App\Http\Controllers\Api\PropertyConditionController::class, 'degraded']);
+            Route::get('/{propertyId}/checklist-suggestions', [\App\Http\Controllers\Api\PropertyConditionController::class, 'suggestions']);
+        });
+
+        // Smart Checklists
+        Route::post('/missions/{missionId}/generate-checklist', [\App\Http\Controllers\Api\PropertyConditionController::class, 'generateChecklist']);
+        Route::post('/conditions/compare', [\App\Http\Controllers\Api\PropertyConditionController::class, 'compare']);
     });
 });
 

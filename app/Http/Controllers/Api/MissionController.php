@@ -318,6 +318,31 @@ class MissionController extends BaseApiController
     }
 
     /**
+     * Get comparison with previous inspection
+     */
+    public function comparison(Request $request, int $id): JsonResponse
+    {
+        try {
+            $user = $this->getAuthenticatedUser($request);
+            
+            $mission = Mission::with(['checklists.items', 'checker', 'property'])->findOrFail($id);
+
+            // Check permissions
+            if ($user->role === 'checker' && $mission->checker_id !== $user->id) {
+                return $this->forbidden('You can only view comparisons for your own missions');
+            }
+
+            $comparisonService = app(\App\Services\InspectionComparisonService::class);
+            $comparison = $comparisonService->getComparison($mission);
+
+            return $this->success($comparison, 'Comparison retrieved successfully');
+
+        } catch (\Exception $e) {
+            return $this->notFound('Mission not found');
+        }
+    }
+
+    /**
      * Transform mission for API response
      */
     private function transformMission(Mission $mission, array $relations = []): array

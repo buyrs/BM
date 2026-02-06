@@ -162,4 +162,66 @@ class User extends Authenticatable
     {
         return $this->hasMany(Mission::class, 'admin_id');
     }
+
+    /**
+     * Get the user's favorites.
+     */
+    public function favorites(): HasMany
+    {
+        return $this->hasMany(Favorite::class);
+    }
+
+    /**
+     * Get the user's favorite properties.
+     */
+    public function favoriteProperties()
+    {
+        return $this->favorites()
+            ->where('favorable_type', Property::class)
+            ->with('favorable');
+    }
+
+    /**
+     * Get the user's favorite missions.
+     */
+    public function favoriteMissions()
+    {
+        return $this->favorites()
+            ->where('favorable_type', Mission::class)
+            ->with('favorable');
+    }
+
+    /**
+     * Check if the user has favorited a given model.
+     */
+    public function hasFavorited($model): bool
+    {
+        return $this->favorites()
+            ->where('favorable_type', get_class($model))
+            ->where('favorable_id', $model->id)
+            ->exists();
+    }
+
+    /**
+     * Toggle favorite status for a given model.
+     */
+    public function toggleFavorite($model): bool
+    {
+        $existing = $this->favorites()
+            ->where('favorable_type', get_class($model))
+            ->where('favorable_id', $model->id)
+            ->first();
+
+        if ($existing) {
+            $existing->delete();
+            return false; // Unfavorited
+        }
+
+        $this->favorites()->create([
+            'favorable_type' => get_class($model),
+            'favorable_id' => $model->id,
+        ]);
+
+        return true; // Favorited
+    }
 }
