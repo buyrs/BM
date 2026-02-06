@@ -1,8 +1,6 @@
-const CACHE_NAME = 'bail-mobilite-v1';
+const CACHE_NAME = 'bail-mobilite-v2';
 const urlsToCache = [
   '/',
-  '/css/app.css',
-  '/js/app.js',
   '/offline',
   '/images/icons/icon-192x192.png'
 ];
@@ -33,7 +31,7 @@ self.addEventListener('fetch', event => {
           return caches.match('/offline');
         });
       }
-    )
+      )
   );
 });
 
