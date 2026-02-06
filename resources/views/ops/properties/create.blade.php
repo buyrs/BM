@@ -150,7 +150,13 @@
 
                     <div class="mt-6">
                         <label for="owner_address" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Owner Address</label>
-                        <textarea name="owner_address" id="owner_address" rows="3" class="block w-full px-3 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="Enter the owner's mailing address">{{ old('owner_address') }}</textarea>
+                        <div class="relative">
+                            <input type="text" name="owner_address" id="owner_address" value="{{ old('owner_address') }}" class="block w-full px-3 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 @error('owner_address') border-red-300 dark:border-red-600 @enderror" placeholder="Start typing owner's address..." autocomplete="off">
+                            <div class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                                <div id="owner-address-help-google">Google Places will provide address suggestions as you type</div>
+                                <div id="owner-address-help-fallback" style="display: none;">Google Places API not configured - enter address manually</div>
+                            </div>
+                        </div>
                         @error('owner_address')
                             <p class="mt-1 text-sm text-red-600 dark:text-red-400">{{ $message }}</p>
                         @enderror
@@ -188,41 +194,66 @@
 <script async defer src="https://maps.googleapis.com/maps/api/js?key={{ config('services.google.places_api_key') }}&libraries=places&callback=initAutocomplete"></script>
 
 <script>
-let autocomplete;
+let propertyAutocomplete;
+let ownerAutocomplete;
 
 // Initialize Google Places Autocomplete
 function initAutocomplete() {
     const propertyInput = document.getElementById('property_address');
+    const ownerInput = document.getElementById('owner_address');
     const helpGoogle = document.getElementById('address-help-google');
     const helpFallback = document.getElementById('address-help-fallback');
-    
-    if (!propertyInput) return;
+    const ownerHelpGoogle = document.getElementById('owner-address-help-google');
+    const ownerHelpFallback = document.getElementById('owner-address-help-fallback');
     
     // Check if Google Places API key is configured
     const hasGoogleAPI = '{{ config("services.google.places_api_key") }}' !== '';
     
     if (hasGoogleAPI) {
         try {
-            // Initialize Google Places Autocomplete
-            autocomplete = new google.maps.places.Autocomplete(propertyInput, {
-                types: ['address'],
-                fields: ['formatted_address', 'geometry', 'name', 'address_components']
-            });
-            
-            // Handle place selection
-            autocomplete.addListener('place_changed', function() {
-                const place = autocomplete.getPlace();
-                if (place.formatted_address) {
-                    propertyInput.value = place.formatted_address;
-                    
-                    // Optional: Auto-fill additional fields if available
-                    fillAdditionalFields(place);
+            // Initialize Google Places Autocomplete for Property Address
+            if (propertyInput) {
+                propertyAutocomplete = new google.maps.places.Autocomplete(propertyInput, {
+                    types: ['address'],
+                    fields: ['formatted_address', 'geometry', 'name', 'address_components']
+                });
+                
+                // Handle place selection for property address
+                propertyAutocomplete.addListener('place_changed', function() {
+                    const place = propertyAutocomplete.getPlace();
+                    if (place.formatted_address) {
+                        propertyInput.value = place.formatted_address;
+                    }
+                });
+                
+                // Show Google API help text
+                if (helpGoogle && helpFallback) {
+                    helpGoogle.style.display = 'block';
+                    helpFallback.style.display = 'none';
                 }
-            });
+            }
             
-            // Show Google API help text
-            helpGoogle.style.display = 'block';
-            helpFallback.style.display = 'none';
+            // Initialize Google Places Autocomplete for Owner Address
+            if (ownerInput) {
+                ownerAutocomplete = new google.maps.places.Autocomplete(ownerInput, {
+                    types: ['address'],
+                    fields: ['formatted_address', 'geometry', 'name', 'address_components']
+                });
+                
+                // Handle place selection for owner address
+                ownerAutocomplete.addListener('place_changed', function() {
+                    const place = ownerAutocomplete.getPlace();
+                    if (place.formatted_address) {
+                        ownerInput.value = place.formatted_address;
+                    }
+                });
+                
+                // Show Google API help text
+                if (ownerHelpGoogle && ownerHelpFallback) {
+                    ownerHelpGoogle.style.display = 'block';
+                    ownerHelpFallback.style.display = 'none';
+                }
+            }
             
         } catch (error) {
             console.error('Error initializing Google Places:', error);
@@ -233,9 +264,20 @@ function initAutocomplete() {
     }
     
     function showFallbackMode() {
-        helpGoogle.style.display = 'none';
-        helpFallback.style.display = 'block';
-        propertyInput.placeholder = 'Enter the complete property address';
+        if (helpGoogle && helpFallback) {
+            helpGoogle.style.display = 'none';
+            helpFallback.style.display = 'block';
+        }
+        if (ownerHelpGoogle && ownerHelpFallback) {
+            ownerHelpGoogle.style.display = 'none';
+            ownerHelpFallback.style.display = 'block';
+        }
+        if (propertyInput) {
+            propertyInput.placeholder = 'Enter the complete property address';
+        }
+        if (ownerInput) {
+            ownerInput.placeholder = 'Enter the complete owner address';
+        }
     }
 }
 
@@ -267,15 +309,27 @@ document.addEventListener('DOMContentLoaded', function() {
         if (typeof google === 'undefined') {
             const helpGoogle = document.getElementById('address-help-google');
             const helpFallback = document.getElementById('address-help-fallback');
+            const ownerHelpGoogle = document.getElementById('owner-address-help-google');
+            const ownerHelpFallback = document.getElementById('owner-address-help-fallback');
             
             if (helpGoogle && helpFallback) {
                 helpGoogle.style.display = 'none';
                 helpFallback.style.display = 'block';
             }
             
+            if (ownerHelpGoogle && ownerHelpFallback) {
+                ownerHelpGoogle.style.display = 'none';
+                ownerHelpFallback.style.display = 'block';
+            }
+            
             const propertyInput = document.getElementById('property_address');
             if (propertyInput) {
                 propertyInput.placeholder = 'Enter the complete property address';
+            }
+            
+            const ownerInput = document.getElementById('owner_address');
+            if (ownerInput) {
+                ownerInput.placeholder = 'Enter the complete owner address';
             }
         }
     }, 5000);

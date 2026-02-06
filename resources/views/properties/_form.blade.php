@@ -50,17 +50,23 @@
                     Owner Address
                 </label>
                 <div class="relative">
-                    <textarea name="owner_address" 
-                              id="owner_address" 
-                              rows="4"
-                              placeholder="Enter owner's address"
-                              class="w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 placeholder-gray-400 resize-none">{{ old('owner_address', $property->owner_address ?? '') }}</textarea>
-                    <div class="absolute top-3 right-3 pointer-events-none">
+                    <input type="text" 
+                           name="owner_address" 
+                           id="owner_address" 
+                           value="{{ old('owner_address', $property->owner_address ?? '') }}"
+                           placeholder="Start typing owner's address..."
+                           autocomplete="off"
+                           class="w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 placeholder-gray-400">
+                    <div class="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
                         <svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"></path>
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"></path>
                         </svg>
                     </div>
+                </div>
+                <div class="text-xs text-gray-500">
+                    <div id="owner-address-help-google">Google Places will provide address suggestions</div>
+                    <div id="owner-address-help-fallback" style="display: none;">Enter address manually</div>
                 </div>
                 @error('owner_address')
                     <p class="text-sm text-red-600 flex items-center gap-1">
@@ -164,7 +170,8 @@
                            id="property_address" 
                            value="{{ old('property_address', $property->property_address ?? '') }}"
                            required
-                           placeholder="Enter property address"
+                           placeholder="Start typing property address..."
+                           autocomplete="off"
                            class="w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-all duration-200 placeholder-gray-400">
                     <div class="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
                         <svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -172,6 +179,10 @@
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"></path>
                         </svg>
                     </div>
+                </div>
+                <div class="text-xs text-gray-500">
+                    <div id="address-help-google">Google Places will provide address suggestions</div>
+                    <div id="address-help-fallback" style="display: none;">Enter address manually</div>
                 </div>
                 @error('property_address')
                     <p class="text-sm text-red-600 flex items-center gap-1">

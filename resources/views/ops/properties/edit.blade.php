@@ -28,14 +28,26 @@
             </div>
             <div class="mb-4">
                 <label for="owner_address" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Owner Address</label>
-                <textarea name="owner_address" id="owner_address" rows="3" class="block w-full px-3 py-2 mt-1 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white">{{ old('owner_address', $property->owner_address) }}</textarea>
+                <div class="relative">
+                    <input type="text" name="owner_address" id="owner_address" value="{{ old('owner_address', $property->owner_address) }}" class="block w-full px-3 py-2 mt-1 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white" placeholder="Start typing owner's address..." autocomplete="off">
+                    <div class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                        <div id="owner-address-help-google">Google Places will provide address suggestions</div>
+                        <div id="owner-address-help-fallback" style="display: none;">Enter address manually</div>
+                    </div>
+                </div>
                 @error('owner_address')
                     <p class="text-red-500 text-xs mt-1">{{ $message }}</p>
                 @enderror
             </div>
             <div class="mb-4">
                 <label for="property_address" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Property Address</label>
-                <input type="text" name="property_address" id="property_address" class="block w-full px-3 py-2 mt-1 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white" value="{{ old('property_address', $property->property_address) }}" required>
+                <div class="relative">
+                    <input type="text" name="property_address" id="property_address" value="{{ old('property_address', $property->property_address) }}" class="block w-full px-3 py-2 mt-1 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white" placeholder="Start typing property address..." required autocomplete="off">
+                    <div class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                        <div id="address-help-google">Google Places will provide address suggestions</div>
+                        <div id="address-help-fallback" style="display: none;">Enter address manually</div>
+                    </div>
+                </div>
                 @error('property_address')
                     <p class="text-red-500 text-xs mt-1">{{ $message }}</p>
                 @enderror
@@ -65,4 +77,110 @@
         </form>
     </div>
 </div>
+
+@push('scripts')
+<!-- Google Places API -->
+<script async defer src="https://maps.googleapis.com/maps/api/js?key={{ config('services.google.places_api_key') }}&libraries=places&callback=initAutocomplete"></script>
+
+<script>
+let propertyAutocomplete;
+let ownerAutocomplete;
+
+function initAutocomplete() {
+    const propertyInput = document.getElementById('property_address');
+    const ownerInput = document.getElementById('owner_address');
+    const helpGoogle = document.getElementById('address-help-google');
+    const helpFallback = document.getElementById('address-help-fallback');
+    const ownerHelpGoogle = document.getElementById('owner-address-help-google');
+    const ownerHelpFallback = document.getElementById('owner-address-help-fallback');
+    
+    const hasGoogleAPI = '{{ config("services.google.places_api_key") }}' !== '';
+    
+    if (hasGoogleAPI) {
+        try {
+            if (propertyInput) {
+                propertyAutocomplete = new google.maps.places.Autocomplete(propertyInput, {
+                    types: ['address'],
+                    fields: ['formatted_address', 'geometry', 'name', 'address_components']
+                });
+                
+                propertyAutocomplete.addListener('place_changed', function() {
+                    const place = propertyAutocomplete.getPlace();
+                    if (place.formatted_address) {
+                        propertyInput.value = place.formatted_address;
+                    }
+                });
+                
+                if (helpGoogle && helpFallback) {
+                    helpGoogle.style.display = 'block';
+                    helpFallback.style.display = 'none';
+                }
+            }
+            
+            if (ownerInput) {
+                ownerAutocomplete = new google.maps.places.Autocomplete(ownerInput, {
+                    types: ['address'],
+                    fields: ['formatted_address', 'geometry', 'name', 'address_components']
+                });
+                
+                ownerAutocomplete.addListener('place_changed', function() {
+                    const place = ownerAutocomplete.getPlace();
+                    if (place.formatted_address) {
+                        ownerInput.value = place.formatted_address;
+                    }
+                });
+                
+                if (ownerHelpGoogle && ownerHelpFallback) {
+                    ownerHelpGoogle.style.display = 'block';
+                    ownerHelpFallback.style.display = 'none';
+                }
+            }
+        } catch (error) {
+            console.error('Error initializing Google Places:', error);
+            showFallbackMode();
+        }
+    } else {
+        showFallbackMode();
+    }
+    
+    function showFallbackMode() {
+        if (helpGoogle && helpFallback) {
+            helpGoogle.style.display = 'none';
+            helpFallback.style.display = 'block';
+        }
+        if (ownerHelpGoogle && ownerHelpFallback) {
+            ownerHelpGoogle.style.display = 'none';
+            ownerHelpFallback.style.display = 'block';
+        }
+        if (propertyInput) propertyInput.placeholder = 'Enter the complete property address';
+        if (ownerInput) ownerInput.placeholder = 'Enter the complete owner address';
+    }
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    setTimeout(() => {
+        if (typeof google === 'undefined') {
+            const helpGoogle = document.getElementById('address-help-google');
+            const helpFallback = document.getElementById('address-help-fallback');
+            const ownerHelpGoogle = document.getElementById('owner-address-help-google');
+            const ownerHelpFallback = document.getElementById('owner-address-help-fallback');
+            
+            if (helpGoogle && helpFallback) {
+                helpGoogle.style.display = 'none';
+                helpFallback.style.display = 'block';
+            }
+            if (ownerHelpGoogle && ownerHelpFallback) {
+                ownerHelpGoogle.style.display = 'none';
+                ownerHelpFallback.style.display = 'block';
+            }
+            
+            const propertyInput = document.getElementById('property_address');
+            const ownerInput = document.getElementById('owner_address');
+            if (propertyInput) propertyInput.placeholder = 'Enter the complete property address';
+            if (ownerInput) ownerInput.placeholder = 'Enter the complete owner address';
+        }
+    }, 5000);
+});
+</script>
+@endpush
 @endsection
