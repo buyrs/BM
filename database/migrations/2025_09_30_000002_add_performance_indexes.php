@@ -125,9 +125,7 @@ return new class extends Migration
             if (!$this->indexExists('failed_jobs', 'failed_jobs_failed_at_index')) {
                 $table->index('failed_at');
             }
-            if (!$this->indexExists('failed_jobs', 'failed_jobs_queue_failed_at_index')) {
-                $table->index(['queue', 'failed_at']);
-            }
+            // Note: Composite index (queue, failed_at) removed due to MySQL key length limit
         });
     }
 
@@ -231,9 +229,6 @@ return new class extends Migration
             }
             if ($this->indexExists('failed_jobs', 'failed_jobs_failed_at_index')) {
                 $table->dropIndex(['failed_at']);
-            }
-            if ($this->indexExists('failed_jobs', 'failed_jobs_queue_failed_at_index')) {
-                $table->dropIndex(['queue', 'failed_at']);
             }
         });
     }
